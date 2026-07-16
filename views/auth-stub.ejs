@@ -1,0 +1,44 @@
+<%- include('partials/header') %>
+
+<main class="auth-page">
+  <section class="auth-card">
+    <div class="auth-logo">IC</div>
+
+    <% if (mode === 'login') { %>
+      <h1>Welcome back</h1>
+      <p>Account login will be available soon.</p>
+
+      <button class="btn btn-primary btn-block" disabled>
+        Log In - Coming Soon
+      </button>
+
+      <a href="/register" class="auth-secondary-link">
+        Create an account
+      </a>
+    <% } else { %>
+      <h1>Create your account</h1>
+      <p>
+        Save your conversations, customize your profile and unlock
+        additional matching filters.
+      </p>
+
+      <button class="btn btn-primary btn-block" disabled>
+        Create Account - Coming Soon
+      </button>
+
+      <a href="/login" class="auth-secondary-link">
+        Already have an account?
+      </a>
+    <% } %>
+
+    <div class="auth-divider">
+      <span>or</span>
+    </div>
+
+    <a href="/chat?guest=1" class="btn btn-outline btn-block">
+      Continue as Guest
+    </a>
+  </section>
+</main>
+
+<%- include('partials/footer') %>

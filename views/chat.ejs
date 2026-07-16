@@ -1,0 +1,245 @@
+<!DOCTYPE html>
+<html lang="it">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title><%= pageTitle %> - Interest Chat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body class="chat-app-page">
+    <button class="mobile-sidebar-toggle" id="sidebarToggle" type="button" aria-label="Open menu">
+      <span></span>
+      <span></span>
+      <span></span>
+    </button>
+
+    <div class="chat-layout">
+      <aside class="chat-sidebar" id="chatSidebar">
+        <a class="chat-brand" href="/">
+          <span>IC</span>
+          <strong>Interest Chat</strong>
+        </a>
+
+        <div class="chat-profile-card">
+          <div class="chat-profile-avatar" id="profileInitial">G</div>
+          <div>
+            <strong id="profileName">Guest</strong>
+            <span>Guest Account</span>
+          </div>
+          <div class="chat-profile-actions">
+            <button type="button" aria-label="Settings" title="Coming soon">
+              <span class="ui-icon icon-gear"></span>
+            </button>
+            <button type="button" id="soundToggle" aria-label="Toggle sound">
+              <span class="ui-icon icon-audio"></span>
+            </button>
+            <button type="button" id="themeToggle" aria-label="Toggle theme">
+              <span class="ui-icon icon-moon"></span>
+            </button>
+          </div>
+        </div>
+
+        <div class="discord-panel">
+          <div class="discord-scroll">
+            <div class="discord-tabs">
+              <button type="button" class="active">
+                <span class="ui-icon icon-mail"></span>
+                Chat
+              </button>
+              <button type="button">
+                <span class="ui-icon icon-users"></span>
+                Friends
+              </button>
+            </div>
+
+            <button type="button" class="discord-new-chat">
+              <span class="ui-icon icon-chat"></span>
+              New Chat
+            </button>
+
+            <div class="dm-title">
+              <span></span>
+              Direct Messages
+              <span></span>
+            </div>
+
+            <div class="empty-inbox">
+              <div class="empty-icon">
+                <span class="ui-icon icon-mailbox"></span>
+              </div>
+              <p>Looks like you're the popular one here, no messages yet!</p>
+            </div>
+          </div>
+
+          <div class="premium-card">
+            <div class="premium-crown">
+              <span class="ui-icon icon-crown"></span>
+            </div>
+            <p>Unlock chat filters. Send and receive images and videos and more!</p>
+            <button type="button">Get Premium</button>
+          </div>
+        </div>
+      </aside>
+
+      <main class="chat-main">
+        <p class="chat-guideline">
+          Chat with random people worldwide - Be respectful, have fun, and follow our <a href="/terms">community guidelines</a>
+        </p>
+
+        <div id="matchSetup" class="setup-stack">
+          <section class="quick-start-card">
+            <div class="quick-card-head">
+              <div>
+                <p class="panel-super">Quick start</p>
+                <h1>Tell us who is chatting</h1>
+              </div>
+              <span class="quick-pill">Guest setup</span>
+            </div>
+
+            <div class="quick-form-grid">
+              <label class="quick-field" for="usernameInput">
+                <span>Your username</span>
+                <input id="usernameInput" type="text" maxlength="24" autocomplete="nickname" placeholder="Enter your name">
+              </label>
+
+              <label class="quick-field" for="ageInput">
+                <span>Your age</span>
+                <select id="ageInput">
+                  <option value="">Select age</option>
+                  <% for (let age = 18; age <= 99; age++) { %>
+                    <option value="<%= age %>"><%= age %></option>
+                  <% } %>
+                </select>
+              </label>
+
+              <label class="quick-field country-field" for="countryInput">
+                <span>Your country</span>
+                <input id="countryInput" type="text" autocomplete="off" placeholder="Select country">
+                <input id="countryValue" type="hidden">
+                <div class="country-suggestions hidden" id="countrySuggestions"></div>
+              </label>
+            </div>
+
+            <label class="tos-check">
+              <input id="tosInput" type="checkbox">
+              <span>I agree to the <a href="/terms">ToS</a> and <a href="/privacy">privacy policy</a> and I'm at least 18 years old</span>
+            </label>
+
+            <p class="form-error hidden" id="quickStartError"></p>
+
+            <div class="quick-login-line">
+              Already have an account? <a href="/login">Log in</a>
+            </div>
+          </section>
+
+          <section class="interest-panel collapsible-panel" data-collapsible>
+            <div class="interest-panel-icon">
+              <span class="ui-icon icon-list"></span>
+            </div>
+            <div class="interest-panel-content">
+              <div class="interest-panel-head">
+                <div>
+                  <h2>Type your interests</h2>
+                  <p>Optional. Add a few topics to improve the match.</p>
+                </div>
+                <button class="collapse-dot" type="button" aria-label="Collapse interests">
+                  <span class="ui-icon icon-arrow-down"></span>
+                </button>
+              </div>
+
+              <div class="collapsible-body">
+                <div class="interest-input wide">
+                  <div class="interest-tags" id="interestTags"></div>
+                  <input id="interestsInput" type="text" maxlength="30" placeholder="Add an interest and press Enter">
+                  <button id="addInterestBtn" type="button" aria-label="Add interest">
+                    <span class="ui-icon icon-check"></span>
+                  </button>
+                </div>
+
+                <div class="wait-row">
+                  <strong>Max wait time</strong>
+                  <div class="pill-row">
+                    <button type="button" class="pill" disabled>5 sec</button>
+                    <button type="button" class="pill selected" disabled>10 sec</button>
+                    <button type="button" class="pill" disabled>15 sec</button>
+                    <button type="button" class="pill" disabled>30 sec</button>
+                    <button type="button" class="pill" disabled>Unlimited</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </section>
+
+          <section class="filter-card green collapsible-panel collapsed" data-collapsible>
+            <div class="filter-icon">
+              <span class="ui-icon icon-users"></span>
+            </div>
+            <div>
+              <h2>Gender & Age Filter <span>♕</span></h2>
+              <p>Find people matching your preferences.</p>
+              <div class="collapsible-body">
+                <div class="locked-filter-copy">Coming soon as a premium filter.</div>
+              </div>
+            </div>
+            <button type="button" aria-label="Open filter">
+              <span class="ui-icon icon-arrow-right"></span>
+            </button>
+          </section>
+
+          <section class="filter-card blue collapsible-panel collapsed" data-collapsible>
+            <div class="filter-icon">
+              <span class="ui-icon icon-pin"></span>
+            </div>
+            <div>
+              <h2>Filter by Country & Location <span>♕</span></h2>
+              <p>Select country or location you want to connect within.</p>
+              <div class="collapsible-body">
+                <div class="locked-filter-copy">Coming soon as a premium filter.</div>
+              </div>
+            </div>
+            <button type="button" aria-label="Open filter">
+              <span class="ui-icon icon-arrow-right"></span>
+            </button>
+          </section>
+        </div>
+
+        <section class="live-chat-card hidden" id="chatCard">
+          <div class="chat-header">
+            <div>
+              <p class="panel-super">Live chat</p>
+              <h2>Interest match</h2>
+            </div>
+            <span class="timer-badge hidden" id="timerBadge"></span>
+          </div>
+          <p class="status" id="statusText">Looking for a partner...</p>
+          <div class="messages" id="messages"></div>
+          <div class="chat-footer">
+            <div class="chat-input">
+              <input id="messageInput" type="text" placeholder="Type a message...">
+              <button class="btn btn-primary" id="sendBtn" type="button">Send</button>
+            </div>
+            <div class="chat-actions">
+              <button class="btn btn-outline" id="newBtn" type="button">Find a new partner</button>
+              <button class="btn btn-danger-outline" id="reportBtn" type="button">Report</button>
+            </div>
+          </div>
+        </section>
+      </main>
+
+      <button id="startBtnBottom" class="floating-start-button" type="button">
+        Start New Chat
+        <span class="ui-icon icon-arrow-right"></span>
+      </button>
+    </div>
+
+    <script>
+      window.__IS_GUEST__ = <%= isGuest ? 'true' : 'false' %>;
+      window.__GUEST_DURATION__ = <%= guestDurationSeconds %>;
+    </script>
+    <script src="/socket.io/socket.io.js"></script>
+    <script src="/js/chat-client.js"></script>
+  </body>
+</html>

@@ -1,0 +1,157 @@
+<%- include('partials/header') %>
+
+<main>
+  <!-- Hero Section -->
+  <section class="hero" id="home">
+    <div class="hero-content">
+      <p class="eyebrow">Interest-based chat, no chaos</p>
+      <h1>Find people who actually speak your language.</h1>
+      <div class="hero-subtitle">Real connections through shared interests.</div>
+      <p class="hero-desc">
+        Interest Chat connects you with people who share your passions, in a safe and moderated space. 
+        Choose your topics, find someone to talk to, and leave whenever you want. No explicit content allowed.
+      </p>
+
+      <div class="hero-actions">
+        <a href="/chat?guest=1" class="btn btn-primary btn-lg">Continue as Guest</a>
+        <a href="/register" class="btn btn-outline btn-lg">Create Account</a>
+      </div>
+      <p class="hero-note">
+        🔒 Guest mode is live now · 🌍 Interest Matching · ⚡ Instant Connections · 24/7 Support
+      </p>
+    </div>
+    <div class="hero-image">
+      <svg width="100%" viewBox="0 0 400 300" style="max-width: 500px;">
+        <!-- Chat interface illustration -->
+        <rect width="400" height="300" fill="#F0E6FF" rx="16"/>
+        <rect x="20" y="20" width="360" height="260" fill="#fff" rx="12" stroke="#E5E7EB" stroke-width="1"/>
+        
+        <!-- Header -->
+        <rect x="20" y="20" width="360" height="50" fill="#ECEEFA" rx="12"/>
+        <circle cx="40" cy="45" r="8" fill="#6C4EE4"/>
+        <text x="60" y="50" font-family="Nunito" font-size="14" font-weight="600" fill="#1A1A2E">Tech Enthusiast</text>
+        
+        <!-- Messages -->
+        <rect x="30" y="85" width="280" height="28" fill="#F3E8FF" rx="8"/>
+        <text x="40" y="105" font-family="Nunito" font-size="12" fill="#1A1A2E">I love building web apps!</text>
+        
+        <rect x="90" y="125" width="280" height="28" fill="#ECEEFA" rx="8"/>
+        <text x="100" y="145" font-family="Nunito" font-size="12" fill="#1A1A2E">That's awesome! What stack do you use?</text>
+        
+        <rect x="30" y="165" width="240" height="28" fill="#F3E8FF" rx="8"/>
+        <text x="40" y="185" font-family="Nunito" font-size="12" fill="#1A1A2E">React and Node.js, mostly.</text>
+        
+        <!-- Input area -->
+        <rect x="30" y="230" width="310" height="35" fill="#F9FAFB" rx="8" stroke="#E5E7EB" stroke-width="1"/>
+        <text x="40" y="252" font-family="Nunito" font-size="12" fill="#9CA3AF">Type a message...</text>
+      </svg>
+    </div>
+  </section>
+
+  <!-- Stats Section -->
+  <section class="stats">
+    <div class="stats-container">
+      <div class="stat-item">
+        <div class="stat-number">5M+</div>
+        <div class="stat-label">Conversations</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number">50k+</div>
+        <div class="stat-label">Active Users</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number">&lt;5s</div>
+        <div class="stat-label">Match Time</div>
+      </div>
+      <div class="stat-item">
+        <div class="stat-number">24/7</div>
+        <div class="stat-label">Moderation</div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Features Section -->
+  <section class="features-section" id="features">
+    <div class="wrap">
+      <div class="section-header">
+        <h2>Why Interest Chat?</h2>
+        <p>Built for meaningful conversations based on real interests</p>
+      </div>
+      <div class="features-grid">
+        <div class="feature-card">
+          <div class="feature-icon">🎯</div>
+          <h3>Interest Matching</h3>
+          <p>Connect with people who share your passions, not random strangers.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🛡️</div>
+          <h3>Safe & Moderated</h3>
+          <p>Real moderation, clear rules, and tools to report inappropriate behavior.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🕶️</div>
+          <h3>Privacy First</h3>
+          <p>Choose to stay anonymous or create an account to unlock unlimited conversations.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">⚡</div>
+          <h3>Instant Connections</h3>
+          <p>Get matched in seconds and start talking about what you love.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">💬</div>
+          <h3>Text, Voice & More</h3>
+          <p>Choose how you want to chat: text, voice, or video conversations.</p>
+        </div>
+        <div class="feature-card">
+          <div class="feature-icon">🌍</div>
+          <h3>Global Community</h3>
+          <p>Connect with passionate people from around the world.</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- How It Works Section -->
+  <section class="how-it-works" id="how-it-works">
+    <div class="wrap">
+      <div class="section-header">
+        <h2>How It Works</h2>
+        <p>Get started in just a few simple steps</p>
+      </div>
+      <div class="steps">
+        <div class="step">
+          <div class="step-number">1</div>
+          <h3>Choose Interests</h3>
+          <p>Select topics you're passionate about</p>
+        </div>
+        <div class="step">
+          <div class="step-number">2</div>
+          <h3>Get Matched</h3>
+          <p>We find someone with shared interests</p>
+        </div>
+        <div class="step">
+          <div class="step-number">3</div>
+          <h3>Start Talking</h3>
+          <p>Have a real conversation with a stranger</p>
+        </div>
+        <div class="step">
+          <div class="step-number">4</div>
+          <h3>Make Connections</h3>
+          <p>Build meaningful relationships</p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- CTA Section -->
+  <section class="cta">
+    <div class="cta-container">
+      <h2>Ready to Connect?</h2>
+      <p>Join thousands of people finding real conversations about topics they love.</p>
+      <a href="/register" class="btn-cta">Start Chatting Now →</a>
+    </div>
+  </section>
+</main>
+
+<%- include('partials/footer') %>
