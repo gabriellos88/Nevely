@@ -1,49 +1,268 @@
 const socket = io();
 
 const startBtn = document.getElementById('startBtn');
+const startBtnSidebar = document.getElementById('startBtnSidebar');
+const startBtnBottom = document.getElementById('startBtnBottom');
 const newBtn = document.getElementById('newBtn');
 const reportBtn = document.getElementById('reportBtn');
 const sendBtn = document.getElementById('sendBtn');
-const interestsInput = document.getElementById('interests');
+const addInterestBtn = document.getElementById('addInterestBtn');
+const interestsInput = document.getElementById('interestsInput');
+const interestTags = document.getElementById('interestTags');
 const messageInput = document.getElementById('messageInput');
 const messagesEl = document.getElementById('messages');
 const statusText = document.getElementById('statusText');
 const chatCard = document.getElementById('chatCard');
-const prefCard = document.getElementById('prefCard');
+const matchSetup = document.getElementById('matchSetup');
 const timerBadge = document.getElementById('timerBadge');
+const usernameInput = document.getElementById('usernameInput');
+const ageInput = document.getElementById('ageInput');
+const countryInput = document.getElementById('countryInput');
+const countryValue = document.getElementById('countryValue');
+const countrySuggestions = document.getElementById('countrySuggestions');
+const tosInput = document.getElementById('tosInput');
+const quickStartError = document.getElementById('quickStartError');
+const profileName = document.getElementById('profileName');
+const profileInitial = document.getElementById('profileInitial');
+const sidebarToggle = document.getElementById('sidebarToggle');
+const chatSidebar = document.getElementById('chatSidebar');
 
 let countdownInterval = null;
+const selectedInterests = [];
+const maxInterests = 5;
+const countries = [
+  { name: 'Italy', flag: '🇮🇹' },
+  { name: 'France', flag: '🇫🇷' },
+  { name: 'Germany', flag: '🇩🇪' },
+  { name: 'Spain', flag: '🇪🇸' },
+  { name: 'Switzerland', flag: '🇨🇭' },
+  { name: 'Austria', flag: '🇦🇹' },
+  { name: 'United Kingdom', flag: '🇬🇧' },
+  { name: 'United States', flag: '🇺🇸' },
+  { name: 'Canada', flag: '🇨🇦' },
+  { name: 'Portugal', flag: '🇵🇹' },
+  { name: 'Netherlands', flag: '🇳🇱' },
+  { name: 'Belgium', flag: '🇧🇪' },
+  { name: 'Poland', flag: '🇵🇱' },
+  { name: 'Romania', flag: '🇷🇴' },
+  { name: 'Brazil', flag: '🇧🇷' },
+  { name: 'Argentina', flag: '🇦🇷' },
+  { name: 'Mexico', flag: '🇲🇽' },
+  { name: 'Japan', flag: '🇯🇵' },
+  { name: 'South Korea', flag: '🇰🇷' },
+  { name: 'Australia', flag: '🇦🇺' }
+];
 
 startBtn.addEventListener('click', startSearch);
+if (startBtnSidebar) startBtnSidebar.addEventListener('click', startSearch);
+if (startBtnBottom) startBtnBottom.addEventListener('click', startSearch);
 newBtn.addEventListener('click', startSearch);
 sendBtn.addEventListener('click', sendMessage);
 reportBtn.addEventListener('click', reportUser);
+if (addInterestBtn) addInterestBtn.addEventListener('click', () => addInterest(interestsInput.value));
+if (sidebarToggle) sidebarToggle.addEventListener('click', toggleSidebar);
 messageInput.addEventListener('keypress', (event) => {
   if (event.key === 'Enter') sendMessage();
 });
+interestsInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter') {
+    event.preventDefault();
+    addInterest(interestsInput.value);
+  }
+});
+usernameInput.addEventListener('input', updateProfilePreview);
+countryInput.addEventListener('input', updateCountrySuggestions);
+countryInput.addEventListener('blur', () => {
+  setTimeout(() => countrySuggestions.classList.add('hidden'), 140);
+});
+
+document.addEventListener('click', (event) => {
+  if (!event.target.closest('.chat-sidebar') && !event.target.closest('.mobile-sidebar-toggle')) {
+    chatSidebar.classList.remove('open');
+  }
+});
+
+function updateInterestTags() {
+  interestTags.innerHTML = '';
+
+  selectedInterests.forEach((interest) => {
+    const chip = document.createElement('span');
+    chip.className = 'chip';
+    const label = document.createElement('span');
+    const removeButton = document.createElement('button');
+
+    label.textContent = interest;
+    removeButton.type = 'button';
+    removeButton.setAttribute('aria-label', `Remove ${interest}`);
+    removeButton.textContent = 'x';
+    removeButton.addEventListener('click', () => removeInterest(interest));
+
+    chip.appendChild(label);
+    chip.appendChild(removeButton);
+    interestTags.appendChild(chip);
+  });
+}
+
+function addInterest(value) {
+  const normalized = value.trim().toLowerCase();
+  if (!normalized) return false;
+  if (selectedInterests.includes(normalized)) return false;
+  if (selectedInterests.length >= maxInterests) {
+    alert('You can add up to 5 interests.');
+    return false;
+  }
+
+  selectedInterests.push(normalized);
+  updateInterestTags();
+  interestsInput.value = '';
+  return true;
+}
+
+function removeInterest(value) {
+  const index = selectedInterests.indexOf(value);
+  if (index !== -1) {
+    selectedInterests.splice(index, 1);
+    updateInterestTags();
+  }
+}
 
 function parseInterests(value) {
-  return value
-    .split(',')
+  const interests = value
+    .split(/[\n,]/)
     .map(tag => tag.trim().toLowerCase())
-    .filter(Boolean)
-    .slice(0, 5);
+    .filter(Boolean);
+
+  interests.forEach((tag) => addInterest(tag));
+  return [...selectedInterests];
+}
+
+function showChatView() {
+  if (matchSetup) {
+    matchSetup.classList.add('hidden');
+  }
+  if (chatCard) {
+    chatCard.classList.remove('hidden');
+  }
+}
+
+function showSetupView() {
+  if (chatCard) {
+    chatCard.classList.add('hidden');
+  }
+  if (matchSetup) {
+    matchSetup.classList.remove('hidden');
+  }
+}
+
+function updateProfilePreview() {
+  const username = usernameInput.value.trim();
+  profileName.textContent = username || 'Guest';
+  profileInitial.textContent = username ? username.charAt(0).toUpperCase() : 'G';
+}
+
+function updateCountrySuggestions() {
+  const query = countryInput.value.trim().toLowerCase();
+  countryValue.value = '';
+  countrySuggestions.innerHTML = '';
+
+  if (query.length < 2) {
+    countrySuggestions.classList.add('hidden');
+    return;
+  }
+
+  const matches = countries
+    .filter(country => country.name.toLowerCase().includes(query))
+    .slice(0, 8);
+
+  if (!matches.length) {
+    countrySuggestions.classList.add('hidden');
+    return;
+  }
+
+  matches.forEach((country) => {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.innerHTML = `<span>${country.flag}</span><strong>${country.name}</strong>`;
+    button.addEventListener('mousedown', (event) => {
+      event.preventDefault();
+      countryInput.value = `${country.flag} ${country.name}`;
+      countryValue.value = country.name;
+      countrySuggestions.classList.add('hidden');
+    });
+    countrySuggestions.appendChild(button);
+  });
+
+  countrySuggestions.classList.remove('hidden');
+}
+
+function validateQuickStart() {
+  const username = usernameInput.value.trim();
+  const age = Number(ageInput.value);
+  const selectedCountry = countryValue.value.trim();
+
+  if (!username) {
+    showQuickStartError('Please enter your username.');
+    usernameInput.focus();
+    return false;
+  }
+
+  if (!age || age < 18) {
+    showQuickStartError('Please select your age. You must be at least 18.');
+    ageInput.focus();
+    return false;
+  }
+
+  if (!selectedCountry) {
+    showQuickStartError('Please select your country from the list.');
+    countryInput.focus();
+    return false;
+  }
+
+  if (!tosInput.checked) {
+    showQuickStartError('Please accept the ToS and privacy policy to continue.');
+    tosInput.focus();
+    return false;
+  }
+
+  quickStartError.classList.add('hidden');
+  quickStartError.textContent = '';
+  return true;
+}
+
+function showQuickStartError(message) {
+  quickStartError.textContent = message;
+  quickStartError.classList.remove('hidden');
+}
+
+function toggleSidebar() {
+  chatSidebar.classList.toggle('open');
 }
 
 function startSearch() {
+  if (!validateQuickStart()) {
+    return;
+  }
+
   const interests = parseInterests(interestsInput.value);
   if (!interests.length) {
-    alert('Inserisci almeno un interesse.');
+    alert('Please add at least one interest.');
     return;
   }
 
   clearCountdown();
-  statusText.textContent = 'Ricerca di un partner...';
+  statusText.textContent = 'Looking for a partner...';
   messagesEl.innerHTML = '';
-  chatCard.classList.remove('hidden');
-  prefCard.classList.add('hidden');
+  showChatView();
+  chatSidebar.classList.remove('open');
 
-  socket.emit('find-partner', { interests, isGuest: window.__IS_GUEST__ });
+  socket.emit('find-partner', {
+    interests,
+    profile: {
+      username: usernameInput.value.trim(),
+      age: Number(ageInput.value),
+      country: countryValue.value.trim()
+    }
+  });
 }
 
 function addMessage(text, who) {
@@ -64,7 +283,7 @@ function sendMessage() {
 
 function reportUser() {
   socket.emit('report');
-  alert('Utente segnalato. Grazie della segnalazione.');
+  alert('User reported. Thanks for your report.');
 }
 
 function clearCountdown() {
@@ -94,7 +313,7 @@ function startCountdown(seconds) {
 function updateTimerBadge(remaining) {
   const mins = Math.floor(remaining / 60);
   const secs = remaining % 60;
-  timerBadge.textContent = `⏱ ${mins}:${String(secs).padStart(2, '0')}`;
+  timerBadge.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
   if (remaining <= 15) {
     timerBadge.classList.add('warning');
   } else {
@@ -103,14 +322,16 @@ function updateTimerBadge(remaining) {
 }
 
 socket.on('waiting', () => {
-  statusText.textContent = 'In attesa di un partner...';
+  showChatView();
+  statusText.textContent = 'Waiting for a partner...';
 });
 
 socket.on('matched', (data) => {
+  showChatView();
   const shared = data.sharedInterests.length
-    ? `Interessi in comune: ${data.sharedInterests.join(', ')}`
-    : 'Nessun interesse in comune, ma potete comunque parlare!';
-  statusText.textContent = 'Connesso! ' + shared;
+    ? `Common interests: ${data.sharedInterests.join(', ')}`
+    : 'No shared interests, but you can still talk!';
+  statusText.textContent = 'Connected! ' + shared;
 
   if (data.isGuest && data.durationSeconds) {
     startCountdown(data.durationSeconds);
@@ -124,13 +345,14 @@ socket.on('receive-message', (text) => {
 });
 
 socket.on('partner-left', () => {
-  statusText.textContent = 'Il tuo partner ha lasciato la chat.';
+  showChatView();
+  statusText.textContent = 'Your partner left the chat.';
   clearCountdown();
 });
 
-// Il server forza la chiusura quando il tempo per gli ospiti scade
 socket.on('guest-time-expired', () => {
-  addMessage('Tempo scaduto per la sessione ospite. Cerco un nuovo partner...', 'system');
+  showChatView();
+  addMessage('Guest session time expired. Looking for a new partner...', 'system');
   clearCountdown();
   setTimeout(() => {
     startSearch();

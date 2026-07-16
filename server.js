@@ -55,7 +55,17 @@ app.get('/about', (req, res) => {
 });
 
 app.get('/register', (req, res) => {
-  res.render('register', { pageTitle: 'Registrati' });
+  res.render('auth-stub', {
+    pageTitle: 'Create Account',
+    mode: 'register'
+  });
+});
+
+app.get('/login', (req, res) => {
+  res.render('auth-stub', {
+    pageTitle: 'Log In',
+    mode: 'login'
+  });
 });
 
 app.get('/blog', (req, res) => {
@@ -82,7 +92,12 @@ app.get('/terms', (req, res) => {
 
 app.get('/chat', (req, res) => {
   // Nella versione attuale (senza login reale) chiunque arrivi qui è un ospite
-  const isGuest = true;
+  const isGuest = req.query.guest === '1';
+
+  if (!isGuest) {
+    return res.redirect('/login');
+  }
+
   res.render('chat', {
     pageTitle: 'Chat',
     isGuest,
@@ -183,12 +198,23 @@ function removeFromWaiting(socketId) {
   if (idx !== -1) waitingUsers.splice(idx, 1);
 }
 
+function normalizeInterests(value) {
+  if (!Array.isArray(value)) return [];
+
+  return [...new Set(
+    value
+      .filter(item => typeof item === 'string')
+      .map(item => item.trim().toLowerCase())
+      .filter(item => item.length >= 2 && item.length <= 30)
+  )].slice(0, 5);
+}
+
 io.on('connection', (socket) => {
   console.log('Nuova connessione:', socket.id);
 
   socket.on('find-partner', (payload) => {
-    const interests = (payload && payload.interests) || [];
-    const isGuest = Boolean(payload && payload.isGuest);
+    const interests = normalizeInterests(payload && payload.interests);
+    const isGuest = true;
 
     removeFromWaiting(socket.id);
     disconnectPartner(socket.id);
