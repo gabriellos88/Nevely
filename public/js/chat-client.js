@@ -26,10 +26,7 @@ const profileName = document.getElementById('profileName');
 const profileInitial = document.getElementById('profileInitial');
 const sidebarToggle = document.getElementById('sidebarToggle');
 const chatSidebar = document.getElementById('chatSidebar');
-<<<<<<< HEAD
 const collapsiblePanels = document.querySelectorAll('[data-collapsible]');
-=======
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
 
 let countdownInterval = null;
 const selectedInterests = [];
@@ -57,11 +54,7 @@ const countries = [
   { name: 'Australia', flag: '🇦🇺' }
 ];
 
-<<<<<<< HEAD
 if (startBtn) startBtn.addEventListener('click', startSearch);
-=======
-startBtn.addEventListener('click', startSearch);
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
 if (startBtnSidebar) startBtnSidebar.addEventListener('click', startSearch);
 if (startBtnBottom) startBtnBottom.addEventListener('click', startSearch);
 newBtn.addEventListener('click', startSearch);
@@ -69,7 +62,6 @@ sendBtn.addEventListener('click', sendMessage);
 reportBtn.addEventListener('click', reportUser);
 if (addInterestBtn) addInterestBtn.addEventListener('click', () => addInterest(interestsInput.value));
 if (sidebarToggle) sidebarToggle.addEventListener('click', toggleSidebar);
-<<<<<<< HEAD
 collapsiblePanels.forEach((panel) => {
   panel.addEventListener('click', (event) => {
     const isInteractive = event.target.closest('input, button, select, a, .pill, .chip');
@@ -79,8 +71,6 @@ collapsiblePanels.forEach((panel) => {
     panel.classList.toggle('collapsed');
   });
 });
-=======
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
 messageInput.addEventListener('keypress', (event) => {
   if (event.key === 'Enter') sendMessage();
 });
@@ -163,12 +153,9 @@ function showChatView() {
   if (chatCard) {
     chatCard.classList.remove('hidden');
   }
-<<<<<<< HEAD
   if (startBtnBottom) {
     startBtnBottom.classList.add('hidden');
   }
-=======
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
 }
 
 function showSetupView() {
@@ -178,12 +165,9 @@ function showSetupView() {
   if (matchSetup) {
     matchSetup.classList.remove('hidden');
   }
-<<<<<<< HEAD
   if (startBtnBottom) {
     startBtnBottom.classList.remove('hidden');
   }
-=======
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
 }
 
 function updateProfilePreview() {
@@ -276,13 +260,6 @@ function startSearch() {
   }
 
   const interests = parseInterests(interestsInput.value);
-<<<<<<< HEAD
-=======
-  if (!interests.length) {
-    alert('Please add at least one interest.');
-    return;
-  }
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
 
   clearCountdown();
   statusText.textContent = 'Looking for a partner...';

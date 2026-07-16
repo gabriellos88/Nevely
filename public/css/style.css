@@ -827,7 +827,6 @@ details summary { cursor: pointer; font-weight: 700; }
 .chat-profile-actions {
   grid-column: 1 / -1;
   display: grid;
-<<<<<<< HEAD
   grid-template-columns: repeat(3, 36px);
   justify-content: start;
   gap: 10px;
@@ -841,43 +840,10 @@ details summary { cursor: pointer; font-weight: 700; }
   background: #fff;
   color: #30275e;
   font-size: 14px;
-=======
-  grid-template-columns: repeat(4, 1fr);
-  gap: 12px;
-}
-
-.chat-profile-actions button {
-  height: 42px;
-  border: 1px solid var(--border);
-  border-radius: 12px;
-  background: #fff;
-  color: #30275e;
-  font-size: 18px;
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
   cursor: pointer;
   box-shadow: var(--shadow-sm);
 }
 
-<<<<<<< HEAD
-=======
-.sidebar-start-button {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  gap: 10px;
-  min-height: 50px;
-  margin: 18px 18px 14px;
-  border: 0;
-  border-radius: 12px;
-  background: #654de1;
-  color: #fff;
-  font-weight: 800;
-  font-size: 17px;
-  cursor: pointer;
-  box-shadow: 0 10px 20px rgba(101, 77, 225, 0.24);
-}
-
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
 .discord-panel {
   flex: 1;
   min-height: 0;
@@ -886,7 +852,6 @@ details summary { cursor: pointer; font-weight: 700; }
   padding: 6px;
   background: #24252d;
   color: #f3f4f6;
-<<<<<<< HEAD
   overflow: hidden;
 }
 
@@ -895,9 +860,6 @@ details summary { cursor: pointer; font-weight: 700; }
   min-height: 0;
   overflow-y: auto;
   padding-right: 2px;
-=======
-  overflow-y: auto;
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
 }
 
 .discord-tabs {
@@ -910,13 +872,10 @@ details summary { cursor: pointer; font-weight: 700; }
 
 .discord-tabs button,
 .discord-new-chat {
-<<<<<<< HEAD
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 8px;
-=======
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
   border: 0;
   border-radius: 7px;
   background: #171820;
@@ -934,10 +893,7 @@ details summary { cursor: pointer; font-weight: 700; }
 
 .discord-new-chat {
   width: 100%;
-<<<<<<< HEAD
   justify-content: flex-start;
-=======
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
   text-align: left;
   padding-left: 24px;
   margin-bottom: 16px;
@@ -978,23 +934,14 @@ details summary { cursor: pointer; font-weight: 700; }
   border-radius: 20px;
   background: #393a43;
   color: #555661;
-<<<<<<< HEAD
   font-size: 44px;
-=======
-  font-size: 58px;
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
 }
 
 .premium-card {
   position: relative;
-<<<<<<< HEAD
   flex: 0 0 auto;
   margin: 40px 8px 10px;
   padding: 34px 16px 14px;
-=======
-  margin: auto 8px 10px;
-  padding: 42px 18px 16px;
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
   border-radius: 12px;
   background: linear-gradient(135deg, #8c1de7, #6449e7);
   text-align: center;
@@ -1007,11 +954,7 @@ details summary { cursor: pointer; font-weight: 700; }
   left: 50%;
   transform: translateX(-50%);
   color: #ffc13b;
-<<<<<<< HEAD
   font-size: 40px;
-=======
-  font-size: 58px;
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
 }
 
 .premium-card p {
@@ -1034,11 +977,7 @@ details summary { cursor: pointer; font-weight: 700; }
 .chat-main {
   height: 100vh;
   overflow-y: auto;
-<<<<<<< HEAD
   padding: 42px 32px 128px;
-=======
-  padding: 42px 32px 56px;
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
 }
 
 .chat-guideline {
@@ -1206,11 +1145,8 @@ details summary { cursor: pointer; font-weight: 700; }
   gap: 20px;
   padding: 26px;
   background: #e6e0ff;
-<<<<<<< HEAD
   cursor: pointer;
   transition: transform 0.16s ease, box-shadow 0.16s ease;
-=======
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
 }
 
 .interest-panel-icon,
@@ -1344,7 +1280,6 @@ details summary { cursor: pointer; font-weight: 700; }
   gap: 20px;
   align-items: center;
   padding: 24px;
-<<<<<<< HEAD
   cursor: pointer;
   transition: transform 0.16s ease, box-shadow 0.16s ease;
 }
@@ -1383,8 +1318,6 @@ details summary { cursor: pointer; font-weight: 700; }
   background: rgba(255, 255, 255, 0.62);
   font-weight: 800;
 }
-=======
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
 }
 
 .filter-card.green {
@@ -1408,15 +1341,11 @@ details summary { cursor: pointer; font-weight: 700; }
 }
 
 .floating-start-button {
-<<<<<<< HEAD
   position: fixed;
   left: calc(314px + (100vw - 314px) / 2);
   bottom: 22px;
   z-index: 80;
   transform: translateX(-50%);
-=======
-  justify-self: center;
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
   display: inline-flex;
   align-items: center;
   gap: 18px;
@@ -1462,7 +1391,6 @@ details summary { cursor: pointer; font-weight: 700; }
   display: none;
 }
 
-<<<<<<< HEAD
 .ui-icon {
   --stroke: 2px;
   position: relative;
@@ -1666,8 +1594,6 @@ details summary { cursor: pointer; font-weight: 700; }
   clip-path: polygon(0 100%, 18% 0, 50% 70%, 82% 0, 100% 100%);
 }
 
-=======
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
 @media (max-width: 920px) {
   .chat-layout {
     grid-template-columns: 1fr;
@@ -1709,7 +1635,6 @@ details summary { cursor: pointer; font-weight: 700; }
   }
 
   .chat-main {
-<<<<<<< HEAD
     padding: 72px 16px 128px;
   }
 
@@ -1719,9 +1644,6 @@ details summary { cursor: pointer; font-weight: 700; }
     min-height: 56px;
     max-width: calc(100vw - 32px);
     white-space: nowrap;
-=======
-    padding: 72px 16px 40px;
->>>>>>> 417b026c459db09f0c4f6bd59a12fcff806cb7cf
   }
 
   .quick-form-grid,
