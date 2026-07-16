@@ -1,0 +1,51 @@
+<%- include('partials/header') %>
+
+<main>
+  <section class="wrap chat-page">
+
+    <% if (isGuest) { %>
+      <div class="guest-banner">
+        Stai chattando come ospite: conversazioni a tempo limitato e nessun caricamento foto profilo.
+        <a href="/register">Registrati</a> per rimuovere questi limiti.
+      </div>
+    <% } %>
+
+    <section class="card" id="prefCard">
+      <h2>Prima di iniziare</h2>
+      <p>Inserisci fino a 5 interessi separati da virgola, per aiutarci a trovarti un match migliore.</p>
+      <div class="field-group">
+        <label for="interests">Interessi</label>
+        <textarea id="interests" placeholder="es: musica, cinema, viaggi, sport, arte"></textarea>
+      </div>
+      <button id="startBtn" class="btn btn-primary btn-lg" type="button">Trova qualcuno</button>
+    </section>
+
+    <section class="card hidden" id="chatCard">
+      <div class="chat-header">
+        <h2>Chat in corso</h2>
+        <span class="timer-badge hidden" id="timerBadge"></span>
+      </div>
+      <p class="status" id="statusText">In ricerca di un partner...</p>
+      <div class="messages" id="messages"></div>
+      <div class="chat-footer">
+        <div class="chat-input">
+          <input id="messageInput" type="text" placeholder="Scrivi un messaggio...">
+          <button class="btn btn-primary" id="sendBtn" type="button">Invia</button>
+        </div>
+        <div class="chat-actions">
+          <button class="btn btn-outline" id="newBtn" type="button">Trova un nuovo partner</button>
+          <button class="btn btn-danger-outline" id="reportBtn" type="button">Segnala</button>
+        </div>
+      </div>
+    </section>
+
+  </section>
+</main>
+
+<%- include('partials/footer') %>
+
+<script>
+  window.__IS_GUEST__ = <%= isGuest ? 'true' : 'false' %>;
+  window.__GUEST_DURATION__ = <%= guestDurationSeconds %>;
+</script>
+<script src="/js/chat-client.js"></script>
