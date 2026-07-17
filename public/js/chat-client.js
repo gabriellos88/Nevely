@@ -27,10 +27,26 @@ const profileInitial = document.getElementById('profileInitial');
 const sidebarToggle = document.getElementById('sidebarToggle');
 const chatSidebar = document.getElementById('chatSidebar');
 const collapsiblePanels = document.querySelectorAll('[data-collapsible]');
+const partnerAvatar = document.getElementById('partnerAvatar');
+const partnerName = document.getElementById('partnerName');
 
 let countdownInterval = null;
 const selectedInterests = [];
 const maxInterests = 5;
+
+// Piccolo set di avatar/nomi placeholder per dare un po' di personalità
+// ai match, finché non esiste un vero sistema di profili.
+const strangerFlavors = [
+  { emoji: '🦊', name: 'Fox' },
+  { emoji: '🐼', name: 'Panda' },
+  { emoji: '🐨', name: 'Koala' },
+  { emoji: '🦉', name: 'Owl' },
+  { emoji: '🐙', name: 'Octopus' },
+  { emoji: '🦋', name: 'Butterfly' },
+  { emoji: '🐢', name: 'Turtle' },
+  { emoji: '🦁', name: 'Lion' }
+];
+
 const countries = [
   { name: 'Italy', flag: '🇮🇹' },
   { name: 'France', flag: '🇫🇷' },
@@ -62,6 +78,41 @@ sendBtn.addEventListener('click', sendMessage);
 reportBtn.addEventListener('click', reportUser);
 if (addInterestBtn) addInterestBtn.addEventListener('click', () => addInterest(interestsInput.value));
 if (sidebarToggle) sidebarToggle.addEventListener('click', toggleSidebar);
+
+// --- Tab a due stati (Messages/Requests, Friends/Requests): solo stato
+// visivo per ora, nessun dato reale dietro finché non c'è un backend. ---
+function wireTabPair(idA, idB) {
+  const a = document.getElementById(idA);
+  const b = document.getElementById(idB);
+  if (!a || !b) return;
+  [a, b].forEach((tab) => {
+    tab.addEventListener('click', () => {
+      a.classList.toggle('active', tab === a);
+      b.classList.toggle('active', tab === b);
+    });
+  });
+}
+wireTabPair('inboxTabMessages', 'inboxTabRequests');
+wireTabPair('friendsTabFriends', 'friendsTabRequests');
+
+// --- Icon rail: ogni icona mostra il pannello corrispondente nella
+// colonna "discord-scroll". Solo "Messages" ha contenuto reale oggi,
+// gli altri sono stub pronti per essere collegati in futuro. ---
+const iconRailButtons = document.querySelectorAll('.icon-rail button[data-panel]');
+const inboxPanels = document.querySelectorAll('.inbox-panel[data-panel-content]');
+iconRailButtons.forEach((button) => {
+  button.addEventListener('click', () => {
+    const target = button.dataset.panel;
+
+    iconRailButtons.forEach((b) => b.classList.remove('active'));
+    button.classList.add('active');
+
+    inboxPanels.forEach((panel) => {
+      panel.classList.toggle('active', panel.dataset.panelContent === target);
+    });
+  });
+});
+
 collapsiblePanels.forEach((panel) => {
   panel.addEventListener('click', (event) => {
     const isInteractive = event.target.closest('input, button, select, a, .pill, .chip');
@@ -173,7 +224,7 @@ function showSetupView() {
 function updateProfilePreview() {
   const username = usernameInput.value.trim();
   profileName.textContent = username || 'Guest';
-  profileInitial.textContent = username ? username.charAt(0).toUpperCase() : 'G';
+  profileInitial.textContent = username ? username.charAt(0).toUpperCase() : '🍇';
 }
 
 function updateCountrySuggestions() {
@@ -254,6 +305,23 @@ function toggleSidebar() {
   chatSidebar.classList.toggle('open');
 }
 
+// --- Stato di attesa: spinner animato al posto dei messaggi ---
+function showWaitingState(label) {
+  messagesEl.innerHTML = '';
+  const wrap = document.createElement('div');
+  wrap.className = 'waiting-state';
+  wrap.innerHTML = `
+    <div class="loading-spinner" aria-hidden="true"></div>
+    <p>${label}</p>
+  `;
+  messagesEl.appendChild(wrap);
+}
+
+function resetPartnerBar(label) {
+  partnerAvatar.textContent = '🙂';
+  partnerName.textContent = label;
+}
+
 function startSearch() {
   if (!validateQuickStart()) {
     return;
@@ -263,7 +331,8 @@ function startSearch() {
 
   clearCountdown();
   statusText.textContent = 'Looking for a partner...';
-  messagesEl.innerHTML = '';
+  resetPartnerBar('Looking for someone…');
+  showWaitingState('Looking for a partner...');
   showChatView();
   chatSidebar.classList.remove('open');
 
@@ -277,12 +346,14 @@ function startSearch() {
   });
 }
 
+// Aggiunge un messaggio mantenendo lo scroll ancorato in basso, ma solo
+// all'interno del contenitore messaggi (mai la pagina intera).
 function addMessage(text, who) {
   const message = document.createElement('div');
   message.className = `msg ${who}`;
   message.textContent = text;
   messagesEl.appendChild(message);
-  message.scrollIntoView({ block: 'end' });
+  messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
 function sendMessage() {
@@ -336,6 +407,8 @@ function updateTimerBadge(remaining) {
 socket.on('waiting', () => {
   showChatView();
   statusText.textContent = 'Waiting for a partner...';
+  resetPartnerBar('Looking for someone…');
+  showWaitingState('Waiting for a partner...');
 });
 
 socket.on('matched', (data) => {
@@ -344,6 +417,13 @@ socket.on('matched', (data) => {
     ? `Common interests: ${data.sharedInterests.join(', ')}`
     : 'No shared interests, but you can still talk!';
   statusText.textContent = 'Connected! ' + shared;
+
+  const flavor = strangerFlavors[Math.floor(Math.random() * strangerFlavors.length)];
+  partnerAvatar.textContent = flavor.emoji;
+  partnerName.textContent = flavor.name;
+
+  messagesEl.innerHTML = '';
+  addMessage(shared, 'system');
 
   if (data.isGuest && data.durationSeconds) {
     startCountdown(data.durationSeconds);
@@ -359,6 +439,8 @@ socket.on('receive-message', (text) => {
 socket.on('partner-left', () => {
   showChatView();
   statusText.textContent = 'Your partner left the chat.';
+  addMessage('Your partner left the chat.', 'system');
+  resetPartnerBar('Partner left');
   clearCountdown();
 });
 

@@ -4,6 +4,7 @@ const express = require('express');
 const http = require('http');
 const path = require('path');
 const { Server } = require('socket.io');
+const db = require('./db');
 
 const app = express();
 const server = http.createServer(app);
@@ -15,6 +16,7 @@ const GUEST_CHAT_DURATION_SECONDS = 120; // durata max di una chat per utenti se
 // --- View engine ---
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+app.use(express.json());
 app.use(express.static(path.join(__dirname, 'public')));
 
 // --- Dati blog temporanei (da spostare su file/DB in futuro) ---
@@ -88,6 +90,33 @@ app.get('/privacy', (req, res) => {
 
 app.get('/terms', (req, res) => {
   res.render('terms', { pageTitle: 'Termini di Servizio' });
+});
+
+
+app.get('/api/database-health', async (req, res) => {
+  if (!db.isConfigured) {
+    return res.status(503).json({
+      connected: false,
+      configured: false
+    });
+  }
+
+  try {
+    const result = await db.query('SELECT NOW() AS server_time');
+
+    res.json({
+      connected: true,
+      configured: true,
+      serverTime: result.rows[0].server_time
+    });
+  } catch (error) {
+    console.error('Database health check failed:', error);
+
+    res.status(500).json({
+      connected: false,
+      configured: true
+    });
+  }
 });
 
 app.get('/chat', (req, res) => {
@@ -243,10 +272,47 @@ io.on('connection', (socket) => {
     removeFromWaiting(socket.id);
   });
 
-  socket.on('report', () => {
+  socket.on('report', async (payload = {}) => {
     const partnerId = activePairs.get(socket.id);
-    console.log(`SEGNALAZIONE: ${socket.id} ha segnalato ${partnerId}`);
-    // Qui andrà collegato un sistema reale di logging/moderazione
+
+    if (!partnerId) {
+      socket.emit('report-error', { message: 'No active chat to report.' });
+      return;
+    }
+
+    const reason = typeof payload.reason === 'string'
+      ? payload.reason.trim().slice(0, 100)
+      : 'unspecified';
+    const details = typeof payload.details === 'string'
+      ? payload.details.trim().slice(0, 1000)
+      : null;
+
+    console.log(`REPORT: ${socket.id} reported ${partnerId}`);
+
+    if (!db.isConfigured) {
+      socket.emit('report-submitted', { stored: false });
+      return;
+    }
+
+    try {
+      await db.query(
+        `
+          INSERT INTO reports (
+            reporter_socket_id,
+            reported_socket_id,
+            reason,
+            details
+          )
+          VALUES ($1, $2, $3, $4)
+        `,
+        [socket.id, partnerId, reason, details]
+      );
+
+      socket.emit('report-submitted', { stored: true });
+    } catch (error) {
+      console.error('Failed to save report:', error);
+      socket.emit('report-error', { message: 'Report could not be saved.' });
+    }
   });
 
   socket.on('disconnect', () => {
