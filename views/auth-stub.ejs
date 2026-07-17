@@ -2,42 +2,46 @@
 
 <main class="auth-page">
   <section class="auth-card">
-    <div class="auth-logo">IC</div>
+    <div class="auth-logo">N</div>
 
     <% if (mode === 'login') { %>
       <h1>Welcome back</h1>
-      <p>Account login will be available soon.</p>
-
-      <button class="btn btn-primary btn-block" disabled>
-        Log In - Coming Soon
-      </button>
-
-      <a href="/register" class="auth-secondary-link">
-        Create an account
-      </a>
+      <p>Log in to find friends and keep the conversations you care about.</p>
     <% } else { %>
       <h1>Create your account</h1>
-      <p>
-        Save your conversations, customize your profile and unlock
-        additional matching filters.
-      </p>
-
-      <button class="btn btn-primary btn-block" disabled>
-        Create Account - Coming Soon
-      </button>
-
-      <a href="/login" class="auth-secondary-link">
-        Already have an account?
-      </a>
+      <p>Save conversations, customize your profile and connect with friends.</p>
     <% } %>
 
-    <div class="auth-divider">
-      <span>or</span>
-    </div>
+    <% if (error) { %>
+      <div class="auth-error" role="alert"><%= error %></div>
+    <% } %>
 
-    <a href="/chat?guest=1" class="btn btn-outline btn-block">
-      Continue as Guest
+    <form class="auth-form" method="post" action="/<%= mode %>">
+      <% if (mode === 'register') { %>
+        <label>
+          <span>Username</span>
+          <input name="username" type="text" minlength="3" maxlength="30" autocomplete="username" required value="<%= values?.username || '' %>">
+        </label>
+      <% } %>
+      <label>
+        <span>Email</span>
+        <input name="email" type="email" maxlength="255" autocomplete="email" required value="<%= values?.email || '' %>">
+      </label>
+      <label>
+        <span>Password</span>
+        <input name="password" type="password" minlength="8" maxlength="72" autocomplete="<%= mode === 'login' ? 'current-password' : 'new-password' %>" required>
+      </label>
+      <button class="btn btn-primary btn-block" type="submit">
+        <%= mode === 'login' ? 'Log In' : 'Create Account' %>
+      </button>
+    </form>
+
+    <a href="/<%= mode === 'login' ? 'register' : 'login' %>" class="auth-secondary-link">
+      <%= mode === 'login' ? 'Create an account' : 'Already have an account?' %>
     </a>
+
+    <div class="auth-divider"><span>or</span></div>
+    <a href="/chat?guest=1" class="btn btn-outline btn-block">Continue as Guest</a>
   </section>
 </main>
 

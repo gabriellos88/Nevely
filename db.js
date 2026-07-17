@@ -1,4 +1,4 @@
-﻿const { Pool } = require('pg');
+const { Pool } = require('pg');
 
 const connectionString = process.env.DATABASE_URL;
 const pool = connectionString
@@ -28,6 +28,8 @@ function ensurePool() {
 
 module.exports = {
   isConfigured: Boolean(pool),
+  pool,
+  ensurePool,
 
   query(text, params) {
     return ensurePool().query(text, params);

@@ -3,7 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><%= pageTitle %> - Interest Chat</title>
+    <title><%= pageTitle %> - Nevely</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet">
@@ -19,18 +19,18 @@
     <div class="chat-layout">
       <aside class="chat-sidebar" id="chatSidebar">
         <a class="chat-brand" href="/">
-          <span>IC</span>
-          <strong>Interest Chat</strong>
+          <span>N</span>
+          <strong>Nevely</strong>
         </a>
 
         <div class="chat-profile-card">
           <div class="chat-profile-avatar" id="profileInitial" aria-hidden="true">🍇</div>
           <div class="chat-profile-meta">
-            <strong id="profileName">Guest</strong>
-            <span>Guest Account</span>
+            <strong id="profileName"><%= currentUser?.displayName || 'Guest' %></strong>
+            <span><%= currentUser ? (currentUser.plan === 'premium' ? 'Premium Account' : 'Free Account') : 'Guest Account' %></span>
           </div>
           <div class="chat-profile-actions">
-            <button type="button" aria-label="Settings" title="Coming soon">
+            <button type="button" id="settingsBtn" aria-label="Account settings" title="Account settings">
               <span class="ui-icon icon-gear"></span>
             </button>
             <button type="button" id="soundToggle" aria-label="Toggle sound">
@@ -48,10 +48,6 @@
         <div class="quick-actions-row">
           <button type="button" class="premium-badge" aria-label="Premium" title="Coming soon">
             <span class="emoji-icon">👑</span>
-          </button>
-          <button type="button" class="discord-new-chat" id="startBtnSidebar">
-            <span class="ui-icon icon-chat"></span>
-            Start New Chat
           </button>
         </div>
 
@@ -83,7 +79,8 @@
                   <button type="button" class="active" id="inboxTabMessages">Messages</button>
                   <button type="button" id="inboxTabRequests">Requests</button>
                 </div>
-                <div class="empty-inbox">
+                <div class="panel-data-list" id="messagesPanelList"></div>
+                <div class="empty-inbox" id="messagesPanelEmpty">
                   <div class="empty-icon"><span class="ui-icon icon-mailbox"></span></div>
                   <p>No conversations yet. Match with someone or add friends to start chatting!</p>
                 </div>
@@ -92,7 +89,8 @@
               <!-- Pannello: History -->
               <div class="inbox-panel" data-panel-content="history">
                 <div class="inbox-panel-title">Recent chats</div>
-                <div class="empty-inbox">
+                <div class="panel-data-list" id="historyPanelList"></div>
+                <div class="empty-inbox" id="historyPanelEmpty">
                   <div class="empty-icon"><span class="emoji-icon">🕓</span></div>
                   <p>Your chat history will appear here.</p>
                 </div>
@@ -104,7 +102,8 @@
                   <button type="button" class="active" id="friendsTabFriends">Friends</button>
                   <button type="button" id="friendsTabRequests">Requests</button>
                 </div>
-                <div class="empty-inbox">
+                <div class="panel-data-list" id="friendsPanelList"></div>
+                <div class="empty-inbox" id="friendsPanelEmpty">
                   <div class="empty-icon"><span class="ui-icon icon-users"></span></div>
                   <p>No friends yet. Add friends or accept a request.</p>
                 </div>
@@ -113,7 +112,8 @@
               <!-- Pannello: Notifications -->
               <div class="inbox-panel" data-panel-content="notifications">
                 <div class="inbox-panel-title">Notifications</div>
-                <div class="empty-inbox">
+                <div class="panel-data-list" id="notificationsPanelList"></div>
+                <div class="empty-inbox" id="notificationsPanelEmpty">
                   <div class="empty-icon"><span class="emoji-icon">🔔</span></div>
                   <p>No notifications yet.</p>
                 </div>
@@ -122,7 +122,9 @@
               <!-- Pannello: Saved chats -->
               <div class="inbox-panel" data-panel-content="saved">
                 <div class="inbox-panel-title">Saved chats</div>
-                <div class="empty-inbox">
+                <div class="saved-limit-line" id="savedLimitLine"></div>
+                <div class="panel-data-list" id="savedPanelList"></div>
+                <div class="empty-inbox" id="savedPanelEmpty">
                   <div class="empty-icon"><span class="emoji-icon">❤️</span></div>
                   <p>Chats you save will show up here.</p>
                 </div>
@@ -145,13 +147,13 @@
                 <p class="panel-super">Quick start</p>
                 <h1>Tell us who is chatting</h1>
               </div>
-              <span class="quick-pill">Guest setup</span>
+              <span class="quick-pill"><%= currentUser ? 'Account setup' : 'Guest setup' %></span>
             </div>
 
             <div class="quick-form-grid">
               <label class="quick-field" for="usernameInput">
                 <span>Your username</span>
-                <input id="usernameInput" type="text" maxlength="24" autocomplete="nickname" placeholder="Enter your name">
+                <input id="usernameInput" type="text" maxlength="24" autocomplete="nickname" placeholder="Enter your name" value="<%= currentUser?.displayName || '' %>">
               </label>
 
               <label class="quick-field" for="ageInput">
@@ -159,15 +161,15 @@
                 <select id="ageInput">
                   <option value="">Select age</option>
                   <% for (let age = 18; age <= 99; age++) { %>
-                    <option value="<%= age %>"><%= age %></option>
+                    <option value="<%= age %>" <%= currentUser?.age === age ? 'selected' : '' %>><%= age %></option>
                   <% } %>
                 </select>
               </label>
 
               <label class="quick-field country-field" for="countryInput">
                 <span>Your country</span>
-                <input id="countryInput" type="text" autocomplete="off" placeholder="Select country">
-                <input id="countryValue" type="hidden">
+                <input id="countryInput" type="text" autocomplete="off" placeholder="Select country" value="<%= currentUser?.country || '' %>">
+                <input id="countryValue" type="hidden" value="<%= currentUser?.country || '' %>">
                 <div class="country-suggestions hidden" id="countrySuggestions"></div>
               </label>
             </div>
@@ -231,7 +233,15 @@
               <h2>Gender & Age Filter <span>♕</span></h2>
               <p>Find people matching your preferences.</p>
               <div class="collapsible-body">
-                <div class="locked-filter-copy">Coming soon as a premium filter.</div>
+                <% if (currentUser?.plan === 'premium') { %>
+                  <div class="premium-filter-grid">
+                    <label>Gender<select id="premiumGender"><option value="">Any</option><option value="woman">Woman</option><option value="man">Man</option><option value="non-binary">Non-binary</option></select></label>
+                    <label>Min age<input id="premiumMinAge" type="number" min="18" max="99" value="18"></label>
+                    <label>Max age<input id="premiumMaxAge" type="number" min="18" max="99" value="99"></label>
+                  </div>
+                <% } else { %>
+                  <div class="locked-filter-copy">Premium feature. Upgrade from Account & plans.</div>
+                <% } %>
               </div>
             </div>
             <button type="button" aria-label="Open filter">
@@ -247,7 +257,11 @@
               <h2>Filter by Country & Location <span>♕</span></h2>
               <p>Select country or location you want to connect within.</p>
               <div class="collapsible-body">
-                <div class="locked-filter-copy">Coming soon as a premium filter.</div>
+                <% if (currentUser?.plan === 'premium') { %>
+                  <label class="premium-filter-field">Country<input id="premiumCountry" type="text" maxlength="80" placeholder="Any country"></label>
+                <% } else { %>
+                  <div class="locked-filter-copy">Premium feature. Upgrade from Account & plans.</div>
+                <% } %>
               </div>
             </div>
             <button type="button" aria-label="Open filter">
@@ -258,20 +272,22 @@
 
         <section class="live-chat-card hidden" id="chatCard">
           <div class="chat-partner-bar">
-            <div class="partner-info">
+            <button class="partner-info partner-profile-trigger" id="partnerProfileBtn" type="button">
               <span class="partner-avatar" id="partnerAvatar">🙂</span>
               <span class="partner-name" id="partnerName">Looking for someone…</span>
-            </div>
+            </button>
             <div class="partner-actions">
-              <button type="button" class="partner-action-btn" aria-label="Call" title="Coming soon">
-                <span class="emoji-icon">📞</span>
+              <button type="button" class="partner-action-btn premium-camera" aria-label="Send photo" title="Premium - temporarily unavailable" disabled>
+                <span class="emoji-icon">📷</span><span class="premium-dot">P</span>
               </button>
-              <button type="button" class="partner-action-btn" aria-label="Video call" title="Coming soon">
-                <span class="emoji-icon">🎥</span>
-              </button>
-              <button type="button" class="partner-action-btn" aria-label="More options" title="Coming soon">
+              <button type="button" class="partner-action-btn" id="conversationMenuBtn" aria-label="More options" title="More options">
                 <span class="emoji-icon">⋮</span>
               </button>
+              <div class="conversation-menu hidden" id="conversationMenu">
+                <button type="button" id="saveConversationBtn">Save chat</button>
+                <button type="button" id="blockPartnerBtn">Block user</button>
+                <button type="button" class="danger" id="deleteConversationBtn">Delete for everyone</button>
+              </div>
             </div>
           </div>
 
@@ -297,9 +313,53 @@
       </button>
     </div>
 
+    <div class="app-modal hidden" id="accountModal" role="dialog" aria-modal="true" aria-labelledby="accountModalTitle">
+      <div class="app-modal-card account-modal-card">
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+        <h2 id="accountModalTitle">Account & plans</h2>
+        <div id="guestAccountPrompt" class="account-guest-prompt hidden">
+          <p>Create a free account to save chats, add friends and manage your profile.</p>
+          <a class="btn btn-primary" href="/register">Create Account</a>
+        </div>
+        <form id="accountForm" class="account-form hidden">
+          <label>Display name<input name="displayName" maxlength="40" required></label>
+          <label>Email<input name="email" type="email" required></label>
+          <label>Nevely ID<input name="publicId" readonly></label>
+          <label>Age<input name="age" type="number" min="18" max="120" required></label>
+          <label>Gender<input name="gender" maxlength="30"></label>
+          <label>Country<input name="country" maxlength="80"></label>
+          <label>Profile image URL<input name="profileImageUrl" type="url" maxlength="500" placeholder="Temporary test storage"></label>
+          <button class="btn btn-primary" type="submit">Save profile</button>
+          <p class="account-feedback" id="accountFeedback"></p>
+          <div class="plan-summary"><strong id="accountPlan">Free plan</strong><span>Premium includes advanced filters and up to 10 saved chats. Current price: $0.00.</span></div>
+          <div class="account-privacy-section">
+            <strong>Privacy</strong>
+            <a href="/privacy">Read the Privacy Policy</a>
+            <div id="accountBlockList" class="account-block-list"></div>
+          </div>
+          <button class="btn btn-outline" id="logoutBtn" type="button">Log out</button>
+          <button class="danger-link" id="deleteAccountBtn" type="button">Delete account permanently</button>
+        </form>
+      </div>
+    </div>
+
+    <div class="app-modal hidden" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
+      <div class="app-modal-card public-profile-card">
+        <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+        <div class="public-profile-avatar" id="publicProfileAvatar">N</div>
+        <h2 id="profileModalTitle">Profile</h2>
+        <p id="publicProfileMeta"></p>
+        <div class="profile-modal-actions">
+          <button class="btn btn-primary" id="friendActionBtn" type="button">Add friend</button>
+          <button class="btn btn-outline" id="profileBlockBtn" type="button">Block</button>
+        </div>
+      </div>
+    </div>
+
     <script>
       window.__IS_GUEST__ = <%= isGuest ? 'true' : 'false' %>;
       window.__GUEST_DURATION__ = <%= guestDurationSeconds %>;
+      window.__CURRENT_USER__ = <%- JSON.stringify(currentUser || null).replace(/</g, '\\u003c') %>;
     </script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/js/chat-client.js"></script>
