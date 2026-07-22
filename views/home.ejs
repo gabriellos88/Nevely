@@ -1,157 +1,184 @@
 <%- include('partials/header') %>
 
-<main>
-  <!-- Hero Section -->
-  <section class="hero" id="home">
-    <div class="hero-content">
-      <p class="eyebrow">Interest-based chat, no chaos</p>
-      <h1>Find people who actually speak your language.</h1>
-      <div class="hero-subtitle">Real connections through shared interests.</div>
-      <p class="hero-desc">
-        Nevely connects you with people who share your passions, in a safe and moderated space.
-        Choose your topics, find someone to talk to, and leave whenever you want. No explicit content allowed.
-      </p>
+<main class="home-page">
+  <section class="home-hero" id="home" aria-labelledby="home-hero-title">
+    <div class="home-container home-hero__inner">
+      <div class="home-hero__copy">
+        <p class="home-kicker"><%= copy.home.kicker %></p>
+        <h1 id="home-hero-title"><%= copy.home.title %></h1>
+        <p class="home-hero__lead">
+          <strong><%= copy.home.leadStrong %></strong>
+          <%= copy.home.lead %>
+        </p>
 
-      <div class="hero-actions">
-        <a href="/chat?guest=1" class="btn btn-primary btn-lg">Continue as Guest</a>
-        <a href="/register" class="btn btn-outline btn-lg">Create Account</a>
-      </div>
-      <p class="hero-note">
-        🔒 Guest mode is live now · 🌍 Interest Matching · ⚡ Instant Connections · 24/7 Support
-      </p>
-    </div>
-    <div class="hero-image">
-      <svg width="100%" viewBox="0 0 400 300" style="max-width: 500px;">
-        <!-- Chat interface illustration -->
-        <rect width="400" height="300" fill="#F0E6FF" rx="16"/>
-        <rect x="20" y="20" width="360" height="260" fill="#fff" rx="12" stroke="#E5E7EB" stroke-width="1"/>
-        
-        <!-- Header -->
-        <rect x="20" y="20" width="360" height="50" fill="#ECEEFA" rx="12"/>
-        <circle cx="40" cy="45" r="8" fill="#6C4EE4"/>
-        <text x="60" y="50" font-family="Nunito" font-size="14" font-weight="600" fill="#1A1A2E">Tech Enthusiast</text>
-        
-        <!-- Messages -->
-        <rect x="30" y="85" width="280" height="28" fill="#F3E8FF" rx="8"/>
-        <text x="40" y="105" font-family="Nunito" font-size="12" fill="#1A1A2E">I love building web apps!</text>
-        
-        <rect x="90" y="125" width="280" height="28" fill="#ECEEFA" rx="8"/>
-        <text x="100" y="145" font-family="Nunito" font-size="12" fill="#1A1A2E">That's awesome! What stack do you use?</text>
-        
-        <rect x="30" y="165" width="240" height="28" fill="#F3E8FF" rx="8"/>
-        <text x="40" y="185" font-family="Nunito" font-size="12" fill="#1A1A2E">React and Node.js, mostly.</text>
-        
-        <!-- Input area -->
-        <rect x="30" y="230" width="310" height="35" fill="#F9FAFB" rx="8" stroke="#E5E7EB" stroke-width="1"/>
-        <text x="40" y="252" font-family="Nunito" font-size="12" fill="#9CA3AF">Type a message...</text>
-      </svg>
-    </div>
-  </section>
+        <div class="home-hero__cta-stack">
+          <div class="home-actions" aria-label="<%= copy.home.getStartedLabel %>">
+            <a href="/chat?guest=1" class="home-button home-button--primary"><span><%= copy.common.tryAsGuest %></span></a>
+            <a href="/register" class="home-button home-button--outline"><span><%= copy.common.createAccount %></span></a>
+          </div>
 
-  <!-- Stats Section -->
-  <section class="stats">
-    <div class="stats-container">
-      <div class="stat-item">
-        <div class="stat-number">5M+</div>
-        <div class="stat-label">Conversations</div>
+          <ul class="home-trust-list" aria-label="<%= copy.home.highlightsLabel %>">
+            <% copy.home.highlights.forEach((highlight) => { %><li><%= highlight %></li><% }) %>
+          </ul>
+        </div>
       </div>
-      <div class="stat-item">
-        <div class="stat-number">50k+</div>
-        <div class="stat-label">Active Users</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-number">&lt;5s</div>
-        <div class="stat-label">Match Time</div>
-      </div>
-      <div class="stat-item">
-        <div class="stat-number">24/7</div>
-        <div class="stat-label">Moderation</div>
-      </div>
-    </div>
-  </section>
 
-  <!-- Features Section -->
-  <section class="features-section" id="features">
-    <div class="wrap">
-      <div class="section-header">
-        <h2>Why Nevely?</h2>
-        <p>Built for meaningful conversations based on real interests</p>
+      <div class="home-match-preview" aria-label="<%= copy.home.preview.aria %>">
+        <div class="home-match-preview__header">
+          <div>
+            <span class="home-preview-label"><%= copy.home.preview.label %></span>
+            <strong><%= copy.home.preview.headline %></strong>
+          </div>
+          <span class="home-live-status"><span aria-hidden="true"></span><%= copy.home.preview.searching %></span>
+        </div>
+
+        <div class="home-signal-network">
+          <article class="home-signal-node">
+            <div class="home-signal-node__identity">
+              <span class="home-avatar" aria-hidden="true">Y</span>
+              <div>
+                <strong><%= copy.home.preview.yourSignal %></strong>
+                <p><%= copy.home.preview.yourStatus %></p>
+              </div>
+            </div>
+            <div class="home-topic-list" aria-label="<%= copy.home.preview.yourInterestsAria %>">
+              <span><%= copy.home.sampleTopics.webDevelopment %></span>
+              <span><%= copy.home.sampleTopics.photography %></span>
+            </div>
+          </article>
+
+          <div class="home-signal-bridge" aria-hidden="true">
+            <span class="home-signal-bridge__line"></span>
+            <small><%= copy.home.preview.shared %></small>
+          </div>
+
+          <article class="home-signal-node">
+            <div class="home-signal-node__identity">
+              <span class="home-avatar home-avatar--match" aria-hidden="true">M</span>
+              <div>
+                <strong><%= copy.home.preview.match %></strong>
+                <p><%= copy.home.preview.matchStatus %></p>
+              </div>
+            </div>
+            <div class="home-topic-list" aria-label="<%= copy.home.preview.matchInterestsAria %>">
+              <span><%= copy.home.sampleTopics.webDevelopment %></span>
+              <span><%= copy.home.sampleTopics.travel %></span>
+            </div>
+          </article>
+        </div>
+
+        <div class="home-conversation-signal">
+          <span class="home-conversation-signal__dot" aria-hidden="true"></span>
+          <div>
+            <strong><%= copy.home.preview.ready %></strong>
+            <p><%= copy.home.preview.readyBody %></p>
+          </div>
+          <span class="home-ready-pill"><%= copy.home.preview.readyPill %></span>
+        </div>
       </div>
-      <div class="features-grid">
-        <div class="feature-card">
-          <div class="feature-icon">🎯</div>
-          <h3>Interest Matching</h3>
-          <p>Connect with people who share your passions, not random strangers.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🛡️</div>
-          <h3>Safe & Moderated</h3>
-          <p>Real moderation, clear rules, and tools to report inappropriate behavior.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🕶️</div>
-          <h3>Privacy First</h3>
-          <p>Choose to stay anonymous or create an account to unlock unlimited conversations.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">⚡</div>
-          <h3>Instant Connections</h3>
-          <p>Get matched in seconds and start talking about what you love.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">💬</div>
-          <h3>Text, Voice & More</h3>
-          <p>Choose how you want to chat: text, voice, or video conversations.</p>
-        </div>
-        <div class="feature-card">
-          <div class="feature-icon">🌍</div>
-          <h3>Global Community</h3>
-          <p>Connect with passionate people from around the world.</p>
-        </div>
-      </div>
+
     </div>
   </section>
 
-  <!-- How It Works Section -->
-  <section class="how-it-works" id="how-it-works">
-    <div class="wrap">
-      <div class="section-header">
-        <h2>How It Works</h2>
-        <p>Get started in just a few simple steps</p>
-      </div>
-      <div class="steps">
-        <div class="step">
-          <div class="step-number">1</div>
-          <h3>Choose Interests</h3>
-          <p>Select topics you're passionate about</p>
-        </div>
-        <div class="step">
-          <div class="step-number">2</div>
-          <h3>Get Matched</h3>
-          <p>We find someone with shared interests</p>
-        </div>
-        <div class="step">
-          <div class="step-number">3</div>
-          <h3>Start Talking</h3>
-          <p>Have a real conversation with a stranger</p>
-        </div>
-        <div class="step">
-          <div class="step-number">4</div>
-          <h3>Make Connections</h3>
-          <p>Build meaningful relationships</p>
-        </div>
+  <div class="home-divider" aria-hidden="true"></div>
+
+  <section class="home-capabilities" id="features" aria-labelledby="home-features-title">
+    <div class="home-container">
+      <header class="home-section-header">
+        <p class="home-kicker"><%= copy.home.featuresSection.kicker %></p>
+        <h2 id="home-features-title"><%= copy.home.featuresSection.title %></h2>
+        <p><%= copy.home.featuresSection.intro %></p>
+      </header>
+
+      <div class="home-capability-grid">
+        <article class="home-capability home-capability--lead">
+          <div class="home-capability-visual" aria-hidden="true">
+            <span class="home-orbit home-orbit--outer"></span>
+            <span class="home-orbit home-orbit--inner"></span>
+            <span class="home-orbit-topic home-orbit-topic--top"><%= copy.home.sampleTopics.designSystems %></span>
+            <span class="home-orbit-topic home-orbit-topic--right"><%= copy.home.sampleTopics.photography %></span>
+            <span class="home-orbit-topic home-orbit-topic--bottom"><%= copy.home.sampleTopics.webApps %></span>
+            <span class="home-orbit-core"><%= copy.home.featuresSection.sharedSignal %></span>
+          </div>
+          <div>
+            <p class="home-capability__label"><%= copy.home.featuresSection.items[0].label %></p>
+            <h3><%= copy.home.featuresSection.items[0].title %></h3>
+            <p><%= copy.home.featuresSection.items[0].body %></p>
+          </div>
+        </article>
+
+        <article class="home-capability home-capability--safety">
+          <p class="home-capability__label"><%= copy.home.featuresSection.items[1].label %></p>
+          <h3><%= copy.home.featuresSection.items[1].title %></h3>
+          <p><%= copy.home.featuresSection.items[1].body %></p>
+        </article>
+
+        <article class="home-capability home-capability--privacy">
+          <p class="home-capability__label"><%= copy.home.featuresSection.items[2].label %></p>
+          <h3><%= copy.home.featuresSection.items[2].title %></h3>
+          <p><%= copy.home.featuresSection.items[2].body %></p>
+        </article>
+
+        <article class="home-capability home-capability--instant">
+          <p class="home-capability__label"><%= copy.home.featuresSection.items[3].label %></p>
+          <h3><%= copy.home.featuresSection.items[3].title %></h3>
+          <p><%= copy.home.featuresSection.items[3].body %></p>
+        </article>
+
+        <article class="home-capability home-capability--formats">
+          <p class="home-capability__label"><%= copy.home.featuresSection.items[4].label %></p>
+          <h3><%= copy.home.featuresSection.items[4].title %></h3>
+          <p><%= copy.home.featuresSection.items[4].body %></p>
+        </article>
+
+        <article class="home-capability home-capability--global">
+          <p class="home-capability__label"><%= copy.home.featuresSection.items[5].label %></p>
+          <h3><%= copy.home.featuresSection.items[5].title %></h3>
+          <p><%= copy.home.featuresSection.items[5].body %></p>
+        </article>
       </div>
     </div>
   </section>
 
-  <!-- CTA Section -->
-  <section class="cta">
-    <div class="cta-container">
-      <h2>Ready to Connect?</h2>
-      <p>Join thousands of people finding real conversations about topics they love.</p>
-      <a href="/register" class="btn-cta">Start Chatting Now →</a>
+  <div class="home-divider" aria-hidden="true"></div>
+
+  <section class="home-journey" id="how-it-works" aria-labelledby="home-journey-title">
+    <div class="home-container">
+      <header class="home-section-header">
+        <p class="home-kicker"><%= copy.home.journey.kicker %></p>
+        <h2 id="home-journey-title"><%= copy.home.journey.title %></h2>
+        <p><%= copy.home.journey.intro %></p>
+      </header>
+
+      <div class="home-journey-track" aria-label="<%= copy.home.journey.aria %>">
+        <% copy.home.journey.steps.forEach((step) => { %>
+          <article class="home-journey-stop">
+            <span class="home-journey-cue"><%= step.cue %></span>
+            <h3><%= step.title %></h3>
+            <p><%= step.body %></p>
+          </article>
+        <% }) %>
+      </div>
     </div>
   </section>
+
+  <div class="home-divider" aria-hidden="true"></div>
+
+  <section class="home-invitation" aria-labelledby="home-invitation-title">
+    <div class="home-container home-invitation__inner">
+      <div>
+        <p class="home-kicker"><%= copy.home.invitation.kicker %></p>
+        <h2 id="home-invitation-title"><%= copy.home.invitation.title %></h2>
+        <p><%= copy.home.invitation.body %></p>
+      </div>
+      <div class="home-actions home-invitation__actions">
+        <a href="/chat?guest=1" class="home-button home-button--primary"><span><%= copy.common.tryAsGuest %></span></a>
+        <a href="/register" class="home-button home-button--outline"><span><%= copy.common.createAccount %></span></a>
+      </div>
+    </div>
+  </section>
+
+  <div class="home-divider" aria-hidden="true"></div>
 </main>
 
 <%- include('partials/footer') %>

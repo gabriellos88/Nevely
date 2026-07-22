@@ -1,0 +1,59 @@
+<%- include('partials/header') %>
+
+<% const localizedPosts = posts.map((post) => copy.blog.posts.find((entry) => entry.slug === post.slug) || post); %>
+<main class="editorial-page blog-page">
+  <section class="editorial-hero" aria-labelledby="blog-title">
+    <div class="editorial-container editorial-hero__inner">
+      <div class="editorial-hero__copy">
+        <p class="editorial-eyebrow"><%= copy.blog.eyebrow %></p>
+        <h1 id="blog-title"><%= copy.blog.title %></h1>
+        <p><%= copy.blog.intro %></p>
+      </div>
+      <div class="editorial-hero__mark" aria-hidden="true">
+        <i data-lucide="message-circle"></i>
+        <span></span>
+        <i data-lucide="sparkles"></i>
+      </div>
+    </div>
+  </section>
+
+  <div class="editorial-divider" aria-hidden="true"></div>
+
+  <section class="blog-latest" aria-labelledby="blog-latest-title">
+    <div class="editorial-container">
+      <header class="editorial-section-header">
+        <p class="editorial-eyebrow"><%= copy.blog.eyebrow %></p>
+        <h2 id="blog-latest-title"><%= copy.blog.latest %></h2>
+        <p><%= copy.blog.latestIntro %></p>
+      </header>
+
+      <% if (localizedPosts.length) { %>
+        <div class="blog-story-list">
+          <% localizedPosts.forEach((post, index) => { %>
+            <article class="blog-story <%= index === 0 ? 'blog-story--featured' : '' %>">
+              <div class="blog-story__signal" aria-hidden="true">
+                <i data-lucide="radio"></i>
+                <span></span>
+              </div>
+              <div class="blog-story__copy">
+                <p class="blog-story__tag"><%= post.tag %></p>
+                <h3><a href="/blog/<%= post.slug %>"><%= post.title %></a></h3>
+                <p><%= post.excerpt %></p>
+                <a class="blog-story__link" href="/blog/<%= post.slug %>">
+                  <span><%= copy.blog.readArticle %></span>
+                  <i data-lucide="arrow-up-right" aria-hidden="true"></i>
+                </a>
+              </div>
+            </article>
+          <% }) %>
+        </div>
+      <% } else { %>
+        <p class="blog-empty"><%= copy.blog.empty %></p>
+      <% } %>
+    </div>
+  </section>
+
+  <div class="editorial-divider" aria-hidden="true"></div>
+</main>
+
+<%- include('partials/footer') %>

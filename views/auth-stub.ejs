@@ -1,48 +1,104 @@
-<%- include('partials/header') %>
+<%- include('partials/header', { hideSiteHeader: true }) %>
 
-<main class="auth-page">
-  <section class="auth-card">
-    <div class="auth-logo">N</div>
+<main class="auth-page auth-page--<%= mode %>">
+  <section class="auth-shell" aria-labelledby="auth-title">
+    <aside class="auth-context">
+      <div class="auth-context__intro">
+        <p class="auth-kicker"><%= mode === 'login' ? copy.auth.loginContextKicker : copy.auth.registerContextKicker %></p>
+        <p class="auth-context__title"><%= copy.auth.contextTitle %></p>
+        <p class="auth-context__body"><%= copy.auth.contextBody %></p>
+      </div>
 
-    <% if (mode === 'login') { %>
-      <h1>Welcome back</h1>
-      <p>Log in to find friends and keep the conversations you care about.</p>
-    <% } else { %>
-      <h1>Create your account</h1>
-      <p>Save conversations, customize your profile and connect with friends.</p>
-    <% } %>
+      <ul class="auth-benefits" aria-label="<%= copy.auth.benefitsLabel %>">
+        <li>
+          <span class="auth-benefit-icon" aria-hidden="true"><i data-lucide="image"></i></span>
+          <span><%= copy.auth.benefits[0] %></span>
+        </li>
+        <li>
+          <span class="auth-benefit-icon" aria-hidden="true"><i data-lucide="users"></i></span>
+          <span><%= copy.auth.benefits[1] %></span>
+        </li>
+        <li>
+          <span class="auth-benefit-icon" aria-hidden="true"><i data-lucide="crown"></i></span>
+          <span><%= copy.auth.benefits[2] %></span>
+        </li>
+      </ul>
+    </aside>
 
-    <% if (error) { %>
-      <div class="auth-error" role="alert"><%= error %></div>
-    <% } %>
+    <div class="auth-entry">
+      <header class="auth-entry__header">
+        <p class="auth-kicker"><%= mode === 'login' ? copy.auth.loginEyebrow : copy.auth.registerEyebrow %></p>
+        <h1 id="auth-title"><%= mode === 'login' ? copy.auth.loginTitle : copy.auth.registerTitle %></h1>
+        <p><%= mode === 'login' ? copy.auth.loginBody : copy.auth.registerBody %></p>
+        <a href="/<%= mode === 'login' ? 'register' : 'login' %>" class="auth-switch-link">
+          <%= mode === 'login' ? copy.auth.newHere : copy.auth.alreadyMember %>
+        </a>
+      </header>
 
-    <form class="auth-form" method="post" action="/<%= mode %>">
-      <% if (mode === 'register') { %>
-        <label>
-          <span>Username</span>
-          <input name="username" type="text" minlength="3" maxlength="30" autocomplete="username" required value="<%= values?.username || '' %>">
-        </label>
+      <% if (error) { %>
+        <div class="auth-error" id="auth-error" role="alert">
+          <i data-lucide="circle-alert" aria-hidden="true"></i>
+          <span><%= error %></span>
+        </div>
       <% } %>
-      <label>
-        <span>Email</span>
-        <input name="email" type="email" maxlength="255" autocomplete="email" required value="<%= values?.email || '' %>">
-      </label>
-      <label>
-        <span>Password</span>
-        <input name="password" type="password" minlength="8" maxlength="72" autocomplete="<%= mode === 'login' ? 'current-password' : 'new-password' %>" required>
-      </label>
-      <button class="btn btn-primary btn-block" type="submit">
-        <%= mode === 'login' ? 'Log In' : 'Create Account' %>
-      </button>
-    </form>
 
-    <a href="/<%= mode === 'login' ? 'register' : 'login' %>" class="auth-secondary-link">
-      <%= mode === 'login' ? 'Create an account' : 'Already have an account?' %>
-    </a>
+      <div class="auth-provider-stack">
+        <button class="auth-provider-button" type="button" disabled>
+          <span><%= copy.auth.googleAction %></span>
+          <span class="auth-provider-status"><%= copy.auth.googleUnavailable %></span>
+        </button>
+        <p class="auth-provider-divider"><span><%= copy.auth.emailDivider %></span></p>
+      </div>
 
-    <div class="auth-divider"><span>or</span></div>
-    <a href="/chat?guest=1" class="btn btn-outline btn-block">Continue as Guest</a>
+      <form class="auth-form" method="post" action="/<%= mode %>">
+        <% if (mode === 'register') { %>
+          <label class="auth-field" for="auth-username">
+            <span><%= copy.auth.username %></span>
+            <span class="auth-field-shell">
+              <i data-lucide="user" aria-hidden="true"></i>
+              <input id="auth-username" name="username" type="text" minlength="3" maxlength="30" autocomplete="username" required value="<%= values?.username || '' %>" placeholder="<%= copy.auth.usernamePlaceholder %>">
+            </span>
+            <small><%= copy.auth.usernameHint %></small>
+          </label>
+        <% } %>
+
+        <label class="auth-field" for="auth-email">
+          <span><%= copy.common.email %></span>
+          <span class="auth-field-shell">
+            <i data-lucide="mail" aria-hidden="true"></i>
+            <input id="auth-email" name="email" type="email" maxlength="255" autocomplete="email" required value="<%= values?.email || '' %>" placeholder="<%= copy.auth.emailPlaceholder %>">
+          </span>
+        </label>
+
+        <label class="auth-field" for="auth-password">
+          <span><%= copy.common.password %></span>
+          <span class="auth-field-shell">
+            <i data-lucide="lock-keyhole" aria-hidden="true"></i>
+            <input id="auth-password" name="password" type="password" minlength="8" maxlength="72" autocomplete="<%= mode === 'login' ? 'current-password' : 'new-password' %>" required placeholder="<%= mode === 'login' ? copy.auth.loginPasswordPlaceholder : copy.auth.registerPasswordPlaceholder %>">
+          </span>
+          <% if (mode === 'register') { %><small><%= copy.auth.passwordHint %></small><% } %>
+        </label>
+
+        <button class="auth-submit" type="submit">
+          <span><%= mode === 'login' ? copy.auth.loginAction : copy.auth.registerAction %></span>
+          <i data-lucide="arrow-right" aria-hidden="true"></i>
+        </button>
+      </form>
+
+      <div class="auth-guest-option">
+        <div>
+          <strong><%= copy.auth.guestTitle %></strong>
+          <span><%= copy.auth.guestBody %></span>
+        </div>
+        <a href="/chat?guest=1" class="auth-guest-link">
+          <span><%= copy.common.tryAsGuest %></span>
+          <i data-lucide="arrow-up-right" aria-hidden="true"></i>
+        </a>
+      </div>
+    </div>
   </section>
 </main>
 
+<script src="/vendor/lucide-1.24.0.min.js"></script>
+<script src="/js/auth-client.js"></script>
 <%- include('partials/footer') %>

@@ -1,0 +1,36 @@
+<%- include('partials/header') %>
+
+<% const localizedPost = copy.blog.posts.find((entry) => entry.slug === post.slug) || post; %>
+<main class="editorial-page blog-article-page">
+  <article class="blog-article" aria-labelledby="blog-post-title">
+    <div class="editorial-container blog-article__inner">
+      <a class="blog-back-link" href="/blog">
+        <i data-lucide="arrow-left" aria-hidden="true"></i>
+        <span><%= copy.blog.backToBlog %></span>
+      </a>
+
+      <header class="blog-article__header">
+        <p class="editorial-eyebrow"><%= localizedPost.tag %></p>
+        <h1 id="blog-post-title"><%= localizedPost.title %></h1>
+        <p><%= localizedPost.excerpt %></p>
+      </header>
+
+      <div class="blog-article__rule" aria-hidden="true">
+        <i data-lucide="message-circle"></i>
+        <span></span>
+      </div>
+
+      <div class="blog-article__body">
+        <% if (Array.isArray(localizedPost.body)) { %>
+          <% localizedPost.body.forEach((paragraph) => { %><p><%= paragraph %></p><% }) %>
+        <% } else { %>
+          <%- localizedPost.body %>
+        <% } %>
+      </div>
+    </div>
+  </article>
+
+  <div class="editorial-divider" aria-hidden="true"></div>
+</main>
+
+<%- include('partials/footer') %>

@@ -1,0 +1,18 @@
+<%- include('partials/header') %>
+
+<main class="not-found-page">
+  <section class="not-found-hero" aria-labelledby="not-found-title">
+    <div class="not-found-hero__content">
+      <span class="not-found-hero__icon" aria-hidden="true"><i data-lucide="compass"></i></span>
+      <p class="editorial-eyebrow"><%= copy.notFound.eyebrow %></p>
+      <h1 id="not-found-title"><%= copy.notFound.title %></h1>
+      <p><%= copy.notFound.body %></p>
+      <div class="not-found-hero__actions">
+        <a class="btn btn-primary" href="/"><%= copy.notFound.homeCta %></a>
+        <a class="btn btn-outline" href="/chat?guest=1"><%= copy.notFound.chatCta %></a>
+      </div>
+    </div>
+  </section>
+</main>
+
+<%- include('partials/footer') %>

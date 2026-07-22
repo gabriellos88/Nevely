@@ -1,39 +1,40 @@
 <%- include('partials/header') %>
 <main class="admin-page">
   <div class="admin-wrap">
-    <h1>Nevely administration</h1>
+    <h1><%= copy.admin.title %></h1>
     <section class="admin-section">
-      <h2>Reports</h2>
+      <h2><%= copy.admin.reports %></h2>
       <div class="admin-table-wrap">
         <table class="admin-table">
-          <thead><tr><th>Date</th><th>Reporter</th><th>Reported</th><th>Reason</th><th>Status</th><th>Actions</th></tr></thead>
+          <thead><tr><th><%= copy.admin.date %></th><th><%= copy.admin.reporter %></th><th><%= copy.admin.reported %></th><th><%= copy.admin.reason %></th><th><%= copy.admin.status %></th><th><%= copy.admin.actions %></th></tr></thead>
           <tbody>
             <% reports.forEach((report) => { %>
-              <tr><td><%= new Date(report.created_at).toLocaleString() %></td><td><%= report.reporter_name || 'Guest' %></td><td><%= report.reported_name || 'Guest' %></td><td><%= report.reason %></td><td><%= report.status %></td><td><% if (report.status === 'pending') { %><button class="admin-action" data-report-action="resolve" data-id="<%= report.id %>">Resolve</button><button class="admin-action" data-report-action="dismiss" data-id="<%= report.id %>">Dismiss</button><% } %></td></tr>
+              <tr><td><%= new Date(report.created_at).toLocaleString() %></td><td><%= report.reporter_name || copy.common.guest %></td><td><%= report.reported_name || copy.common.guest %></td><td><%= report.reason %></td><td><%= report.status %></td><td><% if (report.status === 'pending') { %><button class="admin-action" data-report-action="resolve" data-id="<%= report.id %>"><%= copy.admin.resolve %></button><button class="admin-action" data-report-action="dismiss" data-id="<%= report.id %>"><%= copy.admin.dismiss %></button><% } %></td></tr>
             <% }) %>
           </tbody>
         </table>
       </div>
     </section>
     <section class="admin-section">
-      <h2>Users</h2>
+      <h2><%= copy.admin.users %></h2>
       <div class="admin-table-wrap">
         <table class="admin-table">
-          <thead><tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Plan</th><th>Actions</th></tr></thead>
+          <thead><tr><th><%= copy.admin.id %></th><th><%= copy.admin.name %></th><th><%= copy.admin.email %></th><th><%= copy.admin.role %></th><th><%= copy.admin.plan %></th><th><%= copy.admin.actions %></th></tr></thead>
           <tbody>
             <% users.forEach((user) => { %>
-              <tr><td><%= user.public_id %></td><td><%= user.display_name %></td><td><%= user.email %></td><td><%= user.role %></td><td><%= user.plan %></td><td><button class="admin-action" data-ban="temporary" data-id="<%= user.id %>">24h ban</button><button class="admin-action danger" data-ban="permanent" data-id="<%= user.id %>">Permanent ban</button><button class="admin-action danger" data-delete-user data-id="<%= user.id %>">Ban + delete</button></td></tr>
+              <tr><td><%= user.public_id %></td><td><%= user.display_name %></td><td><%= user.email %></td><td><%= user.role %></td><td><%= user.plan %></td><td><button class="admin-action" data-ban="temporary" data-id="<%= user.id %>"><%= copy.admin.banDay %></button><button class="admin-action danger" data-ban="permanent" data-id="<%= user.id %>"><%= copy.admin.banPermanent %></button><button class="admin-action danger" data-delete-user data-id="<%= user.id %>"><%= copy.admin.banDelete %></button></td></tr>
             <% }) %>
           </tbody>
         </table>
       </div>
     </section>
     <section class="admin-section">
-      <h2>Premium plan</h2>
-      <p>Current price: <strong><%= price ? (price.price_cents / 100).toFixed(2) + ' ' + price.currency : '0.00 USD' %></strong></p>
-      <form class="admin-price-form" id="adminPriceForm"><input name="price" type="number" min="0" step="0.01" value="<%= price ? (price.price_cents / 100).toFixed(2) : '0.00' %>"><select name="currency"><option>USD</option><option>EUR</option><option>CHF</option></select><button class="btn btn-primary" type="submit">Update price</button></form>
+      <h2><%= copy.admin.premiumPlan %></h2>
+      <p><%= copy.admin.currentPrice %>: <strong><%= price ? (price.price_cents / 100).toFixed(2) + ' ' + price.currency : '0.00 USD' %></strong></p>
+      <form class="admin-price-form" id="adminPriceForm"><input name="price" type="number" min="0" step="0.01" value="<%= price ? (price.price_cents / 100).toFixed(2) : '0.00' %>"><select name="currency"><option>USD</option><option>EUR</option><option>CHF</option></select><button class="btn btn-primary" type="submit"><%= copy.admin.savePrice %></button></form>
     </section>
   </div>
 </main>
+<script>window.__COPY__ = <%- JSON.stringify(copy).replace(/</g, '\\u003c') %>;</script>
 <script src="/js/admin.js"></script>
 <%- include('partials/footer') %>

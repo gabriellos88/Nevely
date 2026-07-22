@@ -1,11 +1,12 @@
 {
   "name": "nevely",
   "version": "1.0.0",
-  "description": "Interest chat app with EJS views and Socket.IO",
+  "description": "Nevely interest-based social chat with EJS and Socket.IO",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
-    "db:migrate": "node scripts/migrate.js"
+    "db:migrate": "node scripts/migrate.js",
+    "avatars:generate": "node scripts/generate-guest-avatars.mjs"
   },
   "dependencies": {
     "bcrypt": "^6.0.0",
@@ -17,5 +18,9 @@
     "express-session": "^1.19.0",
     "pg": "^8.22.0",
     "socket.io": "^4.8.3"
+  },
+  "devDependencies": {
+    "@dicebear/core": "10.2.0",
+    "@dicebear/styles": "10.2.0"
   }
 }

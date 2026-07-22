@@ -1,367 +1,627 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><%= pageTitle %> - Nevely</title>
+    <title><%= pageTitle %> · <%= copy.common.brand %></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&family=Baloo+2:wght@600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css" />
   </head>
   <body class="chat-app-page">
-    <button class="mobile-sidebar-toggle" id="sidebarToggle" type="button" aria-label="Open menu">
-      <span></span>
-      <span></span>
-      <span></span>
-    </button>
-
     <div class="chat-layout">
-      <aside class="chat-sidebar" id="chatSidebar">
-        <a class="chat-brand" href="/">
-          <span>N</span>
-          <strong>Nevely</strong>
+      <header class="chat-topbar">
+        <a class="chat-brand" href="/" aria-label="<%= copy.chat.topbar.homeAria %>">
+          <span class="chat-brand-mark" aria-hidden="true">N</span>
+          <strong><%= copy.common.brand %></strong>
         </a>
 
-        <div class="chat-profile-card">
-          <div class="chat-profile-avatar" id="profileInitial" aria-hidden="true">🍇</div>
-          <div class="chat-profile-meta">
-            <strong id="profileName"><%= currentUser?.displayName || 'Guest' %></strong>
-            <span><%= currentUser ? (currentUser.plan === 'premium' ? 'Premium Account' : 'Free Account') : 'Guest Account' %></span>
-          </div>
-          <div class="chat-profile-actions">
-            <button type="button" id="settingsBtn" aria-label="Account settings" title="Account settings">
-              <span class="ui-icon icon-gear"></span>
-            </button>
-            <button type="button" id="soundToggle" aria-label="Toggle sound">
-              <span class="ui-icon icon-audio"></span>
-            </button>
-            <button type="button" id="themeToggle" aria-label="Toggle theme">
-              <span class="ui-icon icon-moon"></span>
-            </button>
-            <button type="button" aria-label="Language" title="Coming soon">
-              <span class="emoji-icon">🌐</span>
-            </button>
-          </div>
+        <div class="chat-topbar-context" aria-label="<%= copy.chat.topbar.modeAria %>">
+          <span class="chat-status-dot" aria-hidden="true"></span>
+          <span><%= copy.chat.topbar.mode %></span>
         </div>
 
-        <div class="quick-actions-row">
-          <button type="button" class="premium-badge" aria-label="Premium" title="Coming soon">
-            <span class="emoji-icon">👑</span>
+        <nav class="chat-topbar-actions" aria-label="<%= copy.chat.topbar.actionsAria %>">
+          <button class="chat-plan-link" type="button" data-open-plans>
+            <i data-lucide="sparkles" aria-hidden="true"></i>
+            <span><%= currentUser?.plan === 'premium' ? copy.common.premium : copy.account.tabs.plans %></span>
           </button>
-        </div>
 
-        <div class="discord-panel">
-          <div class="sidebar-columns">
-            <nav class="icon-rail" aria-label="Sections">
-              <button type="button" class="active" data-panel="messages" aria-label="Messages" title="Messages">
-                <span class="emoji-icon">💬</span>
-              </button>
-              <button type="button" data-panel="history" aria-label="History" title="History">
-                <span class="emoji-icon">🕓</span>
-              </button>
-              <button type="button" data-panel="friends" aria-label="Friends" title="Friends">
-                <span class="ui-icon icon-users"></span>
-              </button>
-              <button type="button" data-panel="notifications" aria-label="Notifications" title="Notifications">
-                <span class="emoji-icon">🔔</span>
-              </button>
-              <button type="button" data-panel="saved" aria-label="Saved chats" title="Saved chats">
-                <span class="emoji-icon">❤️</span>
-              </button>
-            </nav>
+          <button class="chat-drawer-trigger" id="messagesToggle" type="button" aria-controls="messagesDrawer" aria-expanded="false" aria-label="<%= copy.chat.topbar.openMessages %>">
+            <i data-lucide="message-circle" aria-hidden="true"></i>
+            <span class="sr-only"><%= copy.chat.drawers.messages.title %></span>
+            <span class="activity-count hidden" id="messagesBadge" aria-hidden="true">0</span>
+          </button>
 
-            <div class="discord-scroll">
+          <button class="chat-drawer-trigger" id="friendsToggle" type="button" aria-controls="friendsDrawer" aria-expanded="false" aria-label="<%= copy.chat.topbar.openFriends %>">
+            <i data-lucide="users" aria-hidden="true"></i>
+            <span class="sr-only"><%= copy.chat.drawers.friends.title %></span>
+            <span class="activity-count hidden" id="friendsBadge" aria-hidden="true">0</span>
+          </button>
 
-              <!-- Pannello: Messages / Requests -->
-              <div class="inbox-panel active" data-panel-content="messages">
-                <div class="discord-tabs">
-                  <button type="button" class="active" id="inboxTabMessages">Messages</button>
-                  <button type="button" id="inboxTabRequests">Requests</button>
-                </div>
-                <div class="panel-data-list" id="messagesPanelList"></div>
-                <div class="empty-inbox" id="messagesPanelEmpty">
-                  <div class="empty-icon"><span class="ui-icon icon-mailbox"></span></div>
-                  <p>No conversations yet. Match with someone or add friends to start chatting!</p>
-                </div>
-              </div>
+          <button class="chat-drawer-trigger" id="notificationsToggle" type="button" aria-controls="notificationsDrawer" aria-expanded="false" aria-label="<%= copy.chat.topbar.openNotifications %>">
+            <i data-lucide="bell" aria-hidden="true"></i>
+            <span class="sr-only"><%= copy.chat.drawers.notifications.title %></span>
+            <span class="activity-count hidden" id="notificationsBadge" aria-hidden="true">0</span>
+          </button>
 
-              <!-- Pannello: History -->
-              <div class="inbox-panel" data-panel-content="history">
-                <div class="inbox-panel-title">Recent chats</div>
-                <div class="panel-data-list" id="historyPanelList"></div>
-                <div class="empty-inbox" id="historyPanelEmpty">
-                  <div class="empty-icon"><span class="emoji-icon">🕓</span></div>
-                  <p>Your chat history will appear here.</p>
-                </div>
-              </div>
+          <button class="chat-account-trigger" id="settingsBtn" type="button" aria-label="<%= copy.chat.topbar.openSettings %>">
+            <span class="chat-profile-avatar" aria-hidden="true">
+              <img class="chat-profile-avatar-image hidden" id="profileAvatarImage" alt="">
+              <span id="profileInitial"><%= (currentUser?.displayName || copy.common.guest).charAt(0).toUpperCase() %></span>
+            </span>
+            <span class="chat-profile-meta">
+              <strong id="profileName"><%= currentUser?.displayName || copy.common.guest %></strong>
+              <small><%= currentUser ? (currentUser.plan === 'premium' ? copy.chat.topbar.premiumMember : copy.chat.topbar.member) : copy.chat.topbar.guest %></small>
+            </span>
+          </button>
+        </nav>
+      </header>
 
-              <!-- Pannello: Friends / Requests -->
-              <div class="inbox-panel" data-panel-content="friends">
-                <div class="discord-tabs">
-                  <button type="button" class="active" id="friendsTabFriends">Friends</button>
-                  <button type="button" id="friendsTabRequests">Requests</button>
-                </div>
-                <div class="panel-data-list" id="friendsPanelList"></div>
-                <div class="empty-inbox" id="friendsPanelEmpty">
-                  <div class="empty-icon"><span class="ui-icon icon-users"></span></div>
-                  <p>No friends yet. Add friends or accept a request.</p>
-                </div>
-              </div>
+      <% if (!currentUser) { %>
+        <aside class="guest-access-reminder" role="note" aria-label="<%= copy.chat.reminder.aria %>">
+          <span class="guest-access-reminder-icon" aria-hidden="true"><i data-lucide="user-plus"></i></span>
+          <p><%= copy.chat.reminder.body %></p>
+          <a href="/login"><i data-lucide="log-in" aria-hidden="true"></i><span><%= copy.common.signIn %></span></a>
+          <button class="guest-access-reminder-dismiss" id="guestReminderDismiss" type="button" aria-label="<%= copy.chat.reminder.dismiss %>">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </aside>
+      <% } %>
 
-              <!-- Pannello: Notifications -->
-              <div class="inbox-panel" data-panel-content="notifications">
-                <div class="inbox-panel-title">Notifications</div>
-                <div class="panel-data-list" id="notificationsPanelList"></div>
-                <div class="empty-inbox" id="notificationsPanelEmpty">
-                  <div class="empty-icon"><span class="emoji-icon">🔔</span></div>
-                  <p>No notifications yet.</p>
-                </div>
-              </div>
+      <div class="activity-scrim" id="activityScrim" aria-hidden="true"></div>
 
-              <!-- Pannello: Saved chats -->
-              <div class="inbox-panel" data-panel-content="saved">
-                <div class="inbox-panel-title">Saved chats</div>
-                <div class="saved-limit-line" id="savedLimitLine"></div>
-                <div class="panel-data-list" id="savedPanelList"></div>
-                <div class="empty-inbox" id="savedPanelEmpty">
-                  <div class="empty-icon"><span class="emoji-icon">❤️</span></div>
-                  <p>Chats you save will show up here.</p>
-                </div>
-              </div>
+      <aside class="activity-drawer" id="messagesDrawer" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="messagesDrawerTitle" aria-describedby="messagesDrawerDescription" inert>
+        <header class="activity-drawer-header">
+          <p class="activity-eyebrow"><%= copy.chat.drawers.eyebrow %></p>
+          <h2 id="messagesDrawerTitle"><%= copy.chat.drawers.messages.title %></h2>
+          <p id="messagesDrawerDescription"><%= copy.chat.drawers.messages.description %></p>
+          <button class="activity-close" type="button" data-drawer-close aria-label="<%= copy.chat.drawers.messages.close %>">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
 
-            </div>
+        <div class="activity-feed">
+          <div class="activity-segment drawer-tablist" role="tablist" aria-label="<%= copy.chat.drawers.messages.tabsAria %>">
+            <button type="button" class="active" id="messagesTabInbox" role="tab" aria-selected="true" aria-controls="messagesInboxPanel" tabindex="0"><%= copy.chat.drawers.messages.inbox %></button>
+            <button type="button" id="messagesTabRecent" role="tab" aria-selected="false" aria-controls="messagesRecentPanel" tabindex="-1"><%= copy.chat.drawers.messages.recent %></button>
+            <button type="button" id="messagesTabSaved" role="tab" aria-selected="false" aria-controls="messagesSavedPanel" tabindex="-1"><%= copy.chat.drawers.messages.saved %></button>
           </div>
+
+          <section class="activity-section drawer-tab-panel" id="messagesInboxPanel" role="tabpanel" aria-labelledby="messagesTabInbox" tabindex="0">
+            <div class="drawer-content-group">
+              <div class="drawer-section-label">
+                <h3><%= copy.chat.drawers.messages.chatRequests %></h3>
+                <span class="inline-count hidden" id="chatRequestsBadge" aria-hidden="true">0</span>
+              </div>
+              <div class="panel-data-list panel-request-list" id="chatRequestsPanelList"></div>
+              <div class="empty-inbox" id="chatRequestsPanelEmpty">
+                <div class="empty-icon"><i data-lucide="message-circle" aria-hidden="true"></i></div>
+                <p><%= copy.chat.drawers.messages.noRequests %></p>
+              </div>
+            </div>
+
+            <div class="drawer-content-group">
+              <div class="drawer-section-label">
+                <h3><%= copy.chat.drawers.messages.conversations %></h3>
+              </div>
+              <div class="panel-data-list" id="messagesPanelList"></div>
+              <div class="empty-inbox" id="messagesPanelEmpty">
+                <div class="empty-icon"><i data-lucide="mail" aria-hidden="true"></i></div>
+                <p><%= copy.chat.drawers.messages.noConversations %></p>
+              </div>
+            </div>
+          </section>
+
+          <section class="activity-section drawer-tab-panel" id="messagesRecentPanel" role="tabpanel" aria-labelledby="messagesTabRecent" tabindex="0" hidden>
+            <div class="activity-section-heading">
+              <span class="activity-section-icon" aria-hidden="true"><i data-lucide="history"></i></span>
+              <div>
+                <h3><%= copy.chat.drawers.messages.recentTitle %></h3>
+                <p><%= copy.chat.drawers.messages.recentBody %></p>
+              </div>
+            </div>
+            <div class="panel-data-list" id="historyPanelList"></div>
+            <div class="empty-inbox" id="historyPanelEmpty">
+              <div class="empty-icon"><i data-lucide="clock" aria-hidden="true"></i></div>
+              <p><%= copy.chat.drawers.messages.noRecent %></p>
+            </div>
+          </section>
+
+          <section class="activity-section drawer-tab-panel" id="messagesSavedPanel" role="tabpanel" aria-labelledby="messagesTabSaved" tabindex="0" hidden>
+            <div class="activity-section-heading">
+              <span class="activity-section-icon" aria-hidden="true"><i data-lucide="bookmark"></i></span>
+              <div>
+                <h3><%= copy.chat.drawers.messages.savedTitle %></h3>
+                <p><%= copy.chat.drawers.messages.savedBody %></p>
+              </div>
+            </div>
+            <div class="saved-limit-line" id="savedLimitLine"></div>
+            <div class="panel-data-list" id="savedPanelList"></div>
+            <div class="empty-inbox" id="savedPanelEmpty">
+              <div class="empty-icon"><i data-lucide="bookmark"></i></div>
+              <p><%= copy.chat.drawers.messages.noSaved %></p>
+            </div>
+          </section>
+        </div>
+      </aside>
+
+      <aside class="activity-drawer" id="friendsDrawer" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="friendsDrawerTitle" aria-describedby="friendsDrawerDescription" inert>
+        <header class="activity-drawer-header">
+          <p class="activity-eyebrow"><%= copy.chat.drawers.friends.eyebrow %></p>
+          <h2 id="friendsDrawerTitle"><%= copy.chat.drawers.friends.title %></h2>
+          <p id="friendsDrawerDescription"><%= copy.chat.drawers.friends.description %></p>
+          <button class="activity-close" type="button" data-drawer-close aria-label="<%= copy.chat.drawers.friends.close %>">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="activity-feed">
+          <div class="activity-segment drawer-tablist" role="tablist" aria-label="<%= copy.chat.drawers.friends.tabsAria %>">
+            <button type="button" class="active" id="friendsTabFriends" role="tab" aria-selected="true" aria-controls="friendsListPanel" tabindex="0"><%= copy.chat.drawers.friends.friendsTab %></button>
+            <button type="button" id="friendsTabRequests" role="tab" aria-selected="false" aria-controls="friendRequestsListPanel" tabindex="-1"><%= copy.chat.drawers.friends.requestsTab %></button>
+          </div>
+
+          <section class="activity-section drawer-tab-panel" id="friendsListPanel" role="tabpanel" aria-labelledby="friendsTabFriends" tabindex="0">
+            <div class="panel-data-list" id="friendsPanelList"></div>
+            <div class="empty-inbox" id="friendsPanelEmpty">
+              <div class="empty-icon"><i data-lucide="users" aria-hidden="true"></i></div>
+              <p><%= copy.chat.drawers.friends.noFriends %></p>
+            </div>
+          </section>
+
+          <section class="activity-section drawer-tab-panel" id="friendRequestsListPanel" role="tabpanel" aria-labelledby="friendsTabRequests" tabindex="0" hidden>
+            <div class="panel-data-list panel-request-list" id="friendRequestsPanelList"></div>
+            <div class="empty-inbox" id="friendRequestsPanelEmpty">
+              <div class="empty-icon"><i data-lucide="user-plus" aria-hidden="true"></i></div>
+              <p><%= copy.chat.drawers.friends.noRequests %></p>
+            </div>
+          </section>
+        </div>
+      </aside>
+
+      <aside class="activity-drawer" id="notificationsDrawer" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="notificationsDrawerTitle" aria-describedby="notificationsDrawerDescription" inert>
+        <header class="activity-drawer-header">
+          <p class="activity-eyebrow"><%= copy.chat.drawers.notifications.eyebrow %></p>
+          <h2 id="notificationsDrawerTitle"><%= copy.chat.drawers.notifications.title %></h2>
+          <p id="notificationsDrawerDescription"><%= copy.chat.drawers.notifications.description %></p>
+          <button class="activity-close" type="button" data-drawer-close aria-label="<%= copy.chat.drawers.notifications.close %>">
+            <i data-lucide="x" aria-hidden="true"></i>
+          </button>
+        </header>
+
+        <div class="activity-feed">
+          <section class="activity-section drawer-tab-panel">
+            <div class="panel-data-list" id="notificationsPanelList"></div>
+            <div class="empty-inbox" id="notificationsPanelEmpty">
+              <div class="empty-icon"><i data-lucide="bell-off" aria-hidden="true"></i></div>
+              <p><%= copy.chat.drawers.notifications.empty %></p>
+            </div>
+          </section>
         </div>
       </aside>
 
       <main class="chat-main">
         <p class="chat-guideline">
-          Chat with random people worldwide - Be respectful, have fun, and follow our <a href="/terms">community guidelines</a>
+          <%= copy.chat.guideline.beforeLink %> <a href="/terms"><%= copy.chat.guideline.link %></a>.
         </p>
 
         <div id="matchSetup" class="setup-stack">
-          <section class="quick-start-card">
-            <div class="quick-card-head">
+          <section class="match-composer" aria-labelledby="matchComposerTitle">
+            <header class="match-composer-header">
+              <span class="match-composer-mark" aria-hidden="true">
+                <i data-lucide="sliders-horizontal"></i>
+              </span>
               <div>
-                <p class="panel-super">Quick start</p>
-                <h1>Tell us who is chatting</h1>
+                <p class="match-composer-eyebrow"><%= copy.chat.match.eyebrow %></p>
+                <h2 id="matchComposerTitle"><%= copy.chat.match.title %></h2>
+                <p><%= copy.chat.match.description %></p>
               </div>
-              <span class="quick-pill"><%= currentUser ? 'Account setup' : 'Guest setup' %></span>
-            </div>
+            </header>
 
-            <div class="quick-form-grid">
-              <label class="quick-field" for="usernameInput">
-                <span>Your username</span>
-                <input id="usernameInput" type="text" maxlength="24" autocomplete="nickname" placeholder="Enter your name" value="<%= currentUser?.displayName || '' %>">
-              </label>
+            <div class="match-composer-body">
+              <% if (currentUser?.plan !== 'premium') { %>
+                <details class="composer-upgrade-panel">
+                  <summary>
+                    <span class="composer-upgrade-icon" aria-hidden="true"><i data-lucide="crown"></i></span>
+                    <strong id="composerUpgradeTitle"><%= copy.chat.match.premiumTitle %></strong>
+                    <i class="composer-upgrade-chevron" data-lucide="chevron-down" aria-hidden="true"></i>
+                  </summary>
+                  <div class="composer-upgrade-body" aria-labelledby="composerUpgradeTitle">
+                    <ul>
+                      <% copy.chat.match.premiumBenefits.forEach((benefit) => { %>
+                        <li><i data-lucide="check" aria-hidden="true"></i><span><%= benefit %></span></li>
+                      <% }) %>
+                    </ul>
+                    <button class="composer-upgrade-action" type="button" data-open-plans><%= copy.chat.match.explorePremium %></button>
+                  </div>
+                </details>
+              <% } %>
 
-              <label class="quick-field" for="ageInput">
-                <span>Your age</span>
-                <select id="ageInput">
-                  <option value="">Select age</option>
-                  <% for (let age = 18; age <= 99; age++) { %>
-                    <option value="<%= age %>" <%= currentUser?.age === age ? 'selected' : '' %>><%= age %></option>
-                  <% } %>
-                </select>
-              </label>
+              <section class="match-preference-group" aria-labelledby="topicsPreferenceTitle">
+                <header class="match-preference-heading">
+                  <span class="match-preference-icon" aria-hidden="true"><i data-lucide="tags"></i></span>
+                  <div>
+                    <h3 id="topicsPreferenceTitle"><%= copy.chat.match.topics %></h3>
+                    <p><%= copy.chat.match.topicsDescription %></p>
+                  </div>
+                </header>
 
-              <label class="quick-field country-field" for="countryInput">
-                <span>Your country</span>
-                <input id="countryInput" type="text" autocomplete="off" placeholder="Select country" value="<%= currentUser?.country || '' %>">
-                <input id="countryValue" type="hidden" value="<%= currentUser?.country || '' %>">
-                <div class="country-suggestions hidden" id="countrySuggestions"></div>
-              </label>
-            </div>
-
-            <label class="tos-check">
-              <input id="tosInput" type="checkbox">
-              <span>I agree to the <a href="/terms">ToS</a> and <a href="/privacy">privacy policy</a> and I'm at least 18 years old</span>
-            </label>
-
-            <p class="form-error hidden" id="quickStartError"></p>
-
-            <div class="quick-login-line">
-              Already have an account? <a href="/login">Log in</a>
-            </div>
-          </section>
-
-          <section class="interest-panel collapsible-panel" data-collapsible>
-            <div class="interest-panel-icon">
-              <span class="ui-icon icon-list"></span>
-            </div>
-            <div class="interest-panel-content">
-              <div class="interest-panel-head">
-                <div>
-                  <h2>Type your interests</h2>
-                  <p>Optional. Add a few topics to improve the match.</p>
-                  <span class="time-hint"><span class="emoji-icon">⏱</span> 10 sec</span>
-                </div>
-                <button class="collapse-dot" type="button" aria-label="Collapse interests">
-                  <span class="ui-icon icon-arrow-down"></span>
-                </button>
-              </div>
-
-              <div class="collapsible-body">
-                <div class="interest-input wide">
+                <div class="topic-chip-input">
                   <div class="interest-tags" id="interestTags"></div>
-                  <input id="interestsInput" type="text" maxlength="30" placeholder="Add an interest and press Enter">
-                  <button id="addInterestBtn" type="button" aria-label="Add interest">
-                    <span class="ui-icon icon-check"></span>
+                  <input id="interestsInput" type="text" maxlength="30" autocomplete="off" placeholder="<%= copy.chat.match.topicPlaceholder %>" aria-label="<%= copy.chat.match.topicPlaceholder %>">
+                  <button id="addInterestBtn" type="button" aria-label="<%= copy.chat.match.addTopicAria %>">
+                    <i data-lucide="check" aria-hidden="true"></i>
                   </button>
                 </div>
-
-                <div class="wait-row">
-                  <strong>Max wait time</strong>
-                  <div class="pill-row">
-                    <button type="button" class="pill" disabled>5 sec</button>
-                    <button type="button" class="pill selected" disabled>10 sec</button>
-                    <button type="button" class="pill" disabled>15 sec</button>
-                    <button type="button" class="pill" disabled>30 sec</button>
-                    <button type="button" class="pill" disabled>Unlimited</button>
+                <div class="waiting-time-control">
+                  <div class="waiting-time-heading">
+                    <label for="waitingTimeRange"><%= copy.chat.match.waitingLabel %></label>
+                    <output id="waitingTimeOutput" for="waitingTimeRange">10 <%= copy.chat.match.secondsShort %></output>
                   </div>
+                  <input id="waitingTimeRange" type="range" min="5" max="35" step="5" value="10" aria-describedby="waitingTimeHint">
+                  <div class="waiting-time-bounds" aria-hidden="true"><span>5 <%= copy.chat.match.secondsShort %></span><span><%= copy.chat.match.noLimit %></span></div>
+                  <p class="match-preference-hint" id="waitingTimeHint" aria-live="polite"><%= copy.chat.match.waitingHint %></p>
                 </div>
-              </div>
-            </div>
-          </section>
+              </section>
 
-          <section class="filter-card green collapsible-panel collapsed" data-collapsible>
-            <div class="filter-icon">
-              <span class="ui-icon icon-users"></span>
-            </div>
-            <div>
-              <h2>Gender & Age Filter <span>♕</span></h2>
-              <p>Find people matching your preferences.</p>
-              <div class="collapsible-body">
-                <% if (currentUser?.plan === 'premium') { %>
-                  <div class="premium-filter-grid">
-                    <label>Gender<select id="premiumGender"><option value="">Any</option><option value="woman">Woman</option><option value="man">Man</option><option value="non-binary">Non-binary</option></select></label>
-                    <label>Min age<input id="premiumMinAge" type="number" min="18" max="99" value="18"></label>
-                    <label>Max age<input id="premiumMaxAge" type="number" min="18" max="99" value="99"></label>
+              <section class="match-preference-group" aria-labelledby="peoplePreferenceTitle">
+                <header class="match-preference-heading">
+                  <span class="match-preference-icon" aria-hidden="true"><i data-lucide="users"></i></span>
+                  <div>
+                    <h3 id="peoplePreferenceTitle"><%= copy.chat.match.people %></h3>
+                    <p><%= copy.chat.match.peopleDescription %></p>
                   </div>
-                <% } else { %>
-                  <div class="locked-filter-copy">Premium feature. Upgrade from Account & plans.</div>
-                <% } %>
-              </div>
-            </div>
-            <button type="button" aria-label="Open filter">
-              <span class="ui-icon icon-arrow-right"></span>
-            </button>
-          </section>
+                  <% if (currentUser?.plan !== 'premium') { %>
+                    <button class="composer-premium-badge" type="button" data-open-plans aria-label="<%= copy.chat.match.explorePremium %>">
+                      <i data-lucide="crown" aria-hidden="true"></i> <%= copy.common.premium %>
+                    </button>
+                  <% } %>
+                </header>
 
-          <section class="filter-card blue collapsible-panel collapsed" data-collapsible>
-            <div class="filter-icon">
-              <span class="ui-icon icon-pin"></span>
+                <fieldset class="match-filter-fieldset">
+                  <legend><%= copy.common.gender %></legend>
+                  <div class="filter-choice-row" id="genderFilterChips">
+                    <button class="filter-choice-chip is-selected" type="button" data-filter-value="" aria-pressed="true"><%= copy.common.anyone %></button>
+                    <button class="filter-choice-chip" type="button" data-filter-value="male" aria-pressed="false" <% if (currentUser?.plan !== 'premium') { %>data-premium-locked="true"<% } %>><%= copy.common.male %></button>
+                    <button class="filter-choice-chip" type="button" data-filter-value="female" aria-pressed="false" <% if (currentUser?.plan !== 'premium') { %>data-premium-locked="true"<% } %>><%= copy.common.female %></button>
+                    <button class="filter-choice-chip" type="button" data-filter-value="non-binary" aria-pressed="false" <% if (currentUser?.plan !== 'premium') { %>data-premium-locked="true"<% } %>><%= copy.common.nonBinary %></button>
+                    <button class="filter-choice-chip" type="button" data-filter-value="other" aria-pressed="false" <% if (currentUser?.plan !== 'premium') { %>data-premium-locked="true"<% } %>><%= copy.common.other %></button>
+                  </div>
+                </fieldset>
+
+                <fieldset class="match-filter-fieldset">
+                  <legend><%= copy.chat.match.ageRange %></legend>
+                  <div class="age-range-control<%= currentUser?.plan !== 'premium' ? ' is-premium-locked' : '' %>" id="ageRangeControl">
+                    <div class="age-range-values" aria-live="polite">
+                      <output id="ageRangeMinOutput" for="ageRangeMin">18</output>
+                      <span><%= copy.chat.match.ageRangeSeparator %></span>
+                      <output id="ageRangeMaxOutput" for="ageRangeMax">60+</output>
+                    </div>
+                    <div class="dual-range" aria-label="<%= copy.chat.match.ageRangeAria %>">
+                      <span class="dual-range-track" aria-hidden="true"></span>
+                      <input id="ageRangeMin" type="range" min="18" max="60" step="1" value="18" aria-label="<%= copy.chat.match.minimumAge %>" <% if (currentUser?.plan !== 'premium') { %>disabled aria-disabled="true"<% } %>>
+                      <input id="ageRangeMax" type="range" min="18" max="60" step="1" value="60" aria-label="<%= copy.chat.match.maximumAge %>" <% if (currentUser?.plan !== 'premium') { %>disabled aria-disabled="true"<% } %>>
+                    </div>
+                    <% if (currentUser?.plan !== 'premium') { %>
+                      <button class="premium-control-cover" type="button" data-open-plans aria-label="<%= copy.chat.match.explorePremium %>"></button>
+                    <% } %>
+                  </div>
+                </fieldset>
+              </section>
+
+              <section class="match-preference-group" aria-labelledby="placePreferenceTitle">
+                <header class="match-preference-heading">
+                  <span class="match-preference-icon" aria-hidden="true"><i data-lucide="map-pin"></i></span>
+                  <div>
+                    <h3 id="placePreferenceTitle"><%= copy.chat.match.place %></h3>
+                    <p><%= copy.chat.match.placeDescription %></p>
+                  </div>
+                  <% if (currentUser?.plan !== 'premium') { %>
+                    <button class="composer-premium-badge" type="button" data-open-plans aria-label="<%= copy.chat.match.explorePremium %>">
+                      <i data-lucide="crown" aria-hidden="true"></i> <%= copy.common.premium %>
+                    </button>
+                  <% } %>
+                </header>
+
+                <div class="country-filter-selection" id="countryFilterTags"></div>
+
+                <div class="country-filter-browser<%= currentUser?.plan !== 'premium' ? ' is-premium-locked' : '' %>">
+                  <div class="country-filter-search">
+                    <i data-lucide="search" aria-hidden="true"></i>
+                    <input id="premiumCountry" type="search" maxlength="80" autocomplete="off" placeholder="<%= copy.chat.match.countryPlaceholder %>" aria-controls="countryFilterSuggestions" <% if (currentUser?.plan !== 'premium') { %>disabled aria-disabled="true"<% } %>>
+                  </div>
+                  <div class="country-filter-suggestions" id="countryFilterSuggestions" role="listbox" aria-label="<%= copy.chat.match.countryResultsAria %>" aria-multiselectable="true"></div>
+                  <% if (currentUser?.plan !== 'premium') { %>
+                    <button class="premium-control-cover" type="button" data-open-plans aria-label="<%= copy.chat.match.explorePremium %>"></button>
+                  <% } %>
+                </div>
+                <p class="match-preference-hint" id="countryFilterStatus" aria-live="polite"><%= copy.chat.match.countryListHint %></p>
+              </section>
+
             </div>
-            <div>
-              <h2>Filter by Country & Location <span>♕</span></h2>
-              <p>Select country or location you want to connect within.</p>
-              <div class="collapsible-body">
-                <% if (currentUser?.plan === 'premium') { %>
-                  <label class="premium-filter-field">Country<input id="premiumCountry" type="text" maxlength="80" placeholder="Any country"></label>
-                <% } else { %>
-                  <div class="locked-filter-copy">Premium feature. Upgrade from Account & plans.</div>
-                <% } %>
-              </div>
-            </div>
-            <button type="button" aria-label="Open filter">
-              <span class="ui-icon icon-arrow-right"></span>
-            </button>
           </section>
         </div>
 
         <section class="live-chat-card hidden" id="chatCard">
           <div class="chat-partner-bar">
             <button class="partner-info partner-profile-trigger" id="partnerProfileBtn" type="button">
-              <span class="partner-avatar" id="partnerAvatar">🙂</span>
-              <span class="partner-name" id="partnerName">Looking for someone…</span>
+              <span class="partner-avatar" id="partnerAvatar"><i data-lucide="user" aria-hidden="true"></i></span>
+              <span class="partner-name" id="partnerName"><%= copy.chat.conversation.looking %></span>
             </button>
             <div class="partner-actions">
-              <button type="button" class="partner-action-btn premium-camera" aria-label="Send photo" title="Premium - temporarily unavailable" disabled>
-                <span class="emoji-icon">📷</span><span class="premium-dot">P</span>
+              <button type="button" class="partner-action-btn premium-camera" aria-label="<%= copy.chat.conversation.photoAria %>" title="<%= copy.chat.conversation.photoComingSoon %>" disabled>
+                <i data-lucide="image" aria-hidden="true"></i><span class="premium-dot">P</span>
               </button>
-              <button type="button" class="partner-action-btn" id="conversationMenuBtn" aria-label="More options" title="More options">
-                <span class="emoji-icon">⋮</span>
+              <button type="button" class="partner-action-btn" id="conversationMenuBtn" aria-label="<%= copy.chat.conversation.moreOptions %>" title="<%= copy.chat.conversation.moreOptions %>">
+                <i data-lucide="ellipsis-vertical" aria-hidden="true"></i>
               </button>
               <div class="conversation-menu hidden" id="conversationMenu">
-                <button type="button" id="saveConversationBtn">Save chat</button>
-                <button type="button" id="blockPartnerBtn">Block user</button>
-                <button type="button" class="danger" id="deleteConversationBtn">Delete for everyone</button>
+                <button type="button" id="saveConversationBtn"><%= copy.chat.conversation.saveChat %></button>
+                <button type="button" id="blockPartnerBtn"><%= copy.chat.conversation.blockUser %></button>
+                <button type="button" class="danger" id="deleteConversationBtn"><%= copy.chat.conversation.deleteForEveryone %></button>
               </div>
             </div>
           </div>
 
-          <p class="status sr-only" id="statusText" aria-live="polite">Looking for a partner...</p>
+          <p class="status sr-only" id="statusText" aria-live="polite"><%= copy.chat.conversation.looking %></p>
           <span class="timer-badge hidden" id="timerBadge"></span>
 
           <div class="messages" id="messages"></div>
+        </section>
 
+        <div class="chat-composer-shell hidden" id="chatComposer">
+          <p class="chat-composer-status" id="chatComposerStatus" role="status" aria-live="polite"><%= copy.chat.composer.idle %></p>
           <div class="chat-input-bar">
-            <button class="skip-btn" id="newBtn" type="button">Skip</button>
-            <button class="report-btn" id="reportBtn" type="button" aria-label="Report" title="Report">⋯</button>
-            <input id="messageInput" type="text" placeholder="Type a message...">
-            <button class="send-btn" id="sendBtn" type="button" aria-label="Send message">
-              <span class="ui-icon icon-arrow-right"></span>
+            <button class="skip-btn" id="newBtn" type="button"><%= copy.chat.conversation.start %></button>
+            <button class="report-btn" id="reportBtn" type="button" aria-label="<%= copy.chat.conversation.report %>" title="<%= copy.chat.conversation.report %>" disabled><i data-lucide="flag" aria-hidden="true"></i></button>
+            <input id="messageInput" type="text" placeholder="<%= copy.chat.composer.idle %>" disabled>
+            <button class="send-btn" id="sendBtn" type="button" aria-label="<%= copy.chat.conversation.send %>" disabled>
+              <i data-lucide="send" aria-hidden="true"></i>
             </button>
           </div>
-        </section>
+        </div>
       </main>
 
       <button id="startBtnBottom" class="floating-start-button" type="button">
-        Start New Chat
-        <span class="ui-icon icon-arrow-right"></span>
+        <%= copy.chat.conversation.start %>
+        <i data-lucide="arrow-right" aria-hidden="true"></i>
       </button>
+    </div>
+
+    <div class="guest-passport-modal hidden" id="guestPassportModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="guestPassportTitle" aria-describedby="guestPassportDescription" inert>
+      <section class="guest-passport-panel">
+        <header class="guest-passport-header">
+          <span class="guest-passport-mark" aria-hidden="true"><i data-lucide="id-card"></i></span>
+          <div>
+            <p><%= copy.chat.guestPassport.eyebrow %></p>
+            <h2 id="guestPassportTitle"><%= copy.chat.guestPassport.title %></h2>
+            <p id="guestPassportDescription"><%= copy.chat.guestPassport.description %></p>
+          </div>
+        </header>
+
+        <form id="guestPassportForm" novalidate>
+          <div class="guest-passport-body">
+            <label class="guest-passport-field" for="usernameInput">
+              <span><%= copy.common.name %></span>
+              <input id="usernameInput" name="name" type="text" maxlength="24" autocomplete="nickname" placeholder="<%= copy.chat.guestPassport.namePlaceholder %>" required>
+            </label>
+
+            <fieldset class="guest-passport-fieldset">
+              <legend><%= copy.common.gender %></legend>
+              <input id="guestGenderInput" name="gender" type="hidden" value="any">
+              <div class="guest-gender-chips" id="guestGenderChips">
+                <button class="guest-gender-chip is-selected" type="button" data-gender-value="any" aria-pressed="true"><%= copy.common.anyone %></button>
+                <button class="guest-gender-chip" type="button" data-gender-value="male" aria-pressed="false"><%= copy.common.male %></button>
+                <button class="guest-gender-chip" type="button" data-gender-value="female" aria-pressed="false"><%= copy.common.female %></button>
+                <button class="guest-gender-chip" type="button" data-gender-value="non-binary" aria-pressed="false"><%= copy.common.nonBinary %></button>
+                <button class="guest-gender-chip" type="button" data-gender-value="other" aria-pressed="false"><%= copy.common.other %></button>
+              </div>
+            </fieldset>
+
+            <div class="guest-passport-field-row">
+              <label class="guest-passport-field" for="ageInput">
+                <span><%= copy.common.age %></span>
+                <select id="ageInput" name="age" required>
+                  <option value=""><%= copy.chat.guestPassport.chooseAge %></option>
+                  <% for (let age = 18; age <= 99; age++) { %>
+                    <option value="<%= age %>"><%= age %></option>
+                  <% } %>
+                </select>
+              </label>
+
+              <label class="guest-passport-field" for="guestCountrySearch">
+                <span><%= copy.common.country %></span>
+                <span class="guest-country-search-wrap">
+                  <span class="guest-country-search">
+                    <i class="guest-country-search-icon" data-lucide="search" aria-hidden="true"></i>
+                    <span class="guest-country-selected-flag hidden" id="guestCountrySelectedFlag" aria-hidden="true"></span>
+                    <input id="guestCountrySearch" type="search" maxlength="80" autocomplete="off" placeholder="<%= copy.chat.guestPassport.countryPlaceholder %>" role="combobox" aria-autocomplete="list" aria-controls="guestCountrySuggestions" aria-expanded="false" aria-describedby="guestCountryStatus">
+                    <input id="countryInput" name="country" type="hidden">
+                  </span>
+                  <span class="guest-country-suggestions hidden" id="guestCountrySuggestions" role="listbox" aria-label="<%= copy.chat.match.countryResultsAria %>"></span>
+                </span>
+                <small class="guest-country-status" id="guestCountryStatus" aria-live="polite"><%= copy.chat.guestPassport.countryHint %></small>
+              </label>
+            </div>
+
+            <label class="guest-passport-consent" for="tosInput">
+              <input id="tosInput" type="checkbox" required>
+              <span class="guest-passport-checkbox" aria-hidden="true"><i data-lucide="check"></i></span>
+              <span><%= copy.chat.guestPassport.consentBeforeTerms %> <a href="/terms"><%= copy.chat.guestPassport.termsShort %></a> <%= copy.chat.guestPassport.and %> <a href="/privacy"><%= copy.chat.guestPassport.privacyShort %></a>.</span>
+            </label>
+
+            <p class="guest-passport-error hidden" id="quickStartError" role="alert"></p>
+          </div>
+
+          <footer class="guest-passport-footer">
+            <button class="guest-passport-continue" type="submit"><span><%= copy.common.continue %></span><i data-lucide="arrow-right" aria-hidden="true"></i></button>
+            <p><%= copy.chat.guestPassport.alreadyMember %> <a href="/login"><%= copy.common.signIn %></a></p>
+          </footer>
+        </form>
+      </section>
     </div>
 
     <div class="app-modal hidden" id="accountModal" role="dialog" aria-modal="true" aria-labelledby="accountModalTitle">
       <div class="app-modal-card account-modal-card">
-        <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
-        <h2 id="accountModalTitle">Account & plans</h2>
+        <button class="modal-close" type="button" data-close-modal aria-label="<%= copy.common.close %>"><i data-lucide="x" aria-hidden="true"></i></button>
+        <header class="account-modal-header">
+          <h2 id="accountModalTitle"><%= copy.account.title %></h2>
+          <div class="account-tabs" role="tablist" aria-label="<%= copy.account.tabsAria %>">
+            <button id="accountTabAccount" type="button" role="tab" data-account-tab="account" aria-selected="true" aria-controls="accountPanelAccount" tabindex="0"><i data-lucide="circle-user-round" aria-hidden="true"></i><span><%= copy.account.tabs.account %></span></button>
+            <button id="accountTabPrivacy" type="button" role="tab" data-account-tab="privacy" aria-selected="false" aria-controls="accountPanelPrivacy" tabindex="-1"><i data-lucide="shield" aria-hidden="true"></i><span><%= copy.account.tabs.privacy %></span></button>
+            <button id="accountTabPlans" type="button" role="tab" data-account-tab="plans" aria-selected="false" aria-controls="accountPanelPlans" tabindex="-1"><i data-lucide="crown" aria-hidden="true"></i><span><%= copy.account.tabs.plans %></span></button>
+          </div>
+        </header>
+        <div class="account-tab-panel" id="accountPanelAccount" role="tabpanel" aria-labelledby="accountTabAccount">
         <div id="guestAccountPrompt" class="account-guest-prompt hidden">
-          <p>Create a free account to save chats, add friends and manage your profile.</p>
-          <a class="btn btn-primary" href="/register">Create Account</a>
+          <div class="guest-settings-identity">
+            <img id="guestSettingsAvatar" alt="<%= copy.account.selectedAvatarAlt %>">
+            <div><strong id="guestSettingsName"><%= copy.common.guest %></strong><span><%= copy.account.guestProfile %></span></div>
+          </div>
+          <form class="guest-name-settings" id="guestNameForm" novalidate>
+            <label for="guestSettingsNameInput"><%= copy.common.displayName %></label>
+            <div class="guest-name-control">
+              <input id="guestSettingsNameInput" name="name" type="text" maxlength="24" autocomplete="nickname" required>
+              <button type="submit"><%= copy.account.saveName %></button>
+            </div>
+            <p id="guestNameChangeHint"><%= copy.chat.feedback.nameChangeAvailable %></p>
+          </form>
+          <section class="guest-profile-passport" aria-labelledby="guestProfilePassportTitle">
+            <div class="guest-profile-passport-heading">
+              <span aria-hidden="true"><i data-lucide="id-card"></i></span>
+              <div><h3 id="guestProfilePassportTitle"><%= copy.account.aboutYou %></h3><p><%= copy.account.aboutYouDescription %></p></div>
+            </div>
+            <dl>
+              <div><dt><%= copy.account.guestId %></dt><dd><code id="guestSettingsUserId"><%= copy.account.settingUp %></code></dd></div>
+              <div><dt><%= copy.common.age %></dt><dd id="guestSettingsAge">—</dd></div>
+              <div><dt><%= copy.common.gender %></dt><dd id="guestSettingsGender">—</dd></div>
+              <div><dt><%= copy.common.country %></dt><dd><span class="guest-settings-country-flag" id="guestSettingsCountryFlag" aria-hidden="true"></span><span id="guestSettingsCountry">—</span></dd></div>
+            </dl>
+          </section>
+          <div class="guest-avatar-settings">
+            <h3><%= copy.account.chooseAvatar %></h3>
+            <p><%= copy.account.avatarDescription %></p>
+            <div class="guest-avatar-presets" id="guestAvatarPresets" role="group" aria-label="<%= copy.account.avatarGroupAria %>"></div>
+          </div>
+          <p class="account-feedback" id="guestAccountFeedback" role="status" aria-live="polite"></p>
+          <div class="guest-account-cta">
+            <p><%= copy.account.guestCta %></p>
+            <a class="btn btn-primary" href="/register"><%= copy.common.createAccount %></a>
+          </div>
         </div>
         <form id="accountForm" class="account-form hidden">
-          <label>Display name<input name="displayName" maxlength="40" required></label>
-          <label>Email<input name="email" type="email" required></label>
-          <label>Nevely ID<input name="publicId" readonly></label>
-          <label>Age<input name="age" type="number" min="18" max="120" required></label>
-          <label>Gender<input name="gender" maxlength="30"></label>
-          <label>Country<input name="country" maxlength="80"></label>
-          <label>Profile image URL<input name="profileImageUrl" type="url" maxlength="500" placeholder="Temporary test storage"></label>
-          <button class="btn btn-primary" type="submit">Save profile</button>
-          <p class="account-feedback" id="accountFeedback"></p>
-          <div class="plan-summary"><strong id="accountPlan">Free plan</strong><span>Premium includes advanced filters and up to 10 saved chats. Current price: $0.00.</span></div>
-          <div class="account-privacy-section">
-            <strong>Privacy</strong>
-            <a href="/privacy">Read the Privacy Policy</a>
-            <div id="accountBlockList" class="account-block-list"></div>
+          <div class="registered-profile-picture">
+            <span class="registered-profile-picture__visual">
+              <img id="accountAvatarImage" class="hidden" alt="<%= copy.account.profilePictureAlt %>">
+              <span id="accountAvatarFallback" aria-hidden="true">N</span>
+            </span>
+            <span><strong><%= copy.account.profilePicture %></strong><small><%= copy.account.photoUploadUnavailable %></small></span>
           </div>
-          <button class="btn btn-outline" id="logoutBtn" type="button">Log out</button>
-          <button class="danger-link" id="deleteAccountBtn" type="button">Delete account permanently</button>
+          <label><%= copy.common.displayName %><input name="displayName" maxlength="40" required></label>
+          <label><%= copy.common.email %><input name="email" type="email" required></label>
+          <label><%= copy.account.nevelyId %><input name="publicId" readonly></label>
+          <label><%= copy.common.age %><input name="age" type="number" min="18" max="120" required></label>
+          <label><%= copy.common.gender %><input name="gender" maxlength="30"></label>
+          <label><%= copy.common.country %><input name="country" maxlength="80"></label>
+          <input name="profileImageUrl" type="hidden">
+          <div class="account-form-actions">
+            <button class="btn btn-primary" type="submit"><%= copy.account.saveProfile %></button>
+            <button class="btn btn-outline" id="logoutBtn" type="button"><%= copy.common.signOut %></button>
+          </div>
+          <p class="account-feedback" id="accountFeedback" role="status" aria-live="polite"></p>
         </form>
+        </div>
+
+        <div class="account-tab-panel hidden" id="accountPanelPrivacy" role="tabpanel" aria-labelledby="accountTabPrivacy">
+          <div class="registered-privacy-settings hidden" id="registeredPrivacySettings">
+            <section class="account-settings-section" aria-labelledby="blockedPeopleTitle">
+              <div class="account-settings-heading"><span aria-hidden="true"><i data-lucide="user-x"></i></span><div><h3 id="blockedPeopleTitle"><%= copy.account.blockedPeople %></h3><p><%= copy.account.blockedPeopleDescription %></p></div></div>
+              <div id="accountBlockList" class="account-block-list"></div>
+            </section>
+            <a class="account-policy-link" href="/privacy"><i data-lucide="file-lock-2" aria-hidden="true"></i><span><%= copy.account.viewPrivacy %></span><i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+            <a class="account-policy-link" href="/support"><i data-lucide="life-buoy" aria-hidden="true"></i><span><%= copy.account.viewSupport %></span><i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+            <section class="account-danger-zone" aria-labelledby="accountDangerTitle">
+              <div><h3 id="accountDangerTitle"><%= copy.account.dangerZone %></h3><p><%= copy.account.deleteAccountDescription %></p></div>
+              <button class="danger-link" id="deleteAccountBtn" type="button"><%= copy.account.deleteAccount %></button>
+            </section>
+          </div>
+          <div class="guest-privacy-settings hidden" id="guestPrivacySettings">
+            <section class="account-settings-section" aria-labelledby="guestPrivacyTitle">
+              <div class="account-settings-heading"><span aria-hidden="true"><i data-lucide="shield"></i></span><div><h3 id="guestPrivacyTitle"><%= copy.account.guestPrivacyTitle %></h3><p><%= copy.account.guestPrivacyDescription %></p></div></div>
+            </section>
+            <a class="account-policy-link" href="/privacy"><i data-lucide="file-lock-2" aria-hidden="true"></i><span><%= copy.account.viewPrivacy %></span><i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+            <a class="account-policy-link" href="/support"><i data-lucide="life-buoy" aria-hidden="true"></i><span><%= copy.account.viewSupport %></span><i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+            <section class="account-danger-zone">
+              <div><h3><%= copy.account.dangerZone %></h3><p><%= copy.account.deleteGuestDescription %></p></div>
+              <button class="guest-logout-button" id="guestLogoutBtn" type="button"><i data-lucide="log-out" aria-hidden="true"></i><span><%= copy.account.guestLogout %></span></button>
+            </section>
+          </div>
+        </div>
+
+        <div class="account-tab-panel hidden" id="accountPanelPlans" role="tabpanel" aria-labelledby="accountTabPlans">
+          <section class="account-plan-card" aria-labelledby="accountPlan">
+            <header>
+              <span aria-hidden="true"><i data-lucide="crown"></i></span>
+              <div><p><%= copy.account.currentPrice %></p><h3 id="accountPlan"><%= currentUser ? (currentUser.plan === 'premium' ? copy.account.premiumPlan : copy.account.freePlan) : copy.account.guestPlan %></h3></div>
+              <strong><%= copy.account.priceValue %></strong>
+            </header>
+            <p><%= copy.account.planDescription %></p>
+            <div class="account-plan-benefits">
+              <article>
+                <i data-lucide="bookmark" aria-hidden="true"></i>
+                <div><strong><%= copy.account.planSavedChatsTitle %></strong><span><%= copy.account.planSavedChatsDescription %></span></div>
+              </article>
+              <article>
+                <i data-lucide="sliders-horizontal" aria-hidden="true"></i>
+                <div><strong><%= copy.account.planAdvancedFiltersTitle %></strong><span><%= copy.account.planAdvancedFiltersDescription %></span></div>
+              </article>
+            </div>
+            <div class="account-plan-footer">
+              <small><%= copy.account.paymentsUnavailable %></small>
+            </div>
+          </section>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-modal hidden" id="deleteAccountModal" role="dialog" aria-modal="true" aria-labelledby="deleteAccountModalTitle" aria-describedby="deleteAccountModalDescription">
+      <div class="app-modal-card account-delete-modal-card">
+        <button class="modal-close" id="deleteAccountModalClose" type="button" aria-label="<%= copy.common.close %>"><i data-lucide="x" aria-hidden="true"></i></button>
+        <div class="account-delete-icon" aria-hidden="true"><i data-lucide="triangle-alert"></i></div>
+        <h2 id="deleteAccountModalTitle"><%= currentUser ? copy.account.deleteAccountTitle : copy.account.deleteGuestTitle %></h2>
+        <p id="deleteAccountModalDescription"><%= currentUser ? copy.account.deleteAccountDescription : copy.account.deleteGuestDescription %></p>
+        <div class="account-delete-actions">
+          <button class="btn btn-outline" id="deleteAccountCancel" type="button"><%= currentUser ? copy.account.cancelDeleteAccount : copy.account.cancelDeleteGuest %></button>
+          <button class="btn btn-danger" id="deleteAccountConfirm" type="button"><%= currentUser ? copy.account.confirmDeleteAccount : copy.account.confirmDeleteGuest %></button>
+        </div>
+        <p class="account-feedback" id="deleteAccountFeedback" role="alert" aria-live="assertive"></p>
       </div>
     </div>
 
     <div class="app-modal hidden" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
       <div class="app-modal-card public-profile-card">
-        <button class="modal-close" type="button" data-close-modal aria-label="Close">x</button>
+        <button class="modal-close" type="button" data-close-modal aria-label="<%= copy.common.close %>"><i data-lucide="x" aria-hidden="true"></i></button>
         <div class="public-profile-avatar" id="publicProfileAvatar">N</div>
-        <h2 id="profileModalTitle">Profile</h2>
+        <h2 id="profileModalTitle"><%= copy.common.profile %></h2>
         <p id="publicProfileMeta"></p>
         <div class="profile-modal-actions">
-          <button class="btn btn-primary" id="friendActionBtn" type="button">Add friend</button>
-          <button class="btn btn-outline" id="profileBlockBtn" type="button">Block</button>
+          <button class="btn btn-primary" id="friendActionBtn" type="button"><%= copy.common.addFriend %></button>
+          <button class="btn btn-outline" id="profileBlockBtn" type="button"><%= copy.common.block %></button>
         </div>
       </div>
     </div>
 
     <script>
+      window.__COPY__ = <%- JSON.stringify(copy).replace(/</g, '\\u003c') %>;
       window.__IS_GUEST__ = <%= isGuest ? 'true' : 'false' %>;
       window.__GUEST_DURATION__ = <%= guestDurationSeconds %>;
       window.__CURRENT_USER__ = <%- JSON.stringify(currentUser || null).replace(/</g, '\\u003c') %>;
     </script>
     <script src="/socket.io/socket.io.js"></script>
+    <script src="/vendor/lucide-1.24.0.min.js"></script>
+    <script src="/js/guest-profile-store.js"></script>
     <script src="/js/chat-client.js"></script>
   </body>
 </html>

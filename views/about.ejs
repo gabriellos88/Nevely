@@ -1,0 +1,80 @@
+<%- include('partials/header') %>
+
+<main class="editorial-page about-page">
+  <section class="editorial-hero about-hero" aria-labelledby="about-title">
+    <div class="editorial-container editorial-hero__inner">
+      <div class="editorial-hero__copy">
+        <p class="editorial-eyebrow"><%= copy.about.eyebrow %></p>
+        <h1 id="about-title"><%= copy.about.title %></h1>
+        <p><%= copy.about.intro %></p>
+      </div>
+      <div class="about-hero__symbol" aria-hidden="true">
+        <span><i data-lucide="message-circle"></i></span>
+        <span><i data-lucide="sparkles"></i></span>
+      </div>
+    </div>
+  </section>
+
+  <div class="editorial-divider" aria-hidden="true"></div>
+
+  <section class="about-story" aria-labelledby="about-origin-title">
+    <div class="editorial-container about-story__grid">
+      <div class="about-story__marker" aria-hidden="true">
+        <i data-lucide="map-pin"></i>
+        <strong>CH</strong>
+        <span>2026</span>
+      </div>
+      <div class="about-story__copy">
+        <p class="editorial-eyebrow"><%= copy.about.originEyebrow %></p>
+        <h2 id="about-origin-title"><%= copy.about.originTitle %></h2>
+        <p><%= copy.about.originBody %></p>
+        <div class="about-story__mission">
+          <p class="editorial-eyebrow"><%= copy.about.missionEyebrow %></p>
+          <h3><%= copy.about.missionTitle %></h3>
+          <p><%= copy.about.missionBody %></p>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="editorial-divider" aria-hidden="true"></div>
+
+  <section class="about-principles" aria-labelledby="about-principles-title">
+    <div class="editorial-container">
+      <header class="editorial-section-header">
+        <h2 id="about-principles-title"><%= copy.about.principlesTitle %></h2>
+        <p><%= copy.about.principlesIntro %></p>
+      </header>
+      <div class="about-principles__grid">
+        <% copy.about.principles.forEach((principle) => { %>
+          <article class="about-principle">
+            <span aria-hidden="true"><i data-lucide="<%= principle.icon %>"></i></span>
+            <h3><%= principle.title %></h3>
+            <p><%= principle.body %></p>
+          </article>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+
+  <div class="editorial-divider" aria-hidden="true"></div>
+
+  <section class="about-contact" aria-labelledby="about-contact-title">
+    <div class="editorial-container">
+      <div class="about-contact__panel">
+        <span class="about-contact__icon" aria-hidden="true"><i data-lucide="mail"></i></span>
+        <div>
+          <p class="editorial-eyebrow"><%= copy.about.contactEyebrow %></p>
+          <h2 id="about-contact-title"><%= copy.about.contactTitle %></h2>
+          <p><%= copy.about.contactBody %></p>
+        </div>
+        <div class="about-contact__actions">
+          <a class="btn btn-primary" href="mailto:<%= copy.support.email %>"><%= copy.about.emailLabel %></a>
+          <a class="about-contact__support" href="/support"><%= copy.about.supportLabel %><i data-lucide="arrow-right" aria-hidden="true"></i></a>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<%- include('partials/footer') %>

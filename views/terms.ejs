@@ -1,14 +1,12 @@
 <%- include('partials/header') %>
 <main class="legal-page">
   <article class="legal-card">
-    <h1>Terms of Service</h1>
-    <p>You must be at least 18 years old to use Nevely. Treat other people respectfully and do not share illegal, threatening, hateful or sexually explicit content.</p>
-    <h2>Accounts</h2>
-    <p>You are responsible for your login credentials and for activity performed through your account.</p>
-    <h2>Moderation</h2>
-    <p>We may restrict or remove accounts and content when needed to protect users or comply with the law. Reports are reviewed by administrators.</p>
-    <h2>Service availability</h2>
-    <p>Features may change while Nevely is under development. Premium payments are not enabled yet and the displayed introductory price is $0.00.</p>
+    <h1><%= copy.terms.title %></h1>
+    <p><%= copy.terms.intro %></p>
+    <% copy.terms.sections.forEach((section) => { %>
+      <h2><%= section.title %></h2>
+      <p><%= section.body %></p>
+    <% }) %>
   </article>
 </main>
 <%- include('partials/footer') %>

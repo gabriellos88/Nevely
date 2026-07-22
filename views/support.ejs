@@ -1,0 +1,65 @@
+<%- include('partials/header') %>
+
+<main class="editorial-page support-page">
+  <section class="editorial-hero support-hero" aria-labelledby="support-title">
+    <div class="editorial-container editorial-hero__inner">
+      <div class="editorial-hero__copy">
+        <p class="editorial-eyebrow"><%= copy.support.eyebrow %></p>
+        <h1 id="support-title"><%= copy.support.title %></h1>
+        <p><%= copy.support.intro %></p>
+      </div>
+      <div class="support-hero__symbol" aria-hidden="true">
+        <i data-lucide="life-buoy"></i>
+      </div>
+    </div>
+  </section>
+
+  <div class="editorial-divider" aria-hidden="true"></div>
+
+  <section class="support-faq" aria-labelledby="support-faq-title">
+    <div class="editorial-container support-faq__layout">
+      <header class="editorial-section-header support-faq__header">
+        <p class="editorial-eyebrow"><%= copy.common.faq %></p>
+        <h2 id="support-faq-title"><%= copy.support.faqTitle %></h2>
+        <p><%= copy.support.faqIntro %></p>
+      </header>
+
+      <div class="support-faq__list">
+        <% copy.support.faqs.forEach((item) => { %>
+          <details class="support-faq__item">
+            <summary>
+              <span><%= item.question %></span>
+              <i data-lucide="chevron-down" aria-hidden="true"></i>
+            </summary>
+            <p><%= item.answer %></p>
+          </details>
+        <% }) %>
+      </div>
+    </div>
+  </section>
+
+  <div class="editorial-divider" aria-hidden="true"></div>
+
+  <section class="support-contact" aria-labelledby="support-contact-title">
+    <div class="editorial-container">
+      <div class="support-contact__panel">
+        <span class="support-contact__icon" aria-hidden="true"><i data-lucide="mail"></i></span>
+        <div class="support-contact__copy">
+          <p class="editorial-eyebrow"><%= copy.support.contactEyebrow %></p>
+          <h2 id="support-contact-title"><%= copy.support.contactTitle %></h2>
+          <p><%= copy.support.contactBody %></p>
+          <small><%= copy.support.contactNote %></small>
+        </div>
+        <nav class="support-contact__links" aria-label="<%= copy.support.contactLinksAria %>">
+          <a href="mailto:<%= copy.support.email %>"><%= copy.support.emailLabel %><i data-lucide="mail" aria-hidden="true"></i></a>
+          <a href="/privacy"><%= copy.support.privacyLink %><i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+          <a href="/terms"><%= copy.support.termsLink %><i data-lucide="arrow-up-right" aria-hidden="true"></i></a>
+        </nav>
+      </div>
+    </div>
+  </section>
+
+  <div class="editorial-divider" aria-hidden="true"></div>
+</main>
+
+<%- include('partials/footer') %>

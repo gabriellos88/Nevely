@@ -1,0 +1,34 @@
+[
+  {
+    "id": "astra",
+    "src": "/vendor/dicebear-presets-10.2.0/astra.svg"
+  },
+  {
+    "id": "nova",
+    "src": "/vendor/dicebear-presets-10.2.0/nova.svg"
+  },
+  {
+    "id": "lyra",
+    "src": "/vendor/dicebear-presets-10.2.0/lyra.svg"
+  },
+  {
+    "id": "vega",
+    "src": "/vendor/dicebear-presets-10.2.0/vega.svg"
+  },
+  {
+    "id": "sol",
+    "src": "/vendor/dicebear-presets-10.2.0/sol.svg"
+  },
+  {
+    "id": "mira",
+    "src": "/vendor/dicebear-presets-10.2.0/mira.svg"
+  },
+  {
+    "id": "orion",
+    "src": "/vendor/dicebear-presets-10.2.0/orion.svg"
+  },
+  {
+    "id": "elara",
+    "src": "/vendor/dicebear-presets-10.2.0/elara.svg"
+  }
+]

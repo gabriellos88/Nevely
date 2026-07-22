@@ -11,6 +11,7 @@ const { createAuthLimiter, registerAuthRoutes } = require('./lib/auth');
 const { registerApiRoutes } = require('./lib/api');
 const { registerChat } = require('./lib/chat');
 const { createPresence } = require('./lib/presence');
+const uiCopy = require('./public/i18n/en.json');
 
 const app = express();
 const server = http.createServer(app);
@@ -21,6 +22,7 @@ const isProduction = process.env.NODE_ENV === 'production';
 app.set('trust proxy', 1);
 app.set('view engine', 'ejs');
 app.set('views', path.join(__dirname, 'views'));
+app.locals.copy = uiCopy;
 app.use(express.json({ limit: '32kb' }));
 app.use(express.urlencoded({ extended: false, limit: '32kb' }));
 
@@ -53,6 +55,7 @@ app.use(sessionMiddleware);
 app.use(express.static(path.join(__dirname, 'public')));
 io.engine.use(sessionMiddleware);
 
+// Preserved while the public Blog is temporarily disabled.
 const blogPosts = [
   {
     slug: 'welcome-to-nevely',
@@ -63,15 +66,13 @@ const blogPosts = [
   }
 ];
 
-app.get('/', (req, res) => res.render('home', { pageTitle: 'Home', currentUser: req.session.user || null }));
-app.get('/blog', (req, res) => res.render('blog', { pageTitle: 'Blog', posts: blogPosts }));
-app.get('/blog/:slug', (req, res) => {
-  const post = blogPosts.find((item) => item.slug === req.params.slug);
-  if (!post) return res.redirect('/blog');
-  return res.render('blog-post', { pageTitle: post.title, post });
-});
-app.get('/privacy', (req, res) => res.render('privacy', { pageTitle: 'Privacy Policy' }));
-app.get('/terms', (req, res) => res.render('terms', { pageTitle: 'Terms of Service' }));
+app.get('/', (req, res) => res.render('home', { pageTitle: uiCopy.pageTitles.home, currentUser: req.session.user || null }));
+app.get('/about', (req, res) => res.render('about', { pageTitle: uiCopy.pageTitles.about }));
+app.get('/support', (req, res) => res.render('support', {
+  pageTitle: uiCopy.pageTitles.support
+}));
+app.get('/privacy', (req, res) => res.render('privacy', { pageTitle: uiCopy.pageTitles.privacy }));
+app.get('/terms', (req, res) => res.render('terms', { pageTitle: uiCopy.pageTitles.terms }));
 
 app.get('/api/database-health', async (req, res) => {
   if (!db.isConfigured) return res.status(503).json({ connected: false, configured: false });
@@ -95,7 +96,7 @@ app.get('/chat', async (req, res, next) => {
         `SELECT 1 FROM bans WHERE type = 'ip' AND ip_address = $1 LIMIT 1`,
         [req.ip]
       );
-      if (ipBan.rowCount) return res.status(403).send('Access to Nevely is blocked from this network address.');
+      if (ipBan.rowCount) return res.status(403).send(uiCopy.errors.networkBlocked);
     } catch (error) {
       return next(error);
     }
@@ -104,7 +105,7 @@ app.get('/chat', async (req, res, next) => {
   const isGuest = !currentUser;
   if (isGuest && req.query.guest !== '1') return res.redirect('/login');
   return res.render('chat', {
-    pageTitle: 'Chat',
+    pageTitle: uiCopy.pageTitles.chat,
     isGuest,
     currentUser,
     guestDurationSeconds: GUEST_CHAT_DURATION_SECONDS
@@ -115,11 +116,18 @@ const presence = createPresence(io);
 registerApiRoutes(app, db, presence);
 registerChat(io, db, presence, { guestDurationSeconds: GUEST_CHAT_DURATION_SECONDS });
 
+app.use((req, res) => {
+  if (req.path.startsWith('/api/')) {
+    return res.status(404).json({ error: uiCopy.errors.notFound });
+  }
+  return res.status(404).render('404', { pageTitle: uiCopy.pageTitles.notFound });
+});
+
 app.use((error, req, res, next) => {
   console.error(error);
   if (res.headersSent) return next(error);
-  if (req.path.startsWith('/api/')) return res.status(500).json({ error: 'Unexpected server error.' });
-  return res.status(500).send('Unexpected server error.');
+  if (req.path.startsWith('/api/')) return res.status(500).json({ error: uiCopy.errors.unexpected });
+  return res.status(500).send(uiCopy.errors.unexpected);
 });
 
 const PORT = Number(process.env.PORT) || 3000;

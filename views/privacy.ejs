@@ -1,27 +1,14 @@
 <%- include('partials/header') %>
 <main class="legal-page">
   <article class="legal-card">
-    <p class="panel-super">Last updated: July 18, 2026</p>
-    <h1>Privacy Policy</h1>
-    <p>Nevely processes the information needed to provide accounts, matching, conversations, safety tools and support.</p>
+    <p class="panel-super"><%= copy.privacy.updated %></p>
+    <h1><%= copy.privacy.title %></h1>
+    <p><%= copy.privacy.intro %></p>
 
-    <h2>Account and profile data</h2>
-    <p>For registered accounts we store your email address, password hash, display name, age, gender, country, plan and profile image reference. Passwords are never stored in plain text.</p>
-
-    <h2>Chats and retention</h2>
-    <p>Messages are stored once for the shared conversation. Conversations that neither participant saves are automatically deleted after 30 days. A saved conversation remains available until it is unsaved or deleted for everyone. Guests cannot save chats.</p>
-
-    <h2>Account deletion</h2>
-    <p>Deleting an account removes access and personal profile data. Messages already visible in another participant's history remain in place with the sender renamed to "Deleted user", so their conversation history is not broken.</p>
-
-    <h2>Safety and moderation</h2>
-    <p>Reports may include account identifiers, temporary socket identifiers, the selected reason and details supplied by the reporter. We also apply rate limits and basic automated message checks to prevent abuse.</p>
-
-    <h2>Sessions and service providers</h2>
-    <p>Login sessions are stored in PostgreSQL and represented by a secure HTTP-only cookie. Hosting and database infrastructure may process data on our behalf to operate the service.</p>
-
-    <h2>Your controls</h2>
-    <p>From Account settings you can update your profile, inspect blocked users, remove saved chats and permanently delete your account. Contact support for privacy questions.</p>
+    <% copy.privacy.sections.forEach((section) => { %>
+      <h2><%= section.title %></h2>
+      <p><%= section.body %></p>
+    <% }) %>
   </article>
 </main>
 <%- include('partials/footer') %>

@@ -1,27 +1,30 @@
 <!DOCTYPE html>
-<html lang="it">
+<html lang="en">
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title><%= pageTitle %> · Nevely</title>
+    <title><%= pageTitle %> · <%= copy.common.brand %></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="/css/style.css" />
+    <script src="/vendor/lucide-1.24.0.min.js" defer></script>
+    <script src="/js/site-shell.js" defer></script>
   </head>
   <body>
-    <header class="site-header">
-      <div class="header-inner">
-        <a class="brand" href="/">Nevely</a>
-        <nav class="site-nav">
-          <a href="/#home">Home</a>
-          <a href="/#features">Features</a>
-          <a href="/#how-it-works">How It Works</a>
-          <a href="/about">About</a>
-          <a href="/blog">Blog</a>
-        </nav>
-        <div class="header-actions">
-          <a href="/chat?guest=1" class="btn btn-primary btn-lg">Continue as Guest</a>
+    <% if (typeof hideSiteHeader === 'undefined' || !hideSiteHeader) { %>
+      <header class="site-header">
+        <div class="header-inner">
+          <a class="brand" href="/"><%= copy.common.brand %></a>
+          <nav class="site-nav" aria-label="<%= copy.nav.primaryAria %>">
+            <a href="/#home"><%= copy.nav.home %></a>
+            <a href="/#features"><%= copy.nav.features %></a>
+            <a href="/#how-it-works"><%= copy.nav.howItWorks %></a>
+            <a href="/about"><%= copy.nav.about %></a>
+          </nav>
+          <div class="header-actions">
+            <a href="/chat?guest=1" class="btn btn-primary"><%= copy.nav.guestCta %></a>
+          </div>
         </div>
-      </div>
-    </header>
+      </header>
+    <% } %>

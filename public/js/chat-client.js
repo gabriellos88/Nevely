@@ -1,3 +1,10 @@
+const uiCopy = window.__COPY__;
+const chatCopy = uiCopy.chat;
+
+function formatCopy(template, values = {}) {
+  return template.replace(/\{(\w+)\}/g, (match, key) => String(values[key] ?? match));
+}
+
 const socket = io();
 
 const startBtn = document.getElementById('startBtn');
@@ -12,31 +19,88 @@ const interestTags = document.getElementById('interestTags');
 const messageInput = document.getElementById('messageInput');
 const messagesEl = document.getElementById('messages');
 const statusText = document.getElementById('statusText');
+const chatComposerStatus = document.getElementById('chatComposerStatus');
+const chatComposer = document.getElementById('chatComposer');
 const chatCard = document.getElementById('chatCard');
 const matchSetup = document.getElementById('matchSetup');
 const timerBadge = document.getElementById('timerBadge');
 const usernameInput = document.getElementById('usernameInput');
 const ageInput = document.getElementById('ageInput');
 const countryInput = document.getElementById('countryInput');
-const countryValue = document.getElementById('countryValue');
-const countrySuggestions = document.getElementById('countrySuggestions');
+const guestCountrySearch = document.getElementById('guestCountrySearch');
+const guestCountrySuggestions = document.getElementById('guestCountrySuggestions');
+const guestCountrySelectedFlag = document.getElementById('guestCountrySelectedFlag');
+const guestCountryStatus = document.getElementById('guestCountryStatus');
+const guestPassportModal = document.getElementById('guestPassportModal');
+const guestPassportForm = document.getElementById('guestPassportForm');
+const guestGenderInput = document.getElementById('guestGenderInput');
+const guestGenderChips = document.getElementById('guestGenderChips');
+const genderFilterChips = document.getElementById('genderFilterChips');
+const ageRangeControl = document.getElementById('ageRangeControl');
+const ageRangeMin = document.getElementById('ageRangeMin');
+const ageRangeMax = document.getElementById('ageRangeMax');
+const ageRangeMinOutput = document.getElementById('ageRangeMinOutput');
+const ageRangeMaxOutput = document.getElementById('ageRangeMaxOutput');
+const premiumCountryInput = document.getElementById('premiumCountry');
+const countryFilterTags = document.getElementById('countryFilterTags');
+const countryFilterSuggestions = document.getElementById('countryFilterSuggestions');
+const countryFilterStatus = document.getElementById('countryFilterStatus');
+const waitingTimeRange = document.getElementById('waitingTimeRange');
+const waitingTimeOutput = document.getElementById('waitingTimeOutput');
+const waitingTimeHint = document.getElementById('waitingTimeHint');
 const tosInput = document.getElementById('tosInput');
 const quickStartError = document.getElementById('quickStartError');
 const profileName = document.getElementById('profileName');
 const profileInitial = document.getElementById('profileInitial');
-const sidebarToggle = document.getElementById('sidebarToggle');
-const chatSidebar = document.getElementById('chatSidebar');
-const collapsiblePanels = document.querySelectorAll('[data-collapsible]');
+const profileAvatarImage = document.getElementById('profileAvatarImage');
+const activityScrim = document.getElementById('activityScrim');
+const drawerConfigs = [
+  { name: 'messages', trigger: document.getElementById('messagesToggle'), drawer: document.getElementById('messagesDrawer') },
+  { name: 'friends', trigger: document.getElementById('friendsToggle'), drawer: document.getElementById('friendsDrawer') },
+  { name: 'notifications', trigger: document.getElementById('notificationsToggle'), drawer: document.getElementById('notificationsDrawer') }
+];
+const drawerCloseButtons = document.querySelectorAll('[data-drawer-close]');
+const messagesBadge = document.getElementById('messagesBadge');
+const friendsBadge = document.getElementById('friendsBadge');
+const notificationsBadge = document.getElementById('notificationsBadge');
 const partnerAvatar = document.getElementById('partnerAvatar');
 const partnerName = document.getElementById('partnerName');
 const settingsBtn = document.getElementById('settingsBtn');
+const plansOpenButtons = Array.from(document.querySelectorAll('[data-open-plans]'));
 const accountModal = document.getElementById('accountModal');
 const accountForm = document.getElementById('accountForm');
+const accountTabButtons = Array.from(document.querySelectorAll('[data-account-tab]'));
+const accountTabPanels = Array.from(document.querySelectorAll('.account-tab-panel'));
+const registeredPrivacySettings = document.getElementById('registeredPrivacySettings');
+const guestPrivacySettings = document.getElementById('guestPrivacySettings');
+const accountAvatarImage = document.getElementById('accountAvatarImage');
+const accountAvatarFallback = document.getElementById('accountAvatarFallback');
 const guestAccountPrompt = document.getElementById('guestAccountPrompt');
+const guestSettingsAvatar = document.getElementById('guestSettingsAvatar');
+const guestSettingsName = document.getElementById('guestSettingsName');
+const guestAvatarPresets = document.getElementById('guestAvatarPresets');
+const guestNameForm = document.getElementById('guestNameForm');
+const guestSettingsNameInput = document.getElementById('guestSettingsNameInput');
+const guestNameChangeHint = document.getElementById('guestNameChangeHint');
+const guestSettingsUserId = document.getElementById('guestSettingsUserId');
+const guestSettingsAge = document.getElementById('guestSettingsAge');
+const guestSettingsGender = document.getElementById('guestSettingsGender');
+const guestSettingsCountry = document.getElementById('guestSettingsCountry');
+const guestSettingsCountryFlag = document.getElementById('guestSettingsCountryFlag');
+const guestAccountFeedback = document.getElementById('guestAccountFeedback');
+const guestLogoutBtn = document.getElementById('guestLogoutBtn');
+const guestReminderDismiss = document.getElementById('guestReminderDismiss');
 const accountFeedback = document.getElementById('accountFeedback');
 const accountPlan = document.getElementById('accountPlan');
 const logoutBtn = document.getElementById('logoutBtn');
 const deleteAccountBtn = document.getElementById('deleteAccountBtn');
+const deleteAccountModal = document.getElementById('deleteAccountModal');
+const deleteAccountModalClose = document.getElementById('deleteAccountModalClose');
+const deleteAccountModalTitle = document.getElementById('deleteAccountModalTitle');
+const deleteAccountModalDescription = document.getElementById('deleteAccountModalDescription');
+const deleteAccountCancel = document.getElementById('deleteAccountCancel');
+const deleteAccountConfirm = document.getElementById('deleteAccountConfirm');
+const deleteAccountFeedback = document.getElementById('deleteAccountFeedback');
 const profileModal = document.getElementById('profileModal');
 const partnerProfileBtn = document.getElementById('partnerProfileBtn');
 const publicProfileAvatar = document.getElementById('publicProfileAvatar');
@@ -50,52 +114,155 @@ const blockPartnerBtn = document.getElementById('blockPartnerBtn');
 const deleteConversationBtn = document.getElementById('deleteConversationBtn');
 
 const currentUser = window.__CURRENT_USER__ || null;
+const GuestProfileStore = window.NevelyGuestProfileStore;
 let currentConversationId = null;
 let currentPartner = null;
 let currentProfile = null;
 let readOnlyConversation = false;
 let currentConversationSaved = false;
 let skipCooldownTimer = null;
+let activeDrawerConfig = null;
+let drawerRestoreFocus = null;
+let drawerTouchStart = null;
+let pendingReadReceipt = null;
+let lastPartnerReadMessageId = 0;
+let guestProfile = null;
+let guestPassportRestoreFocus = null;
+let accountModalRestoreFocus = null;
+let guestCountryActiveIndex = -1;
+let chatComposerMode = 'idle';
+const pendingSentMessages = [];
+
+const topbarCounts = { messages: 0, friends: 0, notifications: 0 };
+const defaultWaitingTimeHint = waitingTimeHint?.textContent || '';
 
 let countdownInterval = null;
 const selectedInterests = [];
 const maxInterests = 5;
+const selectedGenderFilters = new Set();
+const selectedCountryFilters = new Map();
+const FLAG_ICON_ROOT = '/vendor/flag-icons-7.5.0';
+let countryCatalog = [];
+let countryCatalogPromise = null;
 
-// Piccolo set di avatar/nomi placeholder per dare un po' di personalità
-// ai match, finché non esiste un vero sistema di profili.
-const strangerFlavors = [
-  { emoji: '🦊', name: 'Fox' },
-  { emoji: '🐼', name: 'Panda' },
-  { emoji: '🐨', name: 'Koala' },
-  { emoji: '🦉', name: 'Owl' },
-  { emoji: '🐙', name: 'Octopus' },
-  { emoji: '🦋', name: 'Butterfly' },
-  { emoji: '🐢', name: 'Turtle' },
-  { emoji: '🦁', name: 'Lion' }
-];
+const strangerNames = chatCopy.strangerNames;
 
-const countries = [
-  { name: 'Italy', flag: '🇮🇹' },
-  { name: 'France', flag: '🇫🇷' },
-  { name: 'Germany', flag: '🇩🇪' },
-  { name: 'Spain', flag: '🇪🇸' },
-  { name: 'Switzerland', flag: '🇨🇭' },
-  { name: 'Austria', flag: '🇦🇹' },
-  { name: 'United Kingdom', flag: '🇬🇧' },
-  { name: 'United States', flag: '🇺🇸' },
-  { name: 'Canada', flag: '🇨🇦' },
-  { name: 'Portugal', flag: '🇵🇹' },
-  { name: 'Netherlands', flag: '🇳🇱' },
-  { name: 'Belgium', flag: '🇧🇪' },
-  { name: 'Poland', flag: '🇵🇱' },
-  { name: 'Romania', flag: '🇷🇴' },
-  { name: 'Brazil', flag: '🇧🇷' },
-  { name: 'Argentina', flag: '🇦🇷' },
-  { name: 'Mexico', flag: '🇲🇽' },
-  { name: 'Japan', flag: '🇯🇵' },
-  { name: 'South Korea', flag: '🇰🇷' },
-  { name: 'Australia', flag: '🇦🇺' }
-];
+function loadCountryCatalog() {
+  if (countryCatalogPromise) return countryCatalogPromise;
+  countryCatalogPromise = fetch(`${FLAG_ICON_ROOT}/country.json`)
+    .then((response) => {
+      if (!response.ok) throw new Error(chatCopy.feedback.countryListError);
+      return response.json();
+    })
+    .then((entries) => {
+      countryCatalog = entries
+        .filter((country) => country.iso === true || country.code === 'xk')
+        .filter((country) => country.code && country.name && country.flag_4x3)
+        .sort((a, b) => a.name.localeCompare(b.name));
+      return countryCatalog;
+    });
+  return countryCatalogPromise;
+}
+
+function createCountryFlag(country) {
+  const image = document.createElement('img');
+  image.className = 'country-flag-icon';
+  image.src = `${FLAG_ICON_ROOT}/${country.flag_4x3}`;
+  image.alt = '';
+  image.loading = 'lazy';
+  image.setAttribute('aria-hidden', 'true');
+  return image;
+}
+
+function createCountryOption(country, onSelect) {
+  const button = document.createElement('button');
+  const label = document.createElement('strong');
+  button.type = 'button';
+  button.setAttribute('role', 'option');
+  button.dataset.countryCode = country.code;
+  label.textContent = country.name;
+  button.append(createCountryFlag(country), label);
+  button.addEventListener('click', () => onSelect(country));
+  return button;
+}
+
+function hideGuestCountrySuggestions() {
+  if (!guestCountrySuggestions || !guestCountrySearch) return;
+  guestCountrySuggestions.classList.add('hidden');
+  guestCountrySearch.setAttribute('aria-expanded', 'false');
+  guestCountryActiveIndex = -1;
+}
+
+function renderGuestCountrySelection(country) {
+  if (!countryInput || !guestCountrySearch || !guestCountrySelectedFlag) return;
+  countryInput.value = country?.code || '';
+  guestCountrySearch.value = country?.name || '';
+  guestCountrySelectedFlag.innerHTML = '';
+  guestCountrySelectedFlag.classList.toggle('hidden', !country);
+  document.querySelector('.guest-country-search-icon')?.classList.toggle('hidden', Boolean(country));
+  if (country) guestCountrySelectedFlag.appendChild(createCountryFlag(country));
+}
+
+function selectGuestCountry(country) {
+  renderGuestCountrySelection(country);
+  hideGuestCountrySuggestions();
+  if (guestCountryStatus) guestCountryStatus.textContent = formatCopy(chatCopy.dynamic.countrySelected, { country: country.name });
+  guestCountrySearch?.focus();
+}
+
+function updateGuestCountrySuggestions() {
+  if (!guestCountrySearch || !guestCountrySuggestions || !countryInput) return;
+  const query = guestCountrySearch.value.trim().toLocaleLowerCase();
+  const selected = countryCatalog.find((country) => country.code === countryInput.value);
+  if (!selected || selected.name.toLocaleLowerCase() !== query) {
+    countryInput.value = '';
+    guestCountrySelectedFlag.innerHTML = '';
+    guestCountrySelectedFlag.classList.add('hidden');
+    document.querySelector('.guest-country-search-icon')?.classList.remove('hidden');
+  }
+  guestCountrySuggestions.innerHTML = '';
+  guestCountryActiveIndex = -1;
+
+  if (query.length < 2) {
+    hideGuestCountrySuggestions();
+    if (guestCountryStatus) guestCountryStatus.textContent = chatCopy.guestPassport.countryHint;
+    return;
+  }
+
+  const matches = countryCatalog
+    .filter((country) => country.name.toLocaleLowerCase().includes(query))
+    .slice(0, 12);
+  matches.forEach((country) => guestCountrySuggestions.appendChild(createCountryOption(country, selectGuestCountry)));
+  guestCountrySuggestions.classList.toggle('hidden', matches.length === 0);
+  guestCountrySearch.setAttribute('aria-expanded', String(matches.length > 0));
+  if (guestCountryStatus) {
+    guestCountryStatus.textContent = matches.length
+      ? formatCopy(chatCopy.dynamic.countryResults, { count: matches.length })
+      : chatCopy.dynamic.countryNotFound;
+  }
+}
+
+function handleGuestCountryKeydown(event) {
+  if (!guestCountrySuggestions || guestCountrySuggestions.classList.contains('hidden')) {
+    if (event.key === 'Escape') hideGuestCountrySuggestions();
+    return;
+  }
+  const options = Array.from(guestCountrySuggestions.querySelectorAll('[role="option"]'));
+  if (!options.length) return;
+  if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+    event.preventDefault();
+    const direction = event.key === 'ArrowDown' ? 1 : -1;
+    guestCountryActiveIndex = (guestCountryActiveIndex + direction + options.length) % options.length;
+    options.forEach((option, index) => option.setAttribute('aria-selected', String(index === guestCountryActiveIndex)));
+    options[guestCountryActiveIndex].scrollIntoView({ block: 'nearest' });
+  } else if (event.key === 'Enter' && guestCountryActiveIndex >= 0) {
+    event.preventDefault();
+    options[guestCountryActiveIndex].click();
+  } else if (event.key === 'Escape') {
+    event.preventDefault();
+    hideGuestCountrySuggestions();
+  }
+}
 
 if (startBtn) startBtn.addEventListener('click', startSearch);
 if (startBtnSidebar) startBtnSidebar.addEventListener('click', startSearch);
@@ -104,8 +271,15 @@ newBtn.addEventListener('click', startSearch);
 sendBtn.addEventListener('click', sendMessage);
 reportBtn.addEventListener('click', reportUser);
 if (addInterestBtn) addInterestBtn.addEventListener('click', () => addInterest(interestsInput.value));
-if (sidebarToggle) sidebarToggle.addEventListener('click', toggleSidebar);
-if (settingsBtn) settingsBtn.addEventListener('click', openAccountSettings);
+drawerConfigs.forEach((config) => config.trigger?.addEventListener('click', () => openDrawer(config.name)));
+drawerCloseButtons.forEach((button) => button.addEventListener('click', closeActiveDrawer));
+if (activityScrim) activityScrim.addEventListener('click', closeActiveDrawer);
+if (settingsBtn) settingsBtn.addEventListener('click', () => openAccountSettings());
+plansOpenButtons.forEach((button) => button.addEventListener('click', () => openAccountSettings('plans', { focusTab: true })));
+accountTabButtons.forEach((button) => {
+  button.addEventListener('click', () => setAccountTab(button.dataset.accountTab));
+  button.addEventListener('keydown', handleAccountTabKeydown);
+});
 if (conversationMenuBtn) conversationMenuBtn.addEventListener('click', () => conversationMenu.classList.toggle('hidden'));
 if (saveConversationBtn) saveConversationBtn.addEventListener('click', saveCurrentConversation);
 if (blockPartnerBtn) blockPartnerBtn.addEventListener('click', blockCurrentPartner);
@@ -113,55 +287,85 @@ if (deleteConversationBtn) deleteConversationBtn.addEventListener('click', delet
 if (partnerProfileBtn) partnerProfileBtn.addEventListener('click', openPartnerProfile);
 if (accountForm) accountForm.addEventListener('submit', saveAccount);
 if (logoutBtn) logoutBtn.addEventListener('click', logout);
-if (deleteAccountBtn) deleteAccountBtn.addEventListener('click', deleteAccount);
+if (deleteAccountBtn) deleteAccountBtn.addEventListener('click', openDeleteAccountConfirmation);
 if (friendActionBtn) friendActionBtn.addEventListener('click', toggleFriendship);
 if (profileBlockBtn) profileBlockBtn.addEventListener('click', toggleProfileBlock);
+if (guestPassportForm) guestPassportForm.addEventListener('submit', saveGuestPassport);
+if (guestNameForm) guestNameForm.addEventListener('submit', saveGuestName);
+if (guestLogoutBtn) guestLogoutBtn.addEventListener('click', openDeleteAccountConfirmation);
+if (deleteAccountModalClose) deleteAccountModalClose.addEventListener('click', closeDeleteAccountConfirmation);
+if (deleteAccountCancel) deleteAccountCancel.addEventListener('click', closeDeleteAccountConfirmation);
+if (deleteAccountConfirm) deleteAccountConfirm.addEventListener('click', confirmDeleteAccount);
+document.addEventListener('keydown', handleDeleteAccountKeydown);
+document.addEventListener('keydown', handleAccountModalKeydown);
+if (guestReminderDismiss) guestReminderDismiss.addEventListener('click', () => guestReminderDismiss.closest('.guest-access-reminder')?.remove());
+guestGenderChips?.addEventListener('click', (event) => {
+  const button = event.target.closest('[data-gender-value]');
+  if (!button) return;
+  setGuestGender(button.dataset.genderValue);
+});
+guestCountrySearch?.addEventListener('input', updateGuestCountrySuggestions);
+guestCountrySearch?.addEventListener('focus', updateGuestCountrySuggestions);
+guestCountrySearch?.addEventListener('keydown', handleGuestCountryKeydown);
+guestCountrySearch?.addEventListener('blur', () => setTimeout(hideGuestCountrySuggestions, 140));
+waitingTimeRange?.addEventListener('input', updateWaitingTimeControl);
+ageRangeMin?.addEventListener('input', () => updateAgeRangeControl('min'));
+ageRangeMax?.addEventListener('input', () => updateAgeRangeControl('max'));
 document.querySelectorAll('[data-close-modal]').forEach((button) => button.addEventListener('click', closeModals));
+document.addEventListener('keydown', handleDrawerKeydown);
+document.addEventListener('keydown', handleGuestPassportKeydown);
+document.addEventListener('touchstart', handleDrawerTouchStart, { passive: true });
+document.addEventListener('touchend', handleDrawerTouchEnd, { passive: true });
+document.addEventListener('visibilitychange', flushPendingReadReceipt);
 
-// --- Tab a due stati (Messages/Requests, Friends/Requests): solo stato
-// visivo per ora, nessun dato reale dietro finché non c'è un backend. ---
-function wireTabPair(idA, idB, onChange) {
-  const a = document.getElementById(idA);
-  const b = document.getElementById(idB);
-  if (!a || !b) return;
-  [a, b].forEach((tab) => {
-    tab.addEventListener('click', () => {
-      a.classList.toggle('active', tab === a);
-      b.classList.toggle('active', tab === b);
-      if (onChange) onChange(tab === a ? 'primary' : 'requests');
+function wireTabs(tablist, onChange) {
+  if (!tablist) return;
+  const tabs = Array.from(tablist.querySelectorAll('[role="tab"]'));
+  const activate = (tab, moveFocus = false) => {
+    tabs.forEach((candidate) => {
+      const selected = candidate === tab;
+      candidate.classList.toggle('active', selected);
+      candidate.setAttribute('aria-selected', String(selected));
+      candidate.tabIndex = selected ? 0 : -1;
+      const panel = document.getElementById(candidate.getAttribute('aria-controls'));
+      if (panel) panel.hidden = !selected;
+    });
+    if (moveFocus) tab.focus();
+    onChange?.(tab.id);
+  };
+
+  tabs.forEach((tab, index) => {
+    tab.addEventListener('click', () => activate(tab));
+    tab.addEventListener('keydown', (event) => {
+      let nextIndex = null;
+      if (event.key === 'ArrowRight') nextIndex = (index + 1) % tabs.length;
+      if (event.key === 'ArrowLeft') nextIndex = (index - 1 + tabs.length) % tabs.length;
+      if (event.key === 'Home') nextIndex = 0;
+      if (event.key === 'End') nextIndex = tabs.length - 1;
+      if (nextIndex === null) return;
+      event.preventDefault();
+      activate(tabs[nextIndex], true);
     });
   });
 }
-wireTabPair('inboxTabMessages', 'inboxTabRequests', (tab) => loadMessagesPanel(tab));
-wireTabPair('friendsTabFriends', 'friendsTabRequests', (tab) => loadFriendsPanel(tab));
 
-// --- Icon rail: ogni icona mostra il pannello corrispondente nella
-// colonna "discord-scroll". Solo "Messages" ha contenuto reale oggi,
-// gli altri sono stub pronti per essere collegati in futuro. ---
-const iconRailButtons = document.querySelectorAll('.icon-rail button[data-panel]');
-const inboxPanels = document.querySelectorAll('.inbox-panel[data-panel-content]');
-iconRailButtons.forEach((button) => {
-  button.addEventListener('click', () => {
-    const target = button.dataset.panel;
-
-    iconRailButtons.forEach((b) => b.classList.remove('active'));
-    button.classList.add('active');
-
-    inboxPanels.forEach((panel) => {
-      panel.classList.toggle('active', panel.dataset.panelContent === target);
-    });
-    loadPanel(target);
-  });
+wireTabs(document.querySelector('#messagesDrawer .drawer-tablist'), (tabId) => {
+  if (tabId === 'messagesTabInbox') Promise.all([loadMessagesPanel(), loadChatRequestsPanel()]);
+  if (tabId === 'messagesTabRecent') loadHistoryPanel();
+  if (tabId === 'messagesTabSaved') loadSavedPanel();
+});
+wireTabs(document.querySelector('#friendsDrawer .drawer-tablist'), (tabId) => {
+  if (tabId === 'friendsTabFriends') loadFriendsPanel();
+  if (tabId === 'friendsTabRequests') loadFriendRequestsPanel();
 });
 
-collapsiblePanels.forEach((panel) => {
-  panel.addEventListener('click', (event) => {
-    const isInteractive = event.target.closest('input, button, select, a, .pill, .chip');
-    if (isInteractive && !event.target.closest('.collapse-dot') && !event.target.closest('.filter-card > button')) {
-      return;
-    }
-    panel.classList.toggle('collapsed');
-  });
+wireMultiChoiceFilter(genderFilterChips, selectedGenderFilters);
+premiumCountryInput?.addEventListener('input', renderCountryFilterList);
+premiumCountryInput?.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    premiumCountryInput.value = '';
+    renderCountryFilterList();
+  }
 });
 messageInput.addEventListener('keypress', (event) => {
   if (event.key === 'Enter') sendMessage();
@@ -172,16 +376,7 @@ interestsInput.addEventListener('keydown', (event) => {
     addInterest(interestsInput.value);
   }
 });
-usernameInput.addEventListener('input', updateProfilePreview);
-countryInput.addEventListener('input', updateCountrySuggestions);
-countryInput.addEventListener('blur', () => {
-  setTimeout(() => countrySuggestions.classList.add('hidden'), 140);
-});
-
 document.addEventListener('click', (event) => {
-  if (!event.target.closest('.chat-sidebar') && !event.target.closest('.mobile-sidebar-toggle')) {
-    chatSidebar.classList.remove('open');
-  }
   if (!event.target.closest('.partner-actions')) conversationMenu?.classList.add('hidden');
 });
 
@@ -190,20 +385,25 @@ function updateInterestTags() {
 
   selectedInterests.forEach((interest) => {
     const chip = document.createElement('span');
-    chip.className = 'chip';
+    chip.className = 'topic-chip';
     const label = document.createElement('span');
     const removeButton = document.createElement('button');
+    const removeIcon = document.createElement('i');
 
     label.textContent = interest;
     removeButton.type = 'button';
-    removeButton.setAttribute('aria-label', `Remove ${interest}`);
-    removeButton.textContent = 'x';
+    removeButton.setAttribute('aria-label', formatCopy(chatCopy.dynamic.removeItem, { item: interest }));
+    removeIcon.dataset.lucide = 'x';
+    removeIcon.setAttribute('aria-hidden', 'true');
+    removeButton.appendChild(removeIcon);
     removeButton.addEventListener('click', () => removeInterest(interest));
 
     chip.appendChild(label);
     chip.appendChild(removeButton);
     interestTags.appendChild(chip);
   });
+
+  window.lucide?.createIcons();
 }
 
 function addInterest(value) {
@@ -211,7 +411,7 @@ function addInterest(value) {
   if (!normalized) return false;
   if (selectedInterests.includes(normalized)) return false;
   if (selectedInterests.length >= maxInterests) {
-    alert('You can add up to 5 interests.');
+    alert(chatCopy.feedback.topicLimit);
     return false;
   }
 
@@ -239,6 +439,40 @@ function parseInterests(value) {
   return [...selectedInterests];
 }
 
+function setChatComposerState(mode, message = '') {
+  const fallbackMessages = {
+    idle: chatCopy.composer.idle,
+    searching: chatCopy.composer.searching,
+    live: chatCopy.composer.live,
+    ended: chatCopy.composer.partnerLeft,
+    history: chatCopy.composer.history,
+    error: chatCopy.composer.chatError
+  };
+  const stateMessage = message || fallbackMessages[mode] || chatCopy.composer.idle;
+  const isLive = mode === 'live';
+
+  chatComposerMode = mode;
+  messageInput.disabled = !isLive;
+  sendBtn.disabled = !isLive;
+  reportBtn.disabled = !isLive;
+  messageInput.placeholder = isLive ? chatCopy.conversation.messagePlaceholder : stateMessage;
+  if (chatComposerStatus) {
+    chatComposerStatus.textContent = stateMessage;
+    chatComposerStatus.classList.toggle('is-error', mode === 'error');
+  }
+
+  if (mode === 'searching') {
+    newBtn.textContent = chatCopy.conversation.next;
+    newBtn.disabled = true;
+  } else if (mode === 'live') {
+    newBtn.textContent = chatCopy.conversation.next;
+    newBtn.disabled = false;
+  } else {
+    newBtn.textContent = chatCopy.conversation.start;
+    newBtn.disabled = false;
+  }
+}
+
 function showChatView() {
   if (matchSetup) {
     matchSetup.classList.add('hidden');
@@ -249,6 +483,7 @@ function showChatView() {
   if (startBtnBottom) {
     startBtnBottom.classList.add('hidden');
   }
+  chatComposer?.classList.remove('hidden');
 }
 
 function showSetupView() {
@@ -261,90 +496,615 @@ function showSetupView() {
   if (startBtnBottom) {
     startBtnBottom.classList.remove('hidden');
   }
+  chatComposer?.classList.add('hidden');
 }
 
-function updateProfilePreview() {
-  const username = usernameInput.value.trim();
-  profileName.textContent = username || 'Guest';
-  profileInitial.textContent = username ? username.charAt(0).toUpperCase() : '🍇';
-}
-
-function updateCountrySuggestions() {
-  const query = countryInput.value.trim().toLowerCase();
-  countryValue.value = '';
-  countrySuggestions.innerHTML = '';
-
-  if (query.length < 2) {
-    countrySuggestions.classList.add('hidden');
-    return;
-  }
-
-  const matches = countries
-    .filter(country => country.name.toLowerCase().includes(query))
-    .slice(0, 8);
-
-  if (!matches.length) {
-    countrySuggestions.classList.add('hidden');
-    return;
-  }
-
-  matches.forEach((country) => {
-    const button = document.createElement('button');
-    button.type = 'button';
-    button.innerHTML = `<span>${country.flag}</span><strong>${country.name}</strong>`;
-    button.addEventListener('mousedown', (event) => {
-      event.preventDefault();
-      countryInput.value = `${country.flag} ${country.name}`;
-      countryValue.value = country.name;
-      countrySuggestions.classList.add('hidden');
-    });
-    countrySuggestions.appendChild(button);
+function setGuestGender(value) {
+  if (!guestGenderInput || !GuestProfileStore?.GENDERS.some((gender) => gender.value === value)) return;
+  guestGenderInput.value = value;
+  guestGenderChips?.querySelectorAll('[data-gender-value]').forEach((button) => {
+    const selected = button.dataset.genderValue === value;
+    button.classList.toggle('is-selected', selected);
+    button.setAttribute('aria-pressed', String(selected));
   });
-
-  countrySuggestions.classList.remove('hidden');
 }
 
-function validateQuickStart() {
-  const username = usernameInput.value.trim();
-  const age = Number(ageInput.value);
-  const selectedCountry = countryValue.value.trim();
+function persistServerGuest(serverGuest, localProfile = guestProfile) {
+  if (!GuestProfileStore || !serverGuest) return localProfile;
+  return GuestProfileStore.save(localStorage, {
+    name: serverGuest.name,
+    gender: serverGuest.gender,
+    age: serverGuest.age,
+    country: serverGuest.country,
+    avatarId: serverGuest.avatarId,
+    guestId: serverGuest.id,
+    nameChanges: serverGuest.nameChanges,
+    accountNotificationRead: localProfile?.accountNotificationRead === true
+  }, countryCatalog);
+}
 
-  if (!username) {
-    showQuickStartError('Please enter your username.');
-    usernameInput.focus();
-    return false;
+function refreshGuestSocketSession() {
+  if (currentUser || !socket.connected) return Promise.resolve();
+  return new Promise((resolve) => {
+    socket.timeout(3000).emit('refresh-guest-session', (error) => resolve(!error));
+  });
+}
+
+function renderGuestIdentity() {
+  const name = currentUser?.displayName || guestProfile?.name || uiCopy.common.guest;
+  const avatarUrl = !currentUser && guestProfile ? GuestProfileStore?.avatarUrl(guestProfile.avatarId) : '';
+  profileName.textContent = name;
+  profileInitial.textContent = name.charAt(0).toUpperCase() || 'G';
+  profileInitial.classList.toggle('hidden', Boolean(avatarUrl));
+  profileAvatarImage.classList.toggle('hidden', !avatarUrl);
+  if (avatarUrl) profileAvatarImage.src = avatarUrl;
+  else profileAvatarImage.removeAttribute('src');
+
+  if (guestSettingsName) guestSettingsName.textContent = guestProfile?.name || uiCopy.common.guest;
+  if (guestSettingsAvatar) {
+    guestSettingsAvatar.classList.toggle('hidden', !avatarUrl);
+    if (avatarUrl) guestSettingsAvatar.src = avatarUrl;
+    else guestSettingsAvatar.removeAttribute('src');
   }
 
-  if (!age || age < 18) {
-    showQuickStartError('Please select your age. You must be at least 18.');
-    ageInput.focus();
-    return false;
+  if (guestSettingsNameInput) {
+    guestSettingsNameInput.value = guestProfile?.name || '';
+    guestSettingsNameInput.disabled = !guestProfile || Number(guestProfile.nameChanges) >= 1;
   }
-
-  if (!selectedCountry) {
-    showQuickStartError('Please select your country from the list.');
-    countryInput.focus();
-    return false;
+  const nameSaveButton = guestNameForm?.querySelector('button[type="submit"]');
+  if (nameSaveButton) nameSaveButton.disabled = !guestProfile || Number(guestProfile.nameChanges) >= 1;
+  if (guestNameChangeHint) {
+    guestNameChangeHint.textContent = Number(guestProfile?.nameChanges) >= 1
+      ? chatCopy.feedback.nameChangeUsed
+      : chatCopy.feedback.nameChangeAvailable;
   }
-
-  if (!tosInput.checked) {
-    showQuickStartError('Please accept the ToS and privacy policy to continue.');
-    tosInput.focus();
-    return false;
+  if (guestSettingsUserId) guestSettingsUserId.textContent = guestProfile?.guestId || uiCopy.account.settingUp;
+  if (guestSettingsAge) guestSettingsAge.textContent = guestProfile?.age ? String(guestProfile.age) : '—';
+  if (guestSettingsGender) {
+    guestSettingsGender.textContent = GuestProfileStore?.GENDERS.find((item) => item.value === guestProfile?.gender)?.label || '—';
   }
+  if (guestSettingsCountry) guestSettingsCountry.textContent = guestProfile?.country?.name || '—';
+  if (guestSettingsCountryFlag) {
+    guestSettingsCountryFlag.innerHTML = '';
+    const country = countryCatalog.find((item) => item.code === guestProfile?.country?.code);
+    guestSettingsCountryFlag.classList.toggle('hidden', !country);
+    if (country) guestSettingsCountryFlag.appendChild(createCountryFlag(country));
+  }
+}
 
-  quickStartError.classList.add('hidden');
-  quickStartError.textContent = '';
-  return true;
+function renderGuestAvatarPresets() {
+  if (!guestAvatarPresets || !GuestProfileStore) return;
+  guestAvatarPresets.innerHTML = '';
+  GuestProfileStore.AVATAR_PRESETS.forEach((preset) => {
+    const button = document.createElement('button');
+    const image = document.createElement('img');
+    const selected = guestProfile?.avatarId === preset.id;
+    button.type = 'button';
+    button.className = 'guest-avatar-preset';
+    button.dataset.avatarId = preset.id;
+    button.setAttribute('aria-label', `${uiCopy.account.chooseAvatar}: ${preset.id}`);
+    button.setAttribute('aria-pressed', String(selected));
+    button.classList.toggle('is-selected', selected);
+    image.src = preset.src;
+    image.alt = '';
+    button.appendChild(image);
+    button.addEventListener('click', () => selectGuestAvatar(preset.id));
+    guestAvatarPresets.appendChild(button);
+  });
+}
+
+async function selectGuestAvatar(avatarId) {
+  if (currentUser || !guestProfile || !GuestProfileStore) return;
+  try {
+    const data = await api('/api/guest-profile', { method: 'PATCH', body: JSON.stringify({ avatarId }) });
+    guestProfile = persistServerGuest(data.guest, guestProfile);
+    renderGuestIdentity();
+    renderGuestAvatarPresets();
+  } catch (error) {
+    if (guestAccountFeedback) guestAccountFeedback.textContent = error.message;
+  }
 }
 
 function showQuickStartError(message) {
+  if (!quickStartError) return;
   quickStartError.textContent = message;
   quickStartError.classList.remove('hidden');
 }
 
-function toggleSidebar() {
-  chatSidebar.classList.toggle('open');
+function clearQuickStartError() {
+  if (!quickStartError) return;
+  quickStartError.textContent = '';
+  quickStartError.classList.add('hidden');
+}
+
+function getGuestPassportFocusables() {
+  if (!guestPassportModal) return [];
+  return Array.from(guestPassportModal.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+    .filter((element) => element.getClientRects().length > 0);
+}
+
+function openGuestPassport() {
+  if (currentUser || !guestPassportModal) return;
+  guestPassportRestoreFocus = document.activeElement;
+  guestPassportModal.classList.remove('hidden');
+  guestPassportModal.removeAttribute('inert');
+  guestPassportModal.setAttribute('aria-hidden', 'false');
+  document.body.classList.add('guest-passport-open');
+  const chatLayout = document.querySelector('.chat-layout');
+  if (chatLayout) chatLayout.inert = true;
+  window.requestAnimationFrame(() => usernameInput?.focus());
+}
+
+function closeGuestPassport({ restoreFocus = false } = {}) {
+  if (!guestPassportModal) return;
+  guestPassportModal.classList.add('hidden');
+  guestPassportModal.setAttribute('inert', '');
+  guestPassportModal.setAttribute('aria-hidden', 'true');
+  document.body.classList.remove('guest-passport-open');
+  const chatLayout = document.querySelector('.chat-layout');
+  if (chatLayout) chatLayout.inert = false;
+  if (restoreFocus && guestPassportRestoreFocus?.focus) guestPassportRestoreFocus.focus();
+  guestPassportRestoreFocus = null;
+}
+
+function handleGuestPassportKeydown(event) {
+  if (!guestPassportModal || guestPassportModal.classList.contains('hidden')) return;
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    return;
+  }
+  if (event.key !== 'Tab') return;
+  const focusables = getGuestPassportFocusables();
+  if (!focusables.length) return event.preventDefault();
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+async function saveGuestPassport(event) {
+  event.preventDefault();
+  clearQuickStartError();
+  const name = usernameInput?.value.trim() || '';
+  const age = Number(ageInput?.value);
+  const country = countryCatalog.find((entry) => entry.code === countryInput?.value);
+
+  if (!name) {
+    showQuickStartError(chatCopy.feedback.enterName);
+    return usernameInput?.focus();
+  }
+  if (!Number.isInteger(age) || age < 18) {
+    showQuickStartError(chatCopy.feedback.chooseAge);
+    return ageInput?.focus();
+  }
+  if (!country) {
+    showQuickStartError(chatCopy.feedback.chooseCountry);
+    return guestCountrySearch?.focus();
+  }
+  if (!tosInput?.checked) {
+    showQuickStartError(chatCopy.feedback.acceptTerms);
+    return tosInput?.focus();
+  }
+
+  try {
+    const localProfile = {
+      name,
+      gender: guestGenderInput.value,
+      age,
+      country: { code: country.code, name: country.name },
+      avatarId: guestProfile?.avatarId || GuestProfileStore.pickRandomAvatar(),
+      accountNotificationRead: false
+    };
+    const data = await api('/api/guest-profile', { method: 'POST', body: JSON.stringify(localProfile) });
+    guestProfile = persistServerGuest(data.guest, localProfile);
+    await refreshGuestSocketSession();
+    renderGuestIdentity();
+    renderGuestAvatarPresets();
+    refreshTopbarBadges();
+    closeGuestPassport();
+  } catch (error) {
+    showQuickStartError(error.message);
+  }
+}
+
+async function saveGuestName(event) {
+  event.preventDefault();
+  if (!guestProfile || !guestSettingsNameInput) return;
+  if (guestAccountFeedback) guestAccountFeedback.textContent = '';
+  const name = guestSettingsNameInput.value.trim();
+  if (!name) {
+    if (guestAccountFeedback) guestAccountFeedback.textContent = chatCopy.feedback.enterName;
+    return guestSettingsNameInput.focus();
+  }
+  try {
+    const previousName = guestProfile.name;
+    const data = await api('/api/guest-profile', { method: 'PATCH', body: JSON.stringify({ name }) });
+    guestProfile = persistServerGuest(data.guest, guestProfile);
+    await refreshGuestSocketSession();
+    renderGuestIdentity();
+    if (guestAccountFeedback) {
+      guestAccountFeedback.textContent = previousName === guestProfile.name
+        ? chatCopy.feedback.nameUnchanged
+        : chatCopy.feedback.nameSaved;
+    }
+  } catch (error) {
+    if (guestAccountFeedback) guestAccountFeedback.textContent = error.message;
+  }
+}
+
+function resetGuestPassportForm() {
+  guestPassportForm?.reset();
+  setGuestGender('any');
+  renderGuestCountrySelection(null);
+  hideGuestCountrySuggestions();
+  if (guestCountryStatus) guestCountryStatus.textContent = chatCopy.guestPassport.countryHint;
+  clearQuickStartError();
+}
+
+async function logoutGuestAccount() {
+  if (currentUser) return;
+  if (guestAccountFeedback) guestAccountFeedback.textContent = '';
+  try {
+    await api('/api/guest-profile', { method: 'DELETE', body: '{}' });
+    GuestProfileStore?.remove(localStorage);
+    guestProfile = null;
+    if (socket.connected) socket.disconnect();
+    socket.connect();
+    resetGuestPassportForm();
+    renderGuestIdentity();
+    renderGuestAvatarPresets();
+    closeModals();
+    refreshTopbarBadges();
+    openGuestPassport();
+    return true;
+  } catch (error) {
+    if (guestAccountFeedback) guestAccountFeedback.textContent = error.message;
+    return false;
+  }
+}
+
+function currentChatProfile() {
+  if (currentUser) {
+    return {
+      username: currentUser.displayName,
+      gender: currentUser.gender || 'any',
+      age: Number(currentUser.age),
+      country: currentUser.country || ''
+    };
+  }
+  if (!guestProfile) return null;
+  return {
+    username: guestProfile.name,
+    gender: guestProfile.gender,
+    age: guestProfile.age,
+    country: guestProfile.country.name,
+    avatarId: guestProfile.avatarId
+  };
+}
+
+async function initializeGuestExperience() {
+  renderGuestIdentity();
+  if (currentUser) return;
+  if (!GuestProfileStore) {
+    openGuestPassport();
+    return showQuickStartError(chatCopy.feedback.guestProfileLoadError);
+  }
+
+  guestProfile = GuestProfileStore.read(localStorage);
+  if (guestProfile) renderGuestIdentity();
+  else openGuestPassport();
+
+  try {
+    const catalog = await loadCountryCatalog();
+    guestProfile = GuestProfileStore.read(localStorage, catalog);
+    if (guestProfile) {
+      const serverData = await api('/api/guest-profile');
+      if (serverData.guest) {
+        guestProfile = persistServerGuest(serverData.guest, guestProfile);
+      } else {
+        const created = await api('/api/guest-profile', { method: 'POST', body: JSON.stringify(guestProfile) });
+        guestProfile = persistServerGuest(created.guest, guestProfile);
+        await refreshGuestSocketSession();
+      }
+      usernameInput.value = guestProfile.name;
+      ageInput.value = String(guestProfile.age);
+      renderGuestCountrySelection(catalog.find((country) => country.code === guestProfile.country.code));
+      setGuestGender(guestProfile.gender);
+      renderGuestIdentity();
+      renderGuestAvatarPresets();
+      closeGuestPassport();
+    } else {
+      renderGuestCountrySelection(null);
+    }
+  } catch (error) {
+    if (!guestProfile) showQuickStartError(chatCopy.feedback.countryListError);
+    else if (guestAccountFeedback) guestAccountFeedback.textContent = chatCopy.feedback.guestIdError;
+  }
+}
+
+function wireMultiChoiceFilter(container, selection) {
+  if (!container) return;
+  container.addEventListener('click', (event) => {
+    const button = event.target.closest('[data-filter-value]');
+    if (!button || button.disabled) return;
+    if (button.dataset.premiumLocked === 'true') {
+      openAccountSettings('plans', { focusTab: true });
+      return;
+    }
+    const value = button.dataset.filterValue;
+
+    if (!value) {
+      selection.clear();
+    } else if (selection.has(value)) {
+      selection.delete(value);
+    } else {
+      selection.add(value);
+    }
+
+    syncMultiChoiceFilter(container, selection);
+  });
+  syncMultiChoiceFilter(container, selection);
+}
+
+function syncMultiChoiceFilter(container, selection) {
+  container.querySelectorAll('[data-filter-value]').forEach((button) => {
+    const value = button.dataset.filterValue;
+    const selected = value ? selection.has(value) : selection.size === 0;
+    button.classList.toggle('is-selected', selected);
+    button.setAttribute('aria-pressed', String(selected));
+  });
+}
+
+function updateCountryFilterStatus(message = '') {
+  if (!countryFilterStatus) return;
+  if (message) {
+    countryFilterStatus.textContent = message;
+    return;
+  }
+  const count = selectedCountryFilters.size;
+  countryFilterStatus.textContent = count
+    ? formatCopy(chatCopy.dynamic.placeSelected, {
+      count,
+      unit: count === 1 ? chatCopy.dynamic.placeSingular : chatCopy.dynamic.placePlural
+    })
+    : chatCopy.match.countryListHint;
+}
+
+function removeCountryFilter(code) {
+  selectedCountryFilters.delete(code);
+  renderCountryFilterTags();
+  renderCountryFilterList();
+}
+
+function renderCountryFilterTags() {
+  if (!countryFilterTags) return;
+  countryFilterTags.innerHTML = '';
+
+  selectedCountryFilters.forEach((country, code) => {
+    const tag = document.createElement('span');
+    const label = document.createElement('span');
+    const removeButton = document.createElement('button');
+    const removeIcon = document.createElement('i');
+    tag.className = 'country-filter-tag';
+    label.textContent = country.name;
+    removeButton.type = 'button';
+    removeButton.setAttribute('aria-label', formatCopy(chatCopy.dynamic.removeItem, { item: country.name }));
+    removeIcon.dataset.lucide = 'x';
+    removeIcon.setAttribute('aria-hidden', 'true');
+    removeButton.appendChild(removeIcon);
+    removeButton.addEventListener('click', () => removeCountryFilter(code));
+    tag.append(createCountryFlag(country), label, removeButton);
+    countryFilterTags.appendChild(tag);
+  });
+
+  updateCountryFilterStatus();
+  window.lucide?.createIcons();
+}
+
+function toggleCountryFilter(country) {
+  if (currentUser?.plan !== 'premium') {
+    openAccountSettings('plans', { focusTab: true });
+    return;
+  }
+  if (selectedCountryFilters.has(country.code)) selectedCountryFilters.delete(country.code);
+  else selectedCountryFilters.set(country.code, country);
+  renderCountryFilterTags();
+  renderCountryFilterList();
+}
+
+async function renderCountryFilterList() {
+  if (!premiumCountryInput || !countryFilterSuggestions) return;
+  const query = premiumCountryInput.value.trim().toLowerCase();
+  countryFilterSuggestions.innerHTML = '';
+
+  let catalog;
+  try {
+    catalog = await loadCountryCatalog();
+  } catch (error) {
+    updateCountryFilterStatus(chatCopy.dynamic.countryUnavailable);
+    return;
+  }
+
+  if (premiumCountryInput.value.trim().toLowerCase() !== query) return;
+  const matches = query.length >= 3
+    ? catalog.filter((country) => country.name.toLowerCase().includes(query))
+    : catalog;
+
+  if (!matches.length) {
+    updateCountryFilterStatus(chatCopy.dynamic.placeNotFound);
+    return;
+  }
+
+  matches.forEach((country) => {
+    const option = createCountryOption(country, toggleCountryFilter);
+    const selected = selectedCountryFilters.has(country.code);
+    option.classList.toggle('is-selected', selected);
+    option.setAttribute('aria-selected', String(selected));
+    if (currentUser?.plan !== 'premium') {
+      option.tabIndex = -1;
+      option.setAttribute('aria-disabled', 'true');
+    }
+    if (selected) {
+      const check = document.createElement('i');
+      check.dataset.lucide = 'check';
+      check.setAttribute('aria-hidden', 'true');
+      option.appendChild(check);
+    }
+    countryFilterSuggestions.appendChild(option);
+  });
+
+  if (query && query.length < 3) updateCountryFilterStatus(chatCopy.dynamic.countryKeepTyping);
+  else if (query) updateCountryFilterStatus(formatCopy(chatCopy.dynamic.placesFound, { count: matches.length }));
+  else updateCountryFilterStatus();
+  window.lucide?.createIcons();
+}
+
+function getDrawerFocusables() {
+  const drawer = activeDrawerConfig?.drawer;
+  if (!drawer) return [];
+  return Array.from(drawer.querySelectorAll('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+    .filter((element) => !element.hasAttribute('hidden') && element.getClientRects().length > 0);
+}
+
+function openDrawer(name) {
+  const config = drawerConfigs.find((item) => item.name === name);
+  if (!config?.drawer) return;
+  if (activeDrawerConfig === config) return closeActiveDrawer();
+  if (activeDrawerConfig) closeActiveDrawer({ restoreFocus: false });
+
+  activeDrawerConfig = config;
+  drawerRestoreFocus = config.trigger || document.activeElement;
+  config.drawer.inert = false;
+  config.drawer.classList.add('is-open');
+  config.drawer.setAttribute('aria-hidden', 'false');
+  config.trigger?.setAttribute('aria-expanded', 'true');
+  activityScrim?.classList.add('is-visible');
+  document.body.classList.add('activity-drawer-open');
+  loadOpenDrawer(name);
+  refreshTopbarBadges();
+  requestAnimationFrame(() => config.drawer.querySelector('[data-drawer-close]')?.focus());
+}
+
+function closeActiveDrawer(options = {}) {
+  const restoreFocus = options.restoreFocus !== false;
+  if (!activeDrawerConfig) return;
+  const { drawer, trigger } = activeDrawerConfig;
+  drawer.classList.remove('is-open');
+  drawer.setAttribute('aria-hidden', 'true');
+  drawer.inert = true;
+  trigger?.setAttribute('aria-expanded', 'false');
+  activityScrim?.classList.remove('is-visible');
+  document.body.classList.remove('activity-drawer-open');
+  if (restoreFocus && drawerRestoreFocus instanceof HTMLElement) drawerRestoreFocus.focus();
+  drawerRestoreFocus = null;
+  activeDrawerConfig = null;
+}
+
+function handleDrawerKeydown(event) {
+  if (!activeDrawerConfig) return;
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closeActiveDrawer();
+    return;
+  }
+  if (event.key !== 'Tab') return;
+  const focusable = getDrawerFocusables();
+  if (!focusable.length) {
+    event.preventDefault();
+    return;
+  }
+  const first = focusable[0];
+  const last = focusable[focusable.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+function handleDrawerTouchStart(event) {
+  if (!activeDrawerConfig || !window.matchMedia('(max-width: 768px)').matches || !event.touches.length) return;
+  if (!event.target.closest('.activity-drawer')?.classList.contains('is-open')) return;
+  const touch = event.touches[0];
+  drawerTouchStart = { x: touch.clientX, y: touch.clientY };
+}
+
+function handleDrawerTouchEnd(event) {
+  if (!drawerTouchStart || !event.changedTouches.length) return;
+  const touch = event.changedTouches[0];
+  const deltaX = touch.clientX - drawerTouchStart.x;
+  const deltaY = touch.clientY - drawerTouchStart.y;
+  const horizontalGesture = Math.abs(deltaX) >= 64 && Math.abs(deltaX) > Math.abs(deltaY) * 1.25;
+  if (horizontalGesture && deltaX > 0) closeActiveDrawer();
+  drawerTouchStart = null;
+}
+
+function loadOpenDrawer(name) {
+  if (name === 'messages') {
+    const selected = document.querySelector('#messagesDrawer [role="tab"][aria-selected="true"]')?.id;
+    if (selected === 'messagesTabRecent') return loadHistoryPanel();
+    if (selected === 'messagesTabSaved') return loadSavedPanel();
+    return Promise.all([loadMessagesPanel(), loadChatRequestsPanel()]);
+  }
+  if (name === 'friends') {
+    const selected = document.querySelector('#friendsDrawer [role="tab"][aria-selected="true"]')?.id;
+    return selected === 'friendsTabRequests' ? loadFriendRequestsPanel() : loadFriendsPanel();
+  }
+  if (name === 'notifications') return loadNotificationsPanel();
+}
+
+function updateTopbarBadge(name, count) {
+  const config = drawerConfigs.find((item) => item.name === name);
+  const badges = { messages: messagesBadge, friends: friendsBadge, notifications: notificationsBadge };
+  const badge = badges[name];
+  if (!config?.trigger || !badge) return;
+  const canShowCount = Boolean(currentUser) || name === 'notifications';
+  const safeCount = canShowCount ? Math.max(0, Number(count) || 0) : 0;
+  topbarCounts[name] = safeCount;
+  badge.textContent = safeCount > 99 ? '99+' : String(safeCount);
+  badge.classList.toggle('hidden', safeCount === 0);
+  const labels = {
+    messages: formatCopy(safeCount === 1 ? chatCopy.dynamic.unreadMessage : chatCopy.dynamic.unreadMessages, { count: safeCount }),
+    friends: formatCopy(safeCount === 1 ? chatCopy.dynamic.friendRequest : chatCopy.dynamic.friendRequests, { count: safeCount }),
+    notifications: formatCopy(safeCount === 1 ? chatCopy.dynamic.unreadNotification : chatCopy.dynamic.unreadNotifications, { count: safeCount })
+  };
+  const titles = {
+    messages: chatCopy.drawers.messages.title,
+    friends: chatCopy.drawers.friends.title,
+    notifications: chatCopy.drawers.notifications.title
+  };
+  config.trigger.setAttribute('aria-label', safeCount
+    ? formatCopy(chatCopy.dynamic.openWithCount, { title: titles[name], countLabel: labels[name] })
+    : formatCopy(chatCopy.dynamic.open, { title: titles[name] }));
+}
+
+async function refreshTopbarBadges() {
+  if (!currentUser) {
+    updateTopbarBadge('messages', 0);
+    updateTopbarBadge('friends', 0);
+    updateTopbarBadge('notifications', guestProfile?.accountNotificationRead ? 0 : 1);
+    return;
+  }
+  try {
+    const [conversations, friendRequests, notifications] = await Promise.all([
+      api('/api/conversations'),
+      api('/api/friend-requests'),
+      api('/api/notifications')
+    ]);
+    const unreadMessages = conversations.conversations?.reduce((total, item) => total + (Number(item.unread_count) || 0), 0) || 0;
+    updateTopbarBadge('messages', unreadMessages);
+    updateTopbarBadge('friends', friendRequests.requests?.length || 0);
+    updateTopbarBadge('notifications', notifications.notifications?.filter((item) => !item.read_at).length || 0);
+  } catch (error) {
+    console.warn('Topbar badge refresh failed.', error);
+  }
 }
 
 // --- Stato di attesa: spinner animato al posto dei messaggi ---
@@ -360,12 +1120,55 @@ function showWaitingState(label) {
 }
 
 function resetPartnerBar(label) {
-  partnerAvatar.textContent = '🙂';
+  partnerAvatar.innerHTML = '<i data-lucide="user" aria-hidden="true"></i>';
   partnerName.textContent = label;
+  window.lucide?.createIcons();
+}
+
+function selectedAgeBounds() {
+  const min = Math.min(Math.max(Number(ageRangeMin?.value) || 18, 18), 60);
+  const max = Math.min(Math.max(Number(ageRangeMax?.value) || 60, 18), 60);
+  return { min: Math.min(min, max), max: Math.max(min, max) };
+}
+
+function updateAgeRangeControl(changedHandle = '') {
+  if (!ageRangeMin || !ageRangeMax || !ageRangeControl) return;
+  let min = Number(ageRangeMin.value);
+  let max = Number(ageRangeMax.value);
+  if (min > max) {
+    if (changedHandle === 'min') {
+      max = min;
+      ageRangeMax.value = String(max);
+    } else {
+      min = max;
+      ageRangeMin.value = String(min);
+    }
+  }
+  const span = 60 - 18;
+  ageRangeControl.style.setProperty('--age-min-percent', `${((min - 18) / span) * 100}%`);
+  ageRangeControl.style.setProperty('--age-max-percent', `${((max - 18) / span) * 100}%`);
+  if (ageRangeMinOutput) ageRangeMinOutput.textContent = String(min);
+  if (ageRangeMaxOutput) ageRangeMaxOutput.textContent = max >= 60 ? '60+' : String(max);
+}
+
+function selectedWaitingTimeSeconds() {
+  if (!waitingTimeRange) return 10;
+  const value = Number(waitingTimeRange.value);
+  return value >= 35 ? null : Math.min(Math.max(Math.round(value / 5) * 5, 5), 30);
+}
+
+function updateWaitingTimeControl() {
+  const seconds = selectedWaitingTimeSeconds();
+  const label = seconds === null ? chatCopy.match.noLimit : `${seconds} ${chatCopy.match.secondsShort}`;
+  if (waitingTimeOutput) waitingTimeOutput.textContent = label;
+  if (waitingTimeRange) waitingTimeRange.setAttribute('aria-valuetext', label);
+  if (waitingTimeHint) waitingTimeHint.textContent = defaultWaitingTimeHint;
 }
 
 function startSearch() {
-  if (!validateQuickStart()) {
+  const profile = currentChatProfile();
+  if (!profile) {
+    openGuestPassport();
     return;
   }
 
@@ -376,47 +1179,79 @@ function startSearch() {
   currentConversationId = null;
   currentPartner = null;
   currentConversationSaved = false;
-  messageInput.disabled = false;
-  sendBtn.disabled = false;
-  statusText.textContent = 'Looking for a partner...';
-  resetPartnerBar('Looking for someone…');
-  showWaitingState('Looking for a partner...');
+  setChatComposerState('searching');
+  statusText.textContent = chatCopy.conversation.looking;
+  resetPartnerBar(chatCopy.conversation.looking);
+  showWaitingState(chatCopy.composer.searching);
   showChatView();
-  chatSidebar.classList.remove('open');
+  closeActiveDrawer({ restoreFocus: false });
 
   socket.emit('find-partner', {
     interests,
-    profile: {
-      username: usernameInput.value.trim(),
-      age: Number(ageInput.value),
-      country: countryValue.value.trim()
-    },
-    filters: getPremiumFilters()
+    profile,
+    filters: getPremiumFilters(),
+    waitingTimeSeconds: selectedWaitingTimeSeconds()
   });
 }
 
 // Aggiunge un messaggio mantenendo lo scroll ancorato in basso, ma solo
 // all'interno del contenitore messaggi (mai la pagina intera).
-function addMessage(text, who) {
+function addMessage(text, who, messageId = null) {
   const message = document.createElement('div');
   message.className = `msg ${who}`;
   message.textContent = text;
+  if (Number.isSafeInteger(Number(messageId)) && Number(messageId) > 0) {
+    message.dataset.messageId = String(messageId);
+  }
   messagesEl.appendChild(message);
   messagesEl.scrollTop = messagesEl.scrollHeight;
+  return message;
 }
 
 function sendMessage() {
   if (readOnlyConversation) return;
   const text = messageInput.value.trim();
   if (!text) return;
-  addMessage(text, 'me');
+  pendingSentMessages.push(addMessage(text, 'me'));
   socket.emit('send-message', text);
   messageInput.value = '';
 }
 
+function queueReadReceipt(conversationId, messageId) {
+  const safeConversationId = Number(conversationId);
+  const safeMessageId = Number(messageId);
+  if (!currentUser || !Number.isSafeInteger(safeConversationId) || safeConversationId <= 0
+      || !Number.isSafeInteger(safeMessageId) || safeMessageId <= 0) return;
+  pendingReadReceipt = { conversationId: safeConversationId, upToMessageId: safeMessageId };
+  flushPendingReadReceipt();
+}
+
+function flushPendingReadReceipt() {
+  if (!pendingReadReceipt || document.visibilityState !== 'visible') return;
+  const receipt = pendingReadReceipt;
+  pendingReadReceipt = null;
+  socket.emit('messages-read', receipt, (response = {}) => {
+    if (!response.ok) {
+      pendingReadReceipt = receipt;
+      return;
+    }
+    refreshTopbarBadges();
+    if (activeDrawerConfig?.name === 'messages') loadMessagesPanel();
+  });
+}
+
+function markOutgoingMessagesRead(upToMessageId) {
+  const safeMessageId = Number(upToMessageId);
+  if (!Number.isSafeInteger(safeMessageId)) return;
+  lastPartnerReadMessageId = Math.max(lastPartnerReadMessageId, safeMessageId);
+  messagesEl.querySelectorAll('.msg.me[data-message-id]').forEach((message) => {
+    if (Number(message.dataset.messageId) <= lastPartnerReadMessageId) message.dataset.read = 'true';
+  });
+}
+
 function reportUser() {
   socket.emit('report');
-  alert('User reported. Thanks for your report.');
+  alert(chatCopy.feedback.reportThanks);
 }
 
 function clearCountdown() {
@@ -454,30 +1289,43 @@ function updateTimerBadge(remaining) {
   }
 }
 
-socket.on('waiting', () => {
+socket.on('waiting', ({ waitingTimeSeconds } = {}) => {
   showChatView();
-  statusText.textContent = 'Waiting for a partner...';
-  resetPartnerBar('Looking for someone…');
-  showWaitingState('Waiting for a partner...');
+  statusText.textContent = waitingTimeSeconds === null
+    ? chatCopy.composer.searching
+    : formatCopy(chatCopy.dynamic.waitingSeconds, { seconds: waitingTimeSeconds });
+  setChatComposerState('searching', statusText.textContent);
+  resetPartnerBar(chatCopy.conversation.looking);
+  showWaitingState(chatCopy.composer.searching);
+});
+
+socket.on('waiting-timeout', ({ seconds } = {}) => {
+  showSetupView();
+  statusText.textContent = chatCopy.feedback.noMatch;
+  setChatComposerState('ended', chatCopy.feedback.tryLonger);
+  if (waitingTimeHint) waitingTimeHint.textContent = chatCopy.feedback.tryLonger;
 });
 
 socket.on('matched', (data) => {
   showChatView();
+  closeActiveDrawer({ restoreFocus: false });
   const shared = data.sharedInterests.length
-    ? `Common interests: ${data.sharedInterests.join(', ')}`
-    : 'No shared interests, but you can still talk!';
-  statusText.textContent = 'Connected! ' + shared;
+    ? formatCopy(chatCopy.dynamic.sharedTopics, { topics: data.sharedInterests.join(', ') })
+    : chatCopy.feedback.noSharedTopics;
+  statusText.textContent = formatCopy(chatCopy.feedback.connected, { shared });
 
-  const flavor = strangerFlavors[Math.floor(Math.random() * strangerFlavors.length)];
+  const fallbackName = strangerNames[Math.floor(Math.random() * strangerNames.length)];
   currentConversationId = data.conversationId || null;
   currentPartner = data.partner || null;
   currentConversationSaved = false;
-  saveConversationBtn.textContent = 'Save chat';
-  partnerAvatar.textContent = data.partner?.displayName?.charAt(0).toUpperCase() || flavor.emoji;
-  partnerName.textContent = data.partner?.displayName || flavor.name;
+  saveConversationBtn.textContent = chatCopy.conversation.saveChat;
+  partnerAvatar.textContent = (data.partner?.displayName || fallbackName).charAt(0).toUpperCase();
+  partnerName.textContent = data.partner?.displayName || fallbackName;
   readOnlyConversation = false;
-  messageInput.disabled = false;
-  sendBtn.disabled = false;
+  pendingReadReceipt = null;
+  lastPartnerReadMessageId = 0;
+  pendingSentMessages.length = 0;
+  setChatComposerState('live');
 
   messagesEl.innerHTML = '';
   addMessage(shared, 'system');
@@ -491,51 +1339,93 @@ socket.on('matched', (data) => {
 });
 
 socket.on('receive-message', (message) => {
-  addMessage(typeof message === 'string' ? message : message.text, 'them');
+  const messageId = typeof message === 'object' ? Number(message.id) : null;
+  addMessage(typeof message === 'string' ? message : message.text, 'them', messageId);
+  if (currentUser && document.visibilityState !== 'visible') refreshTopbarBadges();
+  queueReadReceipt(currentConversationId, messageId);
+});
+
+socket.on('message-sent', ({ id } = {}) => {
+  const message = pendingSentMessages.shift();
+  const messageId = Number(id);
+  if (!message || !Number.isSafeInteger(messageId) || messageId <= 0) return;
+  message.dataset.messageId = String(messageId);
+  if (messageId <= lastPartnerReadMessageId) message.dataset.read = 'true';
+});
+
+socket.on('message-read', ({ conversationId, upToMessageId } = {}) => {
+  if (Number(conversationId) !== Number(currentConversationId)) return;
+  markOutgoingMessagesRead(upToMessageId);
 });
 
 socket.on('partner-left', () => {
   showChatView();
-  statusText.textContent = 'Your partner left the chat.';
-  addMessage('Your partner left the chat.', 'system');
-  resetPartnerBar('Partner left');
+  statusText.textContent = chatCopy.feedback.partnerLeft;
+  addMessage(chatCopy.feedback.partnerLeft, 'system');
+  resetPartnerBar(chatCopy.feedback.chatEnded);
   clearCountdown();
   readOnlyConversation = true;
-  messageInput.disabled = true;
-  sendBtn.disabled = true;
+  setChatComposerState('ended');
   loadPanel('history');
 });
 
 socket.on('guest-time-expired', () => {
   showChatView();
-  addMessage('Guest session time expired. Looking for a new partner...', 'system');
+  addMessage(chatCopy.feedback.guestExpired, 'system');
+  setChatComposerState('searching');
   clearCountdown();
   setTimeout(() => {
     startSearch();
   }, 1200);
 });
 
-socket.on('message-error', (data) => addMessage(data.message || 'Message could not be sent.', 'system'));
-socket.on('chat-error', (data) => addMessage(data.message || 'Chat is temporarily unavailable.', 'system'));
+socket.on('message-error', (data) => {
+  pendingSentMessages.shift();
+  addMessage(data.message || chatCopy.feedback.messageSendError, 'system');
+});
+socket.on('chat-error', (data) => {
+  const message = data.message || chatCopy.feedback.chatUnavailable;
+  addMessage(message, 'system');
+  setChatComposerState('error', message);
+});
+socket.on('disconnect', () => {
+  setChatComposerState('error', chatCopy.composer.reconnecting);
+});
+socket.on('connect_error', () => {
+  setChatComposerState('error', chatCopy.composer.connectionError);
+});
+socket.on('connect', () => {
+  if (chatComposerMode === 'error') {
+    showSetupView();
+    setChatComposerState('idle');
+  }
+});
 socket.on('skip-cooldown', ({ remainingMs }) => startSkipCooldown(remainingMs));
-socket.on('notification-created', () => loadPanel('notifications'));
+socket.on('notification-created', ({ type } = {}) => {
+  loadNotificationsPanel();
+  if (type === 'friend_request') loadFriendRequestsPanel();
+  refreshTopbarBadges();
+});
 socket.on('direct-chat-requested', () => {
-  loadMessagesPanel('requests');
-  loadPanel('notifications');
+  loadChatRequestsPanel();
 });
 socket.on('account-banned', () => {
-  alert('Your account has been suspended. You will be logged out.');
+  alert(chatCopy.feedback.accountSuspended);
   logout();
 });
 
 function getPremiumFilters() {
   if (currentUser?.plan !== 'premium') return null;
-  return {
-    gender: document.getElementById('premiumGender')?.value || '',
-    minAge: document.getElementById('premiumMinAge')?.value || 18,
-    maxAge: document.getElementById('premiumMaxAge')?.value || 99,
-    country: document.getElementById('premiumCountry')?.value || ''
+  const age = selectedAgeBounds();
+  const filters = {
+    genders: [...selectedGenderFilters],
+    countries: [...selectedCountryFilters.values()].map((country) => country.name)
   };
+  if (age.min > 18 || age.max < 60) {
+    filters.minAge = age.min;
+    filters.maxAge = age.max >= 60 ? 99 : age.max;
+  }
+  return filters;
 }
 
 function startSkipCooldown(remainingMs) {
@@ -544,7 +1434,9 @@ function startSkipCooldown(remainingMs) {
   newBtn.disabled = true;
   const update = () => {
     const remaining = Math.max(0, endsAt - Date.now());
-    newBtn.textContent = remaining ? `Skip (${Math.ceil(remaining / 1000)}s)` : 'Skip';
+    newBtn.textContent = remaining
+      ? formatCopy(chatCopy.dynamic.skipCountdown, { seconds: Math.ceil(remaining / 1000) })
+      : chatCopy.conversation.next;
     if (!remaining) {
       clearInterval(skipCooldownTimer);
       newBtn.disabled = false;
@@ -561,7 +1453,7 @@ async function api(url, options = {}) {
   });
   if (response.status === 204) return null;
   const data = await response.json().catch(() => ({}));
-  if (!response.ok) throw new Error(data.error || 'Request failed.');
+  if (!response.ok) throw new Error(data.error || uiCopy.errors.unexpected);
   return data;
 }
 
@@ -584,79 +1476,121 @@ function renderAccountRequired(name) {
   list.innerHTML = '';
   const block = document.createElement('div');
   block.className = 'panel-account-required';
-  block.innerHTML = '<strong>Account required</strong><span>Create a free account to use this section.</span><a href="/register">Create Account</a>';
+  const heading = document.createElement('strong');
+  const body = document.createElement('span');
+  const link = document.createElement('a');
+  heading.textContent = chatCopy.feedback.accountRequiredTitle;
+  body.textContent = chatCopy.feedback.accountRequiredBody;
+  link.href = '/register';
+  link.textContent = uiCopy.common.createAccount;
+  block.append(heading, body, link);
   list.appendChild(block);
   showListState(name, true);
 }
 
 function makeListItem(title, meta, onClick, badge) {
-  const button = document.createElement('button');
-  button.type = 'button';
-  button.className = 'panel-data-item';
+  const item = document.createElement(onClick ? 'button' : 'div');
+  if (onClick) item.type = 'button';
+  item.className = 'panel-data-item';
   const initial = document.createElement('span');
   initial.className = 'panel-item-avatar';
   initial.textContent = title?.charAt(0).toUpperCase() || '?';
   const copy = document.createElement('span');
   copy.className = 'panel-item-copy';
   const strong = document.createElement('strong');
-  strong.textContent = title || 'Unknown';
+  strong.textContent = title || uiCopy.common.unknownUser;
   const small = document.createElement('small');
   small.textContent = meta || '';
   copy.append(strong, small);
-  button.append(initial, copy);
+  item.append(initial, copy);
   if (badge) {
     const status = document.createElement('span');
-    status.className = `panel-item-status ${badge === 'Online' ? 'online' : ''}`;
+    status.className = `panel-item-status ${badge === uiCopy.common.online ? 'online' : ''}`;
     status.textContent = badge;
-    button.appendChild(status);
+    item.appendChild(status);
   }
-  if (onClick) button.addEventListener('click', onClick);
-  return button;
+  if (onClick) item.addEventListener('click', onClick);
+  return item;
 }
 
 async function loadPanel(name) {
-  if (!currentUser && ['messages', 'history', 'friends', 'notifications', 'saved'].includes(name)) {
+  if (!currentUser && ['messages', 'history', 'friends', 'saved'].includes(name)) {
     renderAccountRequired(name);
     return;
   }
   try {
-    if (name === 'messages') return loadMessagesPanel(document.getElementById('inboxTabRequests')?.classList.contains('active') ? 'requests' : 'primary');
-    if (name === 'history') return loadHistoryPanel();
-    if (name === 'friends') return loadFriendsPanel(document.getElementById('friendsTabRequests')?.classList.contains('active') ? 'requests' : 'primary');
-    if (name === 'notifications') return loadNotificationsPanel();
-    if (name === 'saved') return loadSavedPanel();
+    if (name === 'messages') return await loadMessagesPanel();
+    if (name === 'history') return await loadHistoryPanel();
+    if (name === 'friends') return await loadFriendsPanel();
+    if (name === 'notifications') return await loadNotificationsPanel();
+    if (name === 'saved') return await loadSavedPanel();
   } catch (error) {
     console.error(error);
   }
 }
 
-async function loadMessagesPanel(tab = 'primary') {
+async function loadMessagesPanel() {
   if (!currentUser) return renderAccountRequired('messages');
   const { list } = listElements('messages');
   list.innerHTML = '';
-  if (tab === 'requests') {
-    const data = await api('/api/chat-requests');
-    data.requests.forEach((request) => {
-      const row = makeListItem(request.display_name, 'Wants to chat', null);
-      const actions = document.createElement('span');
-      actions.className = 'panel-inline-actions';
-      actions.append(
-        actionButton('Accept', () => socket.emit('direct-chat-response', { requestId: request.id, action: 'accept' })),
-        actionButton('Decline', () => socket.emit('direct-chat-response', { requestId: request.id, action: 'decline' }))
-      );
-      row.appendChild(actions);
-      list.appendChild(row);
-    });
-    return showListState('messages', data.requests.length > 0);
-  }
   const data = await api('/api/conversations');
   const conversations = data.conversations.filter((item) => item.type === 'direct');
+  const unreadMessages = data.conversations.reduce((total, item) => total + (Number(item.unread_count) || 0), 0);
+  updateTopbarBadge('messages', unreadMessages);
   conversations.forEach((item) => list.appendChild(makeListItem(
     item.partner_name,
     item.last_message || new Date(item.started_at).toLocaleString(),
-    () => openStoredConversation(item)
+    () => openStoredConversation(item),
+    Number(item.unread_count) > 0
+      ? formatCopy(chatCopy.dynamic.unread, { count: Number(item.unread_count) > 99 ? '99+' : item.unread_count })
+      : ''
   )));
   showListState('messages', conversations.length > 0);
+}
+
+function updateChatRequestBadge(count) {
+  const badge = document.getElementById('chatRequestsBadge');
+  if (!badge) return;
+  const safeCount = currentUser ? Math.max(0, Number(count) || 0) : 0;
+  badge.textContent = safeCount > 99 ? '99+' : String(safeCount);
+  badge.classList.toggle('hidden', safeCount === 0);
+  badge.setAttribute('aria-hidden', String(safeCount === 0));
+}
+
+async function respondToChatRequest(requestId, action) {
+  await new Promise((resolve, reject) => {
+    socket.timeout(6000).emit('direct-chat-response', { requestId, action }, (error, response = {}) => {
+      if (error) return reject(new Error(chatCopy.feedback.chatRequestTimeout));
+      if (!response.ok) return reject(new Error(response.error || chatCopy.feedback.chatRequestUpdateError));
+      resolve(response);
+    });
+  });
+  await loadChatRequestsPanel();
+}
+
+async function loadChatRequestsPanel() {
+  const { list } = listElements('chatRequests');
+  if (!list) return;
+  list.innerHTML = '';
+  if (!currentUser) {
+    updateChatRequestBadge(0);
+    return showListState('chatRequests', false);
+  }
+  const data = await api('/api/chat-requests');
+  updateChatRequestBadge(data.requests.length);
+  data.requests.forEach((request) => {
+    const row = makeListItem(request.display_name, chatCopy.feedback.wantsToChat, null);
+    const actions = document.createElement('span');
+    actions.className = 'panel-inline-actions';
+    actions.append(
+      actionButton(chatCopy.feedback.acceptChatRequest, () => respondToChatRequest(request.id, 'accept'), 'check'),
+      actionButton(chatCopy.feedback.declineChatRequest, () => respondToChatRequest(request.id, 'decline'), 'x')
+    );
+    row.appendChild(actions);
+    list.appendChild(row);
+  });
+  showListState('chatRequests', data.requests.length > 0);
+  window.lucide?.createIcons();
 }
 
 async function loadHistoryPanel() {
@@ -665,45 +1599,67 @@ async function loadHistoryPanel() {
   const data = await api('/api/conversations');
   data.conversations.forEach((item) => list.appendChild(makeListItem(
     item.partner_name,
-    `${new Date(item.started_at).toLocaleString()}${item.saved ? ' - Saved' : ''}`,
-    () => openStoredConversation(item)
+    `${item.last_message || new Date(item.started_at).toLocaleString()}${item.saved ? ` · ${chatCopy.dynamic.historySaved}` : ''}`,
+    () => openStoredConversation(item),
+    Number(item.unread_count) > 0
+      ? formatCopy(chatCopy.dynamic.unread, { count: Number(item.unread_count) > 99 ? '99+' : item.unread_count })
+      : ''
   )));
   showListState('history', data.conversations.length > 0);
 }
 
-async function loadFriendsPanel(tab = 'primary') {
+async function loadFriendsPanel() {
   if (!currentUser) return renderAccountRequired('friends');
   const { list } = listElements('friends');
   list.innerHTML = '';
-  if (tab === 'requests') {
-    const data = await api('/api/friend-requests');
-    data.requests.forEach((request) => {
-      const row = makeListItem(request.display_name, 'Friend request', null);
-      const actions = document.createElement('span');
-      actions.className = 'panel-inline-actions';
-      actions.append(
-        actionButton('Accept', async () => { await api(`/api/friend-requests/${request.id}`, { method: 'PATCH', body: JSON.stringify({ action: 'accept' }) }); loadFriendsPanel('requests'); }),
-        actionButton('Decline', async () => { await api(`/api/friend-requests/${request.id}`, { method: 'PATCH', body: JSON.stringify({ action: 'decline' }) }); loadFriendsPanel('requests'); })
-      );
-      row.appendChild(actions);
-      list.appendChild(row);
-    });
-    return showListState('friends', data.requests.length > 0);
-  }
   const data = await api('/api/friends');
   data.friends.forEach((friend) => list.appendChild(makeListItem(
     friend.display_name,
-    'Click a friend to chat with them!',
+    chatCopy.feedback.friendChatHint,
     () => socket.emit('direct-chat-request', { userId: friend.id }),
-    friend.online ? 'Online' : 'Offline'
+    friend.online ? uiCopy.common.online : uiCopy.common.offline
   )));
   showListState('friends', data.friends.length > 0);
 }
 
-function actionButton(label, handler) {
+async function loadFriendRequestsPanel() {
+  if (!currentUser) return renderAccountRequired('friendRequests');
+  const { list } = listElements('friendRequests');
+  list.innerHTML = '';
+  const data = await api('/api/friend-requests');
+  updateTopbarBadge('friends', data.requests.length);
+  data.requests.forEach((request) => {
+    const row = makeListItem(request.display_name, chatCopy.feedback.sentFriendRequest, null);
+    const actions = document.createElement('span');
+    actions.className = 'panel-inline-actions';
+    actions.append(
+      actionButton(chatCopy.feedback.acceptFriendRequest, async () => {
+        await api(`/api/friend-requests/${request.id}`, { method: 'PATCH', body: JSON.stringify({ action: 'accept' }) });
+        await Promise.all([loadFriendRequestsPanel(), loadFriendsPanel()]);
+      }, 'check'),
+      actionButton(chatCopy.feedback.declineFriendRequest, async () => {
+        await api(`/api/friend-requests/${request.id}`, { method: 'PATCH', body: JSON.stringify({ action: 'decline' }) });
+        await loadFriendRequestsPanel();
+      }, 'x')
+    );
+    row.appendChild(actions);
+    list.appendChild(row);
+  });
+  showListState('friendRequests', data.requests.length > 0);
+  window.lucide?.createIcons();
+}
+
+function actionButton(label, handler, icon = null) {
   const button = document.createElement('button');
   button.type = 'button';
-  button.textContent = label;
+  if (icon) {
+    button.classList.add('panel-icon-action');
+    button.setAttribute('aria-label', label);
+    button.title = label;
+    button.innerHTML = `<i data-lucide="${icon}" aria-hidden="true"></i>`;
+  } else {
+    button.textContent = label;
+  }
   button.addEventListener('click', (event) => {
     event.stopPropagation();
     Promise.resolve(handler()).catch((error) => alert(error.message));
@@ -714,7 +1670,43 @@ function actionButton(label, handler) {
 async function loadNotificationsPanel() {
   const { list } = listElements('notifications');
   list.innerHTML = '';
+  if (!currentUser) {
+    const isUnread = guestProfile?.accountNotificationRead !== true;
+    updateTopbarBadge('notifications', isUnread ? 1 : 0);
+    const reminder = document.createElement('a');
+    const icon = document.createElement('span');
+    const copy = document.createElement('span');
+    const title = document.createElement('strong');
+    const body = document.createElement('small');
+    const status = document.createElement('span');
+    reminder.className = 'panel-data-item guest-system-notification';
+    reminder.href = '/register';
+    icon.className = 'panel-item-avatar';
+    icon.innerHTML = '<i data-lucide="user-plus" aria-hidden="true"></i>';
+    copy.className = 'panel-item-copy';
+    title.textContent = chatCopy.feedback.guestNotificationTitle;
+    body.textContent = chatCopy.feedback.guestNotificationBody;
+    status.className = 'panel-item-status';
+    status.textContent = isUnread ? uiCopy.common.new : '';
+    copy.append(title, body);
+    reminder.append(icon, copy);
+    if (isUnread) reminder.appendChild(status);
+    reminder.addEventListener('click', () => {
+      if (guestProfile && GuestProfileStore) {
+        guestProfile = GuestProfileStore.save(localStorage, {
+          ...guestProfile,
+          accountNotificationRead: true
+        }, countryCatalog);
+      }
+      updateTopbarBadge('notifications', 0);
+    });
+    list.appendChild(reminder);
+    showListState('notifications', true);
+    window.lucide?.createIcons();
+    return;
+  }
   const data = await api('/api/notifications');
+  updateTopbarBadge('notifications', data.notifications.filter((item) => !item.read_at).length);
   data.notifications.forEach((item) => list.appendChild(makeListItem(
     item.title,
     `${item.body || ''} ${new Date(item.created_at).toLocaleString()}`,
@@ -722,7 +1714,7 @@ async function loadNotificationsPanel() {
       await api(`/api/notifications/${item.id}/read`, { method: 'PATCH', body: '{}' });
       loadNotificationsPanel();
     },
-    item.read_at ? '' : 'New'
+    item.read_at ? '' : uiCopy.common.new
   )));
   showListState('notifications', data.notifications.length > 0);
 }
@@ -732,10 +1724,10 @@ async function loadSavedPanel() {
   list.innerHTML = '';
   const data = await api('/api/saved-chats');
   const limitLine = document.getElementById('savedLimitLine');
-  limitLine.textContent = `${data.used} of ${data.limit} saved chats used`;
+  limitLine.textContent = formatCopy(chatCopy.dynamic.savedUsage, { used: data.used, limit: data.limit });
   data.chats.forEach((item) => list.appendChild(makeListItem(
     item.partner_name,
-    `Saved ${new Date(item.created_at).toLocaleString()}`,
+    formatCopy(chatCopy.dynamic.savedOn, { date: new Date(item.created_at).toLocaleString() }),
     () => openStoredConversation({ id: item.conversation_id, partner_name: item.partner_name, saved: true })
   )));
   showListState('saved', data.chats.length > 0);
@@ -747,16 +1739,31 @@ async function openStoredConversation(item) {
     currentConversationId = Number(item.id);
     currentPartner = item.partner_user_id ? { userId: Number(item.partner_user_id), displayName: item.partner_name } : null;
     currentConversationSaved = Boolean(item.saved);
-    saveConversationBtn.textContent = currentConversationSaved ? 'Remove from saved' : 'Save chat';
+    saveConversationBtn.textContent = currentConversationSaved
+      ? chatCopy.conversation.removeSaved
+      : chatCopy.conversation.saveChat;
     readOnlyConversation = true;
     showChatView();
+    closeActiveDrawer({ restoreFocus: false });
     messagesEl.innerHTML = '';
-    partnerName.textContent = item.partner_name || 'Conversation';
+    partnerName.textContent = item.partner_name || chatCopy.drawers.messages.conversations;
     partnerAvatar.textContent = (item.partner_name || '?').charAt(0).toUpperCase();
-    data.messages.forEach((message) => addMessage(message.body, Number(message.sender_user_id) === currentUser.id ? 'me' : 'them'));
-    addMessage('This history view is read-only.', 'system');
-    messageInput.disabled = true;
-    sendBtn.disabled = true;
+    data.messages.forEach((message) => {
+      const mine = Number(message.sender_user_id) === Number(currentUser.id);
+      const element = addMessage(message.body, mine ? 'me' : 'them', Number(message.id));
+      if (mine && message.delivered_at) element.dataset.delivered = 'true';
+      if (mine && message.read_at) element.dataset.read = 'true';
+    });
+    const lastIncomingMessage = [...data.messages].reverse().find((message) => Number(message.sender_user_id) !== Number(currentUser.id));
+    if (lastIncomingMessage) {
+      await api(`/api/conversations/${item.id}/read`, {
+        method: 'PATCH',
+        body: JSON.stringify({ upToMessageId: Number(lastIncomingMessage.id) })
+      });
+      refreshTopbarBadges();
+    }
+    addMessage(chatCopy.feedback.historyReadOnly, 'system');
+    setChatComposerState('history');
     newBtn.disabled = false;
   } catch (error) {
     alert(error.message);
@@ -766,16 +1773,16 @@ async function openStoredConversation(item) {
 async function saveCurrentConversation() {
   conversationMenu.classList.add('hidden');
   if (!currentUser) return openAccountSettings();
-  if (!currentConversationId) return alert('There is no conversation to save yet.');
+  if (!currentConversationId) return alert(chatCopy.feedback.nothingToSave);
   try {
     if (currentConversationSaved) {
       await api(`/api/conversations/${currentConversationId}/saved`, { method: 'DELETE' });
       currentConversationSaved = false;
-      saveConversationBtn.textContent = 'Save chat';
+      saveConversationBtn.textContent = chatCopy.conversation.saveChat;
     } else {
       await api(`/api/conversations/${currentConversationId}/saved`, { method: 'PUT', body: '{}' });
       currentConversationSaved = true;
-      saveConversationBtn.textContent = 'Remove from saved';
+      saveConversationBtn.textContent = chatCopy.conversation.removeSaved;
     }
     loadPanel('saved');
   } catch (error) {
@@ -786,11 +1793,12 @@ async function saveCurrentConversation() {
 async function deleteCurrentConversation() {
   conversationMenu.classList.add('hidden');
   if (!currentUser || !currentConversationId) return;
-  if (!confirm('Delete this conversation and its messages for both participants? This cannot be undone.')) return;
+  if (!confirm(chatCopy.feedback.deleteConversationConfirm)) return;
   try {
     await api(`/api/conversations/${currentConversationId}`, { method: 'DELETE', body: JSON.stringify({ confirmation: 'DELETE FOR EVERYONE' }) });
     messagesEl.innerHTML = '';
-    addMessage('Conversation deleted for everyone.', 'system');
+    addMessage(chatCopy.feedback.conversationDeleted, 'system');
+    setChatComposerState('history', chatCopy.feedback.conversationDeleted);
     readOnlyConversation = true;
     loadPanel('history');
   } catch (error) {
@@ -801,10 +1809,10 @@ async function deleteCurrentConversation() {
 async function blockCurrentPartner() {
   conversationMenu.classList.add('hidden');
   if (!currentUser) return openAccountSettings();
-  if (!currentPartner?.userId) return alert('Guest profiles cannot be added to your block list yet.');
+  if (!currentPartner?.userId) return alert(chatCopy.feedback.guestBlockUnavailable);
   try {
     await api(`/api/blocks/${currentPartner.userId}`, { method: 'PUT', body: '{}' });
-    blockPartnerBtn.textContent = 'Blocked';
+    blockPartnerBtn.textContent = chatCopy.conversation.blocked;
     socket.emit('leave-chat');
   } catch (error) {
     alert(error.message);
@@ -816,15 +1824,79 @@ function openModal(modal) {
 }
 
 function closeModals() {
+  const restoreAccountFocus = accountModal && !accountModal.classList.contains('hidden');
   accountModal?.classList.add('hidden');
+  deleteAccountModal?.classList.add('hidden');
   profileModal?.classList.add('hidden');
+  if (restoreAccountFocus && accountModalRestoreFocus?.isConnected) {
+    window.requestAnimationFrame(() => accountModalRestoreFocus.focus());
+  }
 }
 
-async function openAccountSettings() {
+function setAccountTab(tabName, { focus = false } = {}) {
+  const activeButton = accountTabButtons.find((button) => button.dataset.accountTab === tabName);
+  if (!activeButton) return;
+  accountTabButtons.forEach((button) => {
+    const active = button === activeButton;
+    button.setAttribute('aria-selected', String(active));
+    button.tabIndex = active ? 0 : -1;
+  });
+  accountTabPanels.forEach((panel) => {
+    panel.classList.toggle('hidden', panel.id !== activeButton.getAttribute('aria-controls'));
+  });
+  if (focus) activeButton.focus();
+  if (tabName === 'privacy' && currentUser) loadBlockList();
+}
+
+function handleAccountTabKeydown(event) {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return;
+  event.preventDefault();
+  const currentIndex = accountTabButtons.indexOf(event.currentTarget);
+  let nextIndex = currentIndex;
+  if (event.key === 'ArrowLeft') nextIndex = (currentIndex - 1 + accountTabButtons.length) % accountTabButtons.length;
+  if (event.key === 'ArrowRight') nextIndex = (currentIndex + 1) % accountTabButtons.length;
+  if (event.key === 'Home') nextIndex = 0;
+  if (event.key === 'End') nextIndex = accountTabButtons.length - 1;
+  setAccountTab(accountTabButtons[nextIndex].dataset.accountTab, { focus: true });
+}
+
+function handleAccountModalKeydown(event) {
+  if (!accountModal || accountModal.classList.contains('hidden')) return;
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closeModals();
+    return;
+  }
+  if (event.key !== 'Tab') return;
+  const focusables = Array.from(accountModal.querySelectorAll('button:not([disabled]), a[href], input:not([disabled]), select:not([disabled]), [tabindex]:not([tabindex="-1"])'))
+    .filter((element) => !element.closest('.hidden'));
+  if (!focusables.length) return event.preventDefault();
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+async function openAccountSettings(initialTab = 'account', { focusTab = false } = {}) {
+  if (accountModal?.classList.contains('hidden')) {
+    accountModalRestoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+  }
   openModal(accountModal);
+  accountModal?.classList.toggle('guest-account-mode', !currentUser);
+  registeredPrivacySettings?.classList.toggle('hidden', !currentUser);
+  guestPrivacySettings?.classList.toggle('hidden', Boolean(currentUser));
+  setAccountTab(initialTab, { focus: focusTab });
   if (!currentUser) {
     guestAccountPrompt.classList.remove('hidden');
     accountForm.classList.add('hidden');
+    if (accountPlan) accountPlan.textContent = uiCopy.account.guestPlan;
+    renderGuestIdentity();
+    renderGuestAvatarPresets();
     return;
   }
   guestAccountPrompt.classList.add('hidden');
@@ -839,8 +1911,17 @@ async function openAccountSettings() {
     accountForm.elements.gender.value = user.gender || '';
     accountForm.elements.country.value = user.country || '';
     accountForm.elements.profileImageUrl.value = user.profile_image_url || '';
-    accountPlan.textContent = user.plan === 'premium' ? 'Premium plan' : 'Free plan';
-    loadBlockList();
+    accountPlan.textContent = user.plan === 'premium' ? uiCopy.account.premiumPlan : uiCopy.account.freePlan;
+    const displayName = user.display_name || uiCopy.common.profile;
+    if (accountAvatarFallback) {
+      accountAvatarFallback.textContent = displayName.charAt(0).toUpperCase();
+      accountAvatarFallback.classList.toggle('hidden', Boolean(user.profile_image_url));
+    }
+    if (accountAvatarImage) {
+      accountAvatarImage.classList.toggle('hidden', !user.profile_image_url);
+      if (user.profile_image_url) accountAvatarImage.src = user.profile_image_url;
+      else accountAvatarImage.removeAttribute('src');
+    }
   } catch (error) {
     accountFeedback.textContent = error.message;
   }
@@ -853,7 +1934,7 @@ async function loadBlockList() {
     const data = await api('/api/blocks');
     container.innerHTML = '';
     if (!data.users.length) {
-      container.textContent = 'No blocked users.';
+      container.textContent = chatCopy.feedback.emptyBlockList;
       return;
     }
     data.users.forEach((user) => {
@@ -861,7 +1942,7 @@ async function loadBlockList() {
       row.className = 'account-block-row';
       const name = document.createElement('span');
       name.textContent = user.display_name;
-      const button = actionButton('Unblock', async () => {
+      const button = actionButton(uiCopy.common.unblock, async () => {
         await api(`/api/blocks/${user.id}`, { method: 'DELETE' });
         loadBlockList();
       });
@@ -880,7 +1961,7 @@ async function saveAccount(event) {
     const data = await api('/api/account', { method: 'PATCH', body: JSON.stringify(values) });
     profileName.textContent = data.user.displayName;
     profileInitial.textContent = data.user.displayName.charAt(0).toUpperCase();
-    accountFeedback.textContent = 'Profile saved.';
+    accountFeedback.textContent = chatCopy.feedback.profileSaved;
   } catch (error) {
     accountFeedback.textContent = error.message;
   }
@@ -891,14 +1972,64 @@ async function logout() {
   window.location.href = '/';
 }
 
-async function deleteAccount() {
-  const confirmation = prompt('Type DELETE to permanently delete your account.');
-  if (confirmation !== 'DELETE') return;
+function openDeleteAccountConfirmation() {
+  if (!deleteAccountModal) return;
+  accountModal?.classList.add('hidden');
+  deleteAccountFeedback.textContent = '';
+  deleteAccountModalTitle.textContent = currentUser ? uiCopy.account.deleteAccountTitle : uiCopy.account.deleteGuestTitle;
+  deleteAccountModalDescription.textContent = currentUser ? uiCopy.account.deleteAccountDescription : uiCopy.account.deleteGuestDescription;
+  deleteAccountCancel.textContent = currentUser ? uiCopy.account.cancelDeleteAccount : uiCopy.account.cancelDeleteGuest;
+  deleteAccountConfirm.textContent = currentUser ? uiCopy.account.confirmDeleteAccount : uiCopy.account.confirmDeleteGuest;
+  deleteAccountModal.classList.remove('hidden');
+  window.requestAnimationFrame(() => deleteAccountCancel?.focus());
+}
+
+function closeDeleteAccountConfirmation() {
+  deleteAccountModal?.classList.add('hidden');
+  openModal(accountModal);
+  setAccountTab('privacy');
+  window.requestAnimationFrame(() => (currentUser ? deleteAccountBtn : guestLogoutBtn)?.focus());
+}
+
+function handleDeleteAccountKeydown(event) {
+  if (!deleteAccountModal || deleteAccountModal.classList.contains('hidden')) return;
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closeDeleteAccountConfirmation();
+    return;
+  }
+  if (event.key !== 'Tab') return;
+  const focusables = Array.from(deleteAccountModal.querySelectorAll('button:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])'));
+  if (!focusables.length) return event.preventDefault();
+  const first = focusables[0];
+  const last = focusables[focusables.length - 1];
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+async function confirmDeleteAccount() {
+  if (!deleteAccountConfirm) return;
+  deleteAccountConfirm.disabled = true;
+  deleteAccountConfirm.setAttribute('aria-busy', 'true');
+  deleteAccountFeedback.textContent = '';
   try {
-    await api('/api/account', { method: 'DELETE', body: JSON.stringify({ confirmation }) });
-    window.location.href = '/';
+    if (!currentUser) {
+      const deleted = await logoutGuestAccount();
+      if (!deleted) deleteAccountFeedback.textContent = guestAccountFeedback?.textContent || uiCopy.errors.unexpected;
+      return;
+    }
+    await api('/api/account', { method: 'DELETE', body: JSON.stringify({ confirmation: 'DELETE' }) });
+    window.location.assign('/');
   } catch (error) {
-    accountFeedback.textContent = error.message;
+    deleteAccountFeedback.textContent = error.message;
+  } finally {
+    deleteAccountConfirm.disabled = false;
+    deleteAccountConfirm.removeAttribute('aria-busy');
   }
 }
 
@@ -909,9 +2040,13 @@ async function openPartnerProfile() {
     currentProfile = data.user;
     publicProfileAvatar.textContent = data.user.display_name.charAt(0).toUpperCase();
     document.getElementById('profileModalTitle').textContent = data.user.display_name;
-    publicProfileMeta.textContent = `${data.user.public_id} - ${data.user.country || 'Country not shared'} - ${data.online ? 'Online' : 'Offline'}`;
-    friendActionBtn.textContent = data.user.is_friend ? 'Remove friend' : 'Add friend';
-    profileBlockBtn.textContent = data.user.is_blocked ? 'Unblock' : 'Block';
+    publicProfileMeta.textContent = formatCopy(chatCopy.dynamic.publicProfileMeta, {
+      id: data.user.public_id,
+      country: data.user.country || chatCopy.feedback.countryHidden,
+      status: data.online ? uiCopy.common.online : uiCopy.common.offline
+    });
+    friendActionBtn.textContent = data.user.is_friend ? uiCopy.common.removeFriend : uiCopy.common.addFriend;
+    profileBlockBtn.textContent = data.user.is_blocked ? uiCopy.common.unblock : uiCopy.common.block;
     openModal(profileModal);
   } catch (error) {
     alert(error.message);
@@ -924,10 +2059,10 @@ async function toggleFriendship() {
     if (currentProfile.is_friend) {
       await api(`/api/friends/${currentProfile.id}`, { method: 'DELETE' });
       currentProfile.is_friend = false;
-      friendActionBtn.textContent = 'Add friend';
+      friendActionBtn.textContent = uiCopy.common.addFriend;
     } else {
       await api('/api/friend-requests', { method: 'POST', body: JSON.stringify({ userId: currentProfile.id }) });
-      friendActionBtn.textContent = 'Request sent';
+      friendActionBtn.textContent = uiCopy.common.requestSent;
       friendActionBtn.disabled = true;
     }
     loadPanel('friends');
@@ -942,16 +2077,21 @@ async function toggleProfileBlock() {
     if (currentProfile.is_blocked) {
       await api(`/api/blocks/${currentProfile.id}`, { method: 'DELETE' });
       currentProfile.is_blocked = false;
-      profileBlockBtn.textContent = 'Block';
+      profileBlockBtn.textContent = uiCopy.common.block;
     } else {
       await api(`/api/blocks/${currentProfile.id}`, { method: 'PUT', body: '{}' });
       currentProfile.is_blocked = true;
-      profileBlockBtn.textContent = 'Unblock';
+      profileBlockBtn.textContent = uiCopy.common.unblock;
     }
   } catch (error) {
     alert(error.message);
   }
 }
 
-updateProfilePreview();
-loadPanel('messages');
+updateWaitingTimeControl();
+updateAgeRangeControl();
+setChatComposerState('idle');
+renderCountryFilterTags();
+renderCountryFilterList();
+window.lucide?.createIcons();
+initializeGuestExperience().finally(refreshTopbarBadges);
