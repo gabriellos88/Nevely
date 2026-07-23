@@ -3,13 +3,16 @@ const { test } = require('node:test');
 const request = require('supertest');
 const { io: createClient } = require('socket.io-client');
 const { createRuntime } = require('../../server');
+const safeLog = require('../../lib/safe-log');
 const { resetDatabase } = require('../helpers/database');
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
 const quietLog = {
   info() {},
   warn() {},
-  error() {}
+  error(event, error) {
+    safeLog.error(event, error);
+  }
 };
 
 function eventFrom(socket, eventName, timeoutMs = 4_000) {

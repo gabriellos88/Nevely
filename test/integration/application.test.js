@@ -2,13 +2,16 @@ const assert = require('node:assert/strict');
 const { test } = require('node:test');
 const request = require('supertest');
 const { createRuntime } = require('../../server');
+const safeLog = require('../../lib/safe-log');
 const { expectedMigrations, resetDatabase } = require('../helpers/database');
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
 const quietLog = {
   info() {},
   warn() {},
-  error() {}
+  error(event, error) {
+    safeLog.error(event, error);
+  }
 };
 
 test('CI always supplies disposable PostgreSQL', () => {
