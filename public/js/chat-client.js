@@ -19,6 +19,8 @@ const interestTags = document.getElementById('interestTags');
 const messageInput = document.getElementById('messageInput');
 const messagesEl = document.getElementById('messages');
 const statusText = document.getElementById('statusText');
+const releaseNotice = document.getElementById('releaseNotice');
+const releaseNoticeBody = document.getElementById('releaseNoticeBody');
 const chatComposerStatus = document.getElementById('chatComposerStatus');
 const chatComposer = document.getElementById('chatComposer');
 const chatCard = document.getElementById('chatCard');
@@ -131,6 +133,8 @@ let guestPassportRestoreFocus = null;
 let accountModalRestoreFocus = null;
 let guestCountryActiveIndex = -1;
 let chatComposerMode = 'idle';
+let releaseDraining = false;
+let releaseCountdownTimer = null;
 const pendingSentMessages = [];
 
 const topbarCounts = { messages: 0, friends: 0, notifications: 0 };
@@ -802,15 +806,16 @@ async function initializeGuestExperience() {
   try {
     const catalog = await loadCountryCatalog();
     guestProfile = GuestProfileStore.read(localStorage, catalog);
+    const serverData = await api('/api/guest-profile');
+    if (serverData.guest) {
+      guestProfile = persistServerGuest(serverData.guest, guestProfile);
+    } else if (guestProfile) {
+      const created = await api('/api/guest-profile', { method: 'POST', body: JSON.stringify(guestProfile) });
+      guestProfile = persistServerGuest(created.guest, guestProfile);
+      await refreshGuestSocketSession();
+    }
+
     if (guestProfile) {
-      const serverData = await api('/api/guest-profile');
-      if (serverData.guest) {
-        guestProfile = persistServerGuest(serverData.guest, guestProfile);
-      } else {
-        const created = await api('/api/guest-profile', { method: 'POST', body: JSON.stringify(guestProfile) });
-        guestProfile = persistServerGuest(created.guest, guestProfile);
-        await refreshGuestSocketSession();
-      }
       usernameInput.value = guestProfile.name;
       ageInput.value = String(guestProfile.age);
       renderGuestCountrySelection(catalog.find((country) => country.code === guestProfile.country.code));
@@ -1103,7 +1108,7 @@ async function refreshTopbarBadges() {
     updateTopbarBadge('friends', friendRequests.requests?.length || 0);
     updateTopbarBadge('notifications', notifications.notifications?.filter((item) => !item.read_at).length || 0);
   } catch (error) {
-    console.warn('Topbar badge refresh failed.', error);
+    // Keep request failures local; error objects may contain sensitive context.
   }
 }
 
@@ -1166,6 +1171,10 @@ function updateWaitingTimeControl() {
 }
 
 function startSearch() {
+  if (releaseDraining) {
+    if (!currentConversationId) setChatComposerState('error', uiCopy.release.drainingTitle);
+    return;
+  }
   const profile = currentChatProfile();
   if (!profile) {
     openGuestPassport();
@@ -1388,13 +1397,44 @@ socket.on('chat-error', (data) => {
   addMessage(message, 'system');
   setChatComposerState('error', message);
 });
+socket.on('release-draining', ({ retryAfterSeconds = 0 } = {}) => {
+  releaseDraining = true;
+  releaseNotice?.classList.remove('hidden');
+  for (const button of [startBtn, startBtnSidebar, startBtnBottom, newBtn]) {
+    if (button) button.disabled = true;
+  }
+
+  clearInterval(releaseCountdownTimer);
+  let remaining = Math.max(0, Math.ceil(Number(retryAfterSeconds) || 0));
+  const renderNotice = () => {
+    if (!releaseNoticeBody) return;
+    releaseNoticeBody.textContent = formatCopy(uiCopy.release.drainingBody, { seconds: remaining });
+  };
+  renderNotice();
+  releaseCountdownTimer = setInterval(() => {
+    remaining = Math.max(0, remaining - 1);
+    renderNotice();
+    if (!remaining) clearInterval(releaseCountdownTimer);
+  }, 1000);
+
+  if (!currentConversationId) setChatComposerState('error', uiCopy.release.drainingTitle);
+});
+socket.on('server-shutdown', () => {
+  releaseDraining = true;
+  clearInterval(releaseCountdownTimer);
+  releaseNotice?.classList.remove('hidden');
+  if (releaseNoticeBody) releaseNoticeBody.textContent = uiCopy.release.complete;
+  setChatComposerState('error', uiCopy.release.complete);
+});
 socket.on('disconnect', () => {
+  if (releaseDraining) return;
   setChatComposerState('error', chatCopy.composer.reconnecting);
 });
 socket.on('connect_error', () => {
   setChatComposerState('error', chatCopy.composer.connectionError);
 });
 socket.on('connect', () => {
+  if (releaseDraining) return;
   if (chatComposerMode === 'error') {
     showSetupView();
     setChatComposerState('idle');
@@ -1525,7 +1565,7 @@ async function loadPanel(name) {
     if (name === 'notifications') return await loadNotificationsPanel();
     if (name === 'saved') return await loadSavedPanel();
   } catch (error) {
-    console.error(error);
+    // Panel failures are rendered by their next user action; do not log request context.
   }
 }
 

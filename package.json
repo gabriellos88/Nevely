@@ -5,7 +5,20 @@
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
+    "check:ui": "node scripts/check-ui-baseline.mjs",
+    "check:privacy": "node scripts/check-privacy-safety.mjs",
+    "check:release": "node scripts/check-release-config.mjs",
+    "check": "npm run check:ui && npm run check:privacy && npm run check:release",
+    "check:env:staging": "node scripts/validate-environment.mjs staging",
+    "check:env:production": "node scripts/validate-environment.mjs production",
     "db:migrate": "node scripts/migrate.js",
+    "recovery:verify": "node scripts/verify-recovery.mjs",
+    "test:unit": "node --test \"test/unit/*.test.js\"",
+    "test:integration": "node --test --test-concurrency=1 \"test/integration/*.test.js\"",
+    "test:socket": "node --test \"test/socket/*.test.js\"",
+    "test:browser": "playwright test",
+    "test:server": "npm run test:unit && npm run test:integration && npm run test:socket",
+    "test": "npm run check && npm run test:server && npm run test:browser",
     "avatars:generate": "node scripts/generate-guest-avatars.mjs"
   },
   "dependencies": {
@@ -21,6 +34,9 @@
   },
   "devDependencies": {
     "@dicebear/core": "10.2.0",
-    "@dicebear/styles": "10.2.0"
+    "@dicebear/styles": "10.2.0",
+    "@playwright/test": "^1.61.1",
+    "socket.io-client": "^4.8.3",
+    "supertest": "^7.2.2"
   }
 }

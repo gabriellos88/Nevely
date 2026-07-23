@@ -378,6 +378,69 @@ a:hover { text-decoration: underline; }
   .site-nav { display: none; }
 }
 
+/* Release lifecycle notice: application status, not a marketing surface. */
+.chat-app-page .release-notice {
+  position: relative;
+  z-index: 55;
+  flex: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-3);
+  min-height: var(--spacing-12);
+  padding: var(--spacing-2) var(--spacing-6);
+  border-bottom: var(--spacing-px) solid var(--color-brand);
+  background: var(--color-brand-soft);
+  color: var(--color-body);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-body);
+}
+
+.chat-app-page .release-notice.hidden {
+  display: none;
+}
+
+.chat-app-page .release-notice > div {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: var(--spacing-1) var(--spacing-2);
+}
+
+.chat-app-page .release-notice strong {
+  color: var(--color-heading);
+  font-weight: var(--font-weight-semibold);
+}
+
+.chat-app-page .release-notice-icon {
+  width: calc(var(--spacing-6) + var(--spacing-1));
+  height: calc(var(--spacing-6) + var(--spacing-1));
+  display: grid;
+  place-items: center;
+  flex: none;
+  border-radius: var(--radius-full);
+  background: var(--color-brand);
+  color: var(--color-heading);
+}
+
+.chat-app-page .release-notice-icon .lucide {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+}
+
+@media (max-width: 640px) {
+  .chat-app-page .release-notice {
+    justify-content: flex-start;
+    padding-inline: var(--spacing-4);
+  }
+
+  .chat-app-page .release-notice > div {
+    display: grid;
+    justify-content: start;
+  }
+}
+
 /* Buttons */
 .btn {
   display: inline-flex;

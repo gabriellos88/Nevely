@@ -1,0 +1,71 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    name: Migrations and tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_DB: nevely_test
+          POSTGRES_USER: nevely
+          POSTGRES_PASSWORD: nevely_ci_only
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U nevely -d nevely_test"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    env:
+      APP_ENV: test
+      CI: "true"
+      DATABASE_URL: postgres://nevely:nevely_ci_only@127.0.0.1:5432/nevely_test
+      NODE_ENV: test
+      SESSION_SECRET: ci-session-secret-not-used-outside-tests
+
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v6
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 24
+          cache: npm
+          package-manager-cache: false
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Apply migrations to disposable Postgres
+        run: npm run db:migrate
+
+      - name: Run structural checks
+        run: npm run check
+
+      - name: Run unit and integration tests
+        run: npm run test:server
+
+      - name: Install browser used by acceptance tests
+        run: npx playwright install --with-deps chromium
+
+      - name: Run browser tests
+        run: npm run test:browser
