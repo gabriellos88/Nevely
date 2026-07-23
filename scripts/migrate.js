@@ -3,6 +3,7 @@ require('dotenv').config();
 const fs = require('fs/promises');
 const path = require('path');
 const db = require('../db');
+const safeLog = require('../lib/safe-log');
 
 async function migrate() {
   if (!db.isConfigured) throw new Error('DATABASE_URL is not configured.');
@@ -44,6 +45,6 @@ async function migrate() {
 }
 
 migrate().catch((error) => {
-  console.error('Migration failed:', error.message);
+  safeLog.error('database.migration_failed', error);
   process.exit(1);
 });
