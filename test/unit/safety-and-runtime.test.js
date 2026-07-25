@@ -152,3 +152,24 @@ test('staging validator accepts isolated safe configuration and rejects producti
   assert.equal(rejected.stdout.includes(baseEnvironment.RAILWAY_ENVIRONMENT_ID), false);
   assert.equal(rejected.stderr.includes(baseEnvironment.DATABASE_URL), false);
 });
+
+test('Resend staging smoke fails closed before network access and redacts configuration', () => {
+  const script = path.resolve(__dirname, '..', '..', 'scripts', 'smoke-resend.mjs');
+  const syntheticKey = 're_synthetic_value_that_must_not_be_printed';
+  const rejected = spawnSync(process.execPath, [script], {
+    env: {
+      ...process.env,
+      APP_ENV: 'staging',
+      EMAIL_DELIVERY_MODE: 'test',
+      RESEND_API_KEY: syntheticKey,
+      RESEND_FROM: 'Nevely Staging <noreply@notifications.nevely.app>',
+      RESEND_TEST_RECIPIENT: 'unexpected@example.test'
+    },
+    encoding: 'utf8'
+  });
+
+  assert.notEqual(rejected.status, 0);
+  assert.equal(rejected.stdout.includes(syntheticKey), false);
+  assert.equal(rejected.stderr.includes(syntheticKey), false);
+  assert.equal(rejected.stderr.includes('unexpected@example.test'), false);
+});

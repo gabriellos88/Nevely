@@ -17,6 +17,7 @@
     "test:integration": "node --test --test-concurrency=1 \"test/integration/*.test.js\"",
     "test:socket": "node --test \"test/socket/*.test.js\"",
     "test:browser": "playwright test",
+    "smoke:staging:email": "node scripts/smoke-resend.mjs",
     "test:server": "npm run test:unit && npm run test:integration && npm run test:socket",
     "test": "npm run check && npm run test:server && npm run test:browser",
     "avatars:generate": "node scripts/generate-guest-avatars.mjs"

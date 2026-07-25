@@ -1,7 +1,8 @@
 const { defineConfig } = require('@playwright/test');
 
 const port = 3210;
-const baseURL = `http://127.0.0.1:${port}`;
+const externalBaseURL = process.env.PLAYWRIGHT_BASE_URL?.trim();
+const baseURL = externalBaseURL || `http://127.0.0.1:${port}`;
 
 module.exports = defineConfig({
   testDir: './test/browser',
@@ -20,7 +21,7 @@ module.exports = defineConfig({
     trace: 'off',
     video: 'off'
   },
-  webServer: {
+  webServer: externalBaseURL ? undefined : {
     command: 'node server.js',
     url: `${baseURL}/health/live`,
     reuseExistingServer: false,

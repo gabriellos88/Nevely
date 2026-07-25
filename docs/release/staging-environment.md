@@ -52,9 +52,11 @@ Before promoting the same revision to production:
 2. deploy it to staging;
 3. run `npm run check:env:staging` inside that Railway service;
 4. apply migrations and confirm `/health/ready` returns HTTP 200;
-5. complete the browser smoke suite against `PUBLIC_ORIGIN`;
-6. send the verification-email test only to
-   `delivered+staging@resend.dev` and confirm the Resend event;
+5. set `PLAYWRIGHT_BASE_URL` to `PUBLIC_ORIGIN` on the test runner and complete
+   the browser suite without starting a local server;
+6. run `npm run smoke:staging:email`; it can send only a synthetic message to
+   `delivered+staging@resend.dev`. Confirm the accepted event in Resend without
+   copying provider identifiers into logs or evidence;
 7. confirm no production database rows, sessions or analytics events changed.
 
 N0.3 remains incomplete until the environment exists and this gate has been

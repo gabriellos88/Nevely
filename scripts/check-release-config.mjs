@@ -14,6 +14,7 @@ const packageJson = JSON.parse(await text('package.json'));
 const workflow = await text('.github/workflows/ci.yml');
 const playwright = await text('playwright.config.js');
 const environmentExample = await text('.env.example');
+const resendSmoke = await text('scripts/smoke-resend.mjs');
 
 assert.equal(railway.deploy.healthcheckPath, '/health/ready');
 assert.ok(Number(railway.deploy.healthcheckTimeout) > 0);
@@ -25,6 +26,7 @@ assert.equal(railway.deploy.startCommand, 'npm start');
 for (const script of [
   'check',
   'db:migrate',
+  'smoke:staging:email',
   'test:server',
   'test:browser'
 ]) {
@@ -55,6 +57,24 @@ for (const privacySetting of [
 ]) {
   assert.ok(playwright.includes(privacySetting), `Browser tests must retain ${privacySetting}`);
 }
+
+assert.ok(
+  playwright.includes('PLAYWRIGHT_BASE_URL'),
+  'Browser acceptance tests must support a remote staging origin'
+);
+assert.ok(
+  playwright.includes('externalBaseURL ? undefined'),
+  'Remote browser acceptance tests must not start a local server'
+);
+assert.ok(
+  resendSmoke.includes("'delivered+staging@resend.dev'"),
+  'Resend staging smoke must use the fixed provider test recipient'
+);
+assert.equal(
+  resendSmoke.includes('console.log(apiKey)'),
+  false,
+  'Resend staging smoke must not print its API key'
+);
 
 assert.match(environmentExample, /ANALYTICS_MODE=disabled/);
 assert.match(environmentExample, /ROBOTS_INDEXING=disabled/);
