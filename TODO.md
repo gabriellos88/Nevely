@@ -19,7 +19,7 @@ This file is the product and engineering source of truth for unfinished work. It
 ### N0. Release safety and test baseline
 
 - [x] **N0.1 — Reconcile the active UI work.** The Astra UI on `main` is the reconciled source of truth; the retired workspace contains no remaining source or patch. Evidence and the repeatable structural acceptance check are documented in [`docs/release/ui-source-of-truth.md`](docs/release/ui-source-of-truth.md).
-- [ ] **N0.2 — Add continuous integration.** The least-privilege GitHub workflow and local equivalent are defined in [`docs/release/continuous-integration.md`](docs/release/continuous-integration.md). Remaining acceptance: a successful GitHub run and required `main` branch check.
+- [x] **N0.2 — Add continuous integration.** The least-privilege GitHub workflow, local equivalent, successful disposable-Postgres/Chromium run, required `main` branch gate and controlled cancelled-check drill are documented in [`docs/release/continuous-integration.md`](docs/release/continuous-integration.md).
 - [ ] **N0.3 — Add a staging environment.** The isolation contract, no-index/analytics-off defaults and non-secret validator are defined in [`docs/release/staging-environment.md`](docs/release/staging-environment.md). Remaining acceptance: provision and prove the separate Railway/Postgres/Resend environment.
 - [ ] **N0.4 — Add release health controls.**
   - Provide liveness and database-readiness endpoints.
