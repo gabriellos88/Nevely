@@ -173,3 +173,23 @@ test('Resend staging smoke fails closed before network access and redacts config
   assert.equal(rejected.stderr.includes(syntheticKey), false);
   assert.equal(rejected.stderr.includes('unexpected@example.test'), false);
 });
+
+test('PITR archive verifier requires an explicit staging acknowledgement without leaking config', () => {
+  const script = path.resolve(__dirname, '..', '..', 'scripts', 'verify-pitr-archive.mjs');
+  const syntheticDatabaseUrl = 'postgres://staging:private@database.internal:5432/nevely';
+  const rejected = spawnSync(process.execPath, [script], {
+    env: {
+      ...process.env,
+      APP_ENV: 'staging',
+      DATABASE_URL: syntheticDatabaseUrl,
+      PITR_ARCHIVE_ACK: 'wrong-target'
+    },
+    encoding: 'utf8'
+  });
+
+  assert.notEqual(rejected.status, 0);
+  assert.equal(rejected.stdout.includes(syntheticDatabaseUrl), false);
+  assert.equal(rejected.stderr.includes(syntheticDatabaseUrl), false);
+  assert.match(rejected.stderr, /pitr\.archive_verification_failed/);
+  assert.doesNotMatch(rejected.stderr, /wrong-target|database\.internal|private/);
+});

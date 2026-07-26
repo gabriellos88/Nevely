@@ -12,6 +12,7 @@
     "check:env:staging": "node scripts/validate-environment.mjs staging",
     "check:env:production": "node scripts/validate-environment.mjs production",
     "db:migrate": "node scripts/migrate.js",
+    "recovery:archive:verify": "node scripts/verify-pitr-archive.mjs",
     "recovery:verify": "node scripts/verify-recovery.mjs",
     "test:unit": "node --test \"test/unit/*.test.js\"",
     "test:integration": "node --test --test-concurrency=1 \"test/integration/*.test.js\"",

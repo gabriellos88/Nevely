@@ -12,6 +12,7 @@ const allowedConsoleFiles = new Set([
   'scripts/generate-guest-avatars.mjs',
   'scripts/migrate.js',
   'scripts/validate-environment.mjs',
+  'scripts/verify-pitr-archive.mjs',
   'scripts/verify-recovery.mjs'
 ]);
 const sensitiveNames = [
