@@ -18,8 +18,10 @@ const resendSmoke = await text('scripts/smoke-resend.mjs');
 
 assert.equal(railway.deploy.healthcheckPath, '/health/ready');
 assert.ok(Number(railway.deploy.healthcheckTimeout) > 0);
-assert.ok(Number(railway.deploy.overlapSeconds) > 0);
-assert.ok(Number(railway.deploy.drainingSeconds) >= 30);
+assert.equal(typeof railway.deploy.overlapSeconds, 'number');
+assert.ok(railway.deploy.overlapSeconds > 0);
+assert.equal(typeof railway.deploy.drainingSeconds, 'number');
+assert.ok(railway.deploy.drainingSeconds >= 30);
 assert.ok(railway.deploy.preDeployCommand.includes('npm run db:migrate'));
 assert.equal(railway.deploy.startCommand, 'npm start');
 
