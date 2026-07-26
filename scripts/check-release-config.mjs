@@ -23,11 +23,16 @@ assert.ok(railway.deploy.overlapSeconds > 0);
 assert.equal(typeof railway.deploy.drainingSeconds, 'number');
 assert.ok(railway.deploy.drainingSeconds >= 30);
 assert.ok(railway.deploy.preDeployCommand.includes('npm run db:migrate'));
-assert.equal(railway.deploy.startCommand, 'npm start');
+assert.equal(
+  railway.deploy.startCommand,
+  'node server.js',
+  'Railway must signal the Node process directly during draining'
+);
 
 for (const script of [
   'check',
   'db:migrate',
+  'smoke:staging:drain',
   'smoke:staging:email',
   'test:server',
   'test:browser'
