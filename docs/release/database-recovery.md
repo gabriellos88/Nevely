@@ -134,17 +134,23 @@ catalog error blocks the restore drill and production enablement.
 
    Keep this value in the authenticated console. Do not record it in public
    evidence.
-3. Choose a target inside the confirmed archive window. On an idle database,
+3. On Railway Hobby, treat the 5 GB recovery-volume limit as a hard preflight
+   gate. Confirm the source data is comfortably smaller than the empty target
+   volume and take a fresh full backup immediately before creating the
+   synthetic recovery boundary. A small database can still exhaust the target
+   volume when an old base backup requires replaying a long WAL interval.
+   Never reuse a volume from a failed restore.
+4. Choose a target inside the confirmed archive window. On an idle database,
    prefer a deliberately created synthetic transaction boundary and record
    its transaction ID as `POSTGRES_RECOVERY_TARGET_XID`; the image gives that
    target precedence over time and can promote exactly at the commit.
-4. In Cloudflare, create a separate R2 `Object Read only` token scoped only to
+5. In Cloudflare, create a separate R2 `Object Read only` token scoped only to
    `nevely-staging-pitr`. Store its values directly in the recovery service
    variables.
-5. In the Railway staging environment, create a new PostgreSQL service from
+6. In the Railway staging environment, create a new PostgreSQL service from
    the same `postgres-ssl:18` image and attach a brand-new empty volume at
    `/var/lib/postgresql/data`. Do not clone or mount the source volume.
-6. Before a successful first boot, configure:
+7. Before a successful first boot, configure:
 
    ```text
    PGDATA=/var/lib/postgresql/data/pgdata
@@ -162,13 +168,13 @@ catalog error blocks the restore drill and production enablement.
    Omit `WAL_ARCHIVE_*` on this temporary recovery service. It reads the
    source archive during recovery and becomes a plain, non-archiving
    PostgreSQL service after promotion.
-7. Deploy and time the restore. The logs must show an empty-volume pgBackRest
+8. Deploy and time the restore. The logs must show an empty-volume pgBackRest
    restore, WAL replay to the selected target and successful promotion. The
    source service must remain online and unchanged.
-8. Give the restored service a private `RECOVERY_DATABASE_URL` reference
+9. Give the restored service a private `RECOVERY_DATABASE_URL` reference
    available only to a one-off verification shell. Do not change the staging
    application's normal `DATABASE_URL`.
-9. Run the read-only verifier:
+10. Run the read-only verifier:
 
    ```sh
    RECOVERY_DRILL_ACK=isolated-non-production-target \
@@ -179,13 +185,16 @@ catalog error blocks the restore drill and production enablement.
    The verifier refuses an identical source/target host and database, checks
    the exact migration set, required tables and key referential integrity,
    and never prints either connection value or user data.
-10. Deploy a temporary, non-public staging backend revision against the
-    restored database. Keep analytics and real email delivery disabled and
-    run the authenticated smoke suite with synthetic credentials only.
-11. Record restore duration, verification duration, resulting RPO/RTO and
+11. Run the active staging revision as a temporary, loopback-only process or
+    non-public service. If the authenticated smoke suite mutates or truncates
+    tables, first clone the promoted database inside the isolated sibling and
+    point only that temporary process at the clone. Keep the verified restore
+    itself unchanged. Disable analytics and real email delivery, use synthetic
+    credentials only, then remove the smoke clone after the suite passes.
+12. Record restore duration, verification duration, resulting RPO/RTO and
     every error state observed. Remove temporary connection variables after
     the check.
-12. Keep the restored sibling until the drill record is reviewed. Remove it
+13. Keep the restored sibling until the drill record is reviewed. Remove it
     only after explicitly verifying the target service and volume; never
     alter the source service or its R2 bucket.
 
