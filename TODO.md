@@ -21,11 +21,11 @@ This file is the product and engineering source of truth for unfinished work. It
 - [x] **N0.1 — Reconcile the active UI work.** The Astra UI on `main` is the reconciled source of truth; the retired workspace contains no remaining source or patch. Evidence and the repeatable structural acceptance check are documented in [`docs/release/ui-source-of-truth.md`](docs/release/ui-source-of-truth.md).
 - [x] **N0.2 — Add continuous integration.** The least-privilege GitHub workflow, local equivalent, successful disposable-Postgres/Chromium run, required `main` branch gate and controlled cancelled-check drill are documented in [`docs/release/continuous-integration.md`](docs/release/continuous-integration.md).
 - [x] **N0.3 — Add a staging environment.** The isolated Railway/Postgres/Resend environment, no-index/analytics-off checks, deployment error drills and final acceptance evidence are documented in [`docs/release/staging-environment.md`](docs/release/staging-environment.md).
-- [ ] **N0.4 — Add release health controls.**
+- [x] **N0.4 — Add release health controls.**
   - Provide liveness and database-readiness endpoints.
   - Configure Railway healthcheck, deployment overlap and draining time.
   - Handle `SIGTERM`: reject new matches, notify connected clients, finish/persist active work and close HTTP/Socket.IO cleanly.
-  - Repository implementation and automated lifecycle tests are documented in [`docs/release/health-and-draining.md`](docs/release/health-and-draining.md). Remaining acceptance: an actual staging redeploy using the committed Railway settings.
+  - Repository implementation, automated lifecycle tests and the real staging redeploy evidence are documented in [`docs/release/health-and-draining.md`](docs/release/health-and-draining.md).
 - [ ] **N0.5 — Prove recovery.** The guarded verifier, runbook and evidence template are in [`docs/release/database-recovery.md`](docs/release/database-recovery.md). Remaining acceptance: enable backups/PITR and complete a reviewed real restore drill.
 - [ ] **N0.6 — Establish automated coverage (initial scope).**
   - Integration tests for migrations, registration, login, logout, profile validation.
