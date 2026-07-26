@@ -163,6 +163,7 @@ function loadCountryCatalog() {
         .filter((country) => country.iso === true || country.code === 'xk')
         .filter((country) => country.code && country.name && country.flag_4x3)
         .sort((a, b) => a.name.localeCompare(b.name));
+      updateGuestCountrySuggestions();
       return countryCatalog;
     });
   return countryCatalogPromise;

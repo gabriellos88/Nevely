@@ -35,6 +35,10 @@ test('guest passport traps focus and validates required input', async ({ page })
 });
 
 test('guest identity persists, recovers after cleared storage and supports responsive drawers', async ({ page }) => {
+  await page.route('**/vendor/flag-icons-7.5.0/country.json', async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.continue();
+  });
   await page.setViewportSize({ width: 390, height: 844 });
   await openGuestChat(page);
   await completeGuestPassport(page);
