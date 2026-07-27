@@ -223,11 +223,13 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   await request(runtime.app)
     .post('/login')
     .set('Accept', 'application/json')
+    .set('X-Forwarded-For', '198.51.100.42')
     .send({ email: 'email-member@example.test', password: 'ChangedPassword123!' })
     .expect(401);
   await request(runtime.app)
     .post('/login')
     .set('Accept', 'application/json')
+    .set('X-Forwarded-For', '198.51.100.42')
     .send({ email: 'email-member-new@example.test', password: 'ChangedPassword123!' })
     .expect(200);
   assert.equal(
