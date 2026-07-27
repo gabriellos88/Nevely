@@ -105,6 +105,17 @@ test('migrations, authentication, profile validation and authorization contracts
     .expect(201);
   const memberId = memberRegistration.body.user.id;
 
+  const outsider = request.agent(runtime.app);
+  await outsider
+    .post('/register')
+    .set('Accept', 'application/json')
+    .send({
+      username: 'outside_member',
+      email: 'outside-member@example.test',
+      password: 'SyntheticPassword123!'
+    })
+    .expect(201);
+
   const adminRoutes = [
     { method: 'get', path: '/admin' },
     { method: 'post', path: `/api/admin/users/${memberId}/ban`, body: { type: 'temporary', hours: 24 } },
@@ -137,6 +148,132 @@ test('migrations, authentication, profile validation and authorization contracts
     await action.expect(401);
   }
 
+  const guest = request.agent(runtime.app);
+  await guest
+    .post('/api/guest-profile')
+    .send({
+      name: 'Synthetic Guest',
+      age: 28,
+      gender: 'non-binary',
+      country: { code: 'ch' },
+      avatarId: 'astra'
+    })
+    .expect(201);
+  await guest.delete('/api/guest-profile').expect(204);
+  assert.equal((await guest.get('/api/guest-profile').expect(200)).body.guest, null);
+  await primary.delete('/api/guest-profile').expect(409);
+
+  const conversation = await db.query(
+    `INSERT INTO conversations (type) VALUES ('random') RETURNING id`
+  );
+  const conversationId = Number(conversation.rows[0].id);
+  await db.query(
+    `INSERT INTO conversation_participants (conversation_id, user_id, socket_id, display_name)
+     VALUES ($1, $2, $3, $4), ($1, $5, $6, $7)`,
+    [conversationId, primaryId, 'synthetic-primary-socket', 'Primary User',
+      memberId, 'synthetic-member-socket', 'Ordinary Member']
+  );
+  await db.query(
+    'INSERT INTO saved_chats (user_id, conversation_id) VALUES ($1, $2)',
+    [primaryId, conversationId]
+  );
+  await db.query(
+    `INSERT INTO friendships (user_id, friend_id)
+     VALUES ($1, $2), ($2, $1)`,
+    [primaryId, memberId]
+  );
+  await db.query(
+    'INSERT INTO blocked_users (blocker_user_id, blocked_user_id) VALUES ($1, $2)',
+    [primaryId, memberId]
+  );
+
+  await outsider
+    .delete(`/api/conversations/${conversationId}`)
+    .send({ confirmation: 'DELETE FOR EVERYONE' })
+    .expect(404);
+  assert.equal(
+    (await db.query('SELECT status FROM conversations WHERE id = $1', [conversationId])).rows[0].status,
+    'active'
+  );
+
+  await outsider.delete(`/api/conversations/${conversationId}/saved`).expect(204);
+  assert.equal(
+    Number((await db.query(
+      'SELECT COUNT(*) AS count FROM saved_chats WHERE user_id = $1 AND conversation_id = $2',
+      [primaryId, conversationId]
+    )).rows[0].count),
+    1
+  );
+
+  await outsider.delete(`/api/friends/${memberId}`).expect(204);
+  assert.equal(
+    Number((await db.query(
+      'SELECT COUNT(*) AS count FROM friendships WHERE user_id = $1 AND friend_id = $2',
+      [primaryId, memberId]
+    )).rows[0].count),
+    1
+  );
+
+  await outsider.delete(`/api/blocks/${memberId}`).expect(204);
+  assert.equal(
+    Number((await db.query(
+      'SELECT COUNT(*) AS count FROM blocked_users WHERE blocker_user_id = $1 AND blocked_user_id = $2',
+      [primaryId, memberId]
+    )).rows[0].count),
+    1
+  );
+
+  await primary
+    .delete(`/api/conversations/${conversationId}`)
+    .send({ confirmation: 'wrong value' })
+    .expect(400);
+  await primary.delete(`/api/conversations/${conversationId}/saved`).expect(204);
+  await primary.delete(`/api/friends/${memberId}`).expect(204);
+  await primary.delete(`/api/blocks/${memberId}`).expect(204);
+  await primary
+    .delete(`/api/conversations/${conversationId}`)
+    .send({ confirmation: 'DELETE FOR EVERYONE' })
+    .expect(204);
+  assert.equal(
+    (await db.query(
+      'SELECT status, deleted_for_everyone_at IS NOT NULL AS deleted FROM conversations WHERE id = $1',
+      [conversationId]
+    )).rows[0].deleted,
+    true
+  );
+  assert.equal(
+    Number((await db.query(
+      `SELECT
+         (SELECT COUNT(*) FROM saved_chats WHERE user_id = $1 AND conversation_id = $2)
+         + (SELECT COUNT(*) FROM friendships WHERE user_id = $1 AND friend_id = $3)
+         + (SELECT COUNT(*) FROM blocked_users WHERE blocker_user_id = $1 AND blocked_user_id = $3)
+         AS count`,
+      [primaryId, conversationId, memberId]
+    )).rows[0].count),
+    0
+  );
+
+  const selfDelete = request.agent(runtime.app);
+  const selfDeleteRegistration = await selfDelete
+    .post('/register')
+    .set('Accept', 'application/json')
+    .send({
+      username: 'self_delete_member',
+      email: 'self-delete-member@example.test',
+      password: 'SyntheticPassword123!'
+    })
+    .expect(201);
+  await selfDelete.delete('/api/account').send({ confirmation: 'wrong value' }).expect(400);
+  await selfDelete.delete('/api/account').send({ confirmation: 'DELETE' }).expect(204);
+  const deletedSelf = (await db.query(
+    'SELECT username, email, deleted_at FROM users WHERE id = $1',
+    [selfDeleteRegistration.body.user.id]
+  )).rows[0];
+  assert.match(deletedSelf.username, /^deleted_\d+$/);
+  assert.match(deletedSelf.email, /^deleted_\d+@deleted\.nevely\.invalid$/);
+  assert.notEqual(deletedSelf.deleted_at, null);
+  assert.equal((await selfDelete.get('/api/auth/me').expect(200)).body.user, null);
+
   const admin = request.agent(runtime.app);
   const adminRegistration = await admin
     .post('/register')
@@ -155,6 +292,25 @@ test('migrations, authentication, profile validation and authorization contracts
     .send({ email: 'admin-member@example.test', password: 'SyntheticPassword123!' })
     .expect(200);
 
+  const adminDeleteTarget = request.agent(runtime.app);
+  const adminDeleteRegistration = await adminDeleteTarget
+    .post('/register')
+    .set('Accept', 'application/json')
+    .send({
+      username: 'admin_delete_target',
+      email: 'admin-delete-target@example.test',
+      password: 'SyntheticPassword123!'
+    })
+    .expect(201);
+  const adminDeleteTargetId = adminDeleteRegistration.body.user.id;
+
+  const report = await db.query(
+    `INSERT INTO reports (reporter_user_id, reported_user_id, reason, details)
+     VALUES ($1, $2, 'synthetic', 'Synthetic report details') RETURNING id`,
+    [primaryId, memberId]
+  );
+  const reportId = Number(report.rows[0].id);
+
   await admin.get('/admin').expect(200);
   const ban = await admin
     .post(`/api/admin/users/${memberId}/ban`)
@@ -170,10 +326,49 @@ test('migrations, authentication, profile validation and authorization contracts
     .delete(`/api/admin/users/${memberId}`)
     .send({ confirmation: 'wrong value' })
     .expect(400);
-  await admin
+  await admin.delete(`/api/admin/users/${adminRegistration.body.user.id}`)
+    .send({ confirmation: 'BAN AND DELETE' })
+    .expect(400);
+
+  const reportResult = await admin
+    .patch(`/api/admin/reports/${reportId}`)
+    .send({ action: 'dismiss', resolution: 'Synthetic reviewed outcome' })
+    .expect(200);
+  assert.equal(reportResult.body.status, 'dismissed');
+  const reviewedReport = (await db.query(
+    'SELECT status, reviewed_by, reviewed_at, resolution FROM reports WHERE id = $1',
+    [reportId]
+  )).rows[0];
+  assert.equal(reviewedReport.status, 'dismissed');
+  assert.equal(Number(reviewedReport.reviewed_by), Number(adminRegistration.body.user.id));
+  assert.notEqual(reviewedReport.reviewed_at, null);
+  assert.equal(reviewedReport.resolution, 'Synthetic reviewed outcome');
+
+  const price = await admin
     .post('/api/admin/prices')
     .send({ price: 0, currency: 'USD' })
     .expect(201);
+  assert.equal(price.body.priceCents, 0);
+
+  await admin
+    .delete(`/api/admin/users/${adminDeleteTargetId}`)
+    .send({ confirmation: 'BAN AND DELETE', reason: 'Synthetic removal test' })
+    .expect(204);
+  const removedByAdmin = (await db.query(
+    'SELECT username, email, deleted_at FROM users WHERE id = $1',
+    [adminDeleteTargetId]
+  )).rows[0];
+  assert.match(removedByAdmin.username, /^deleted_\d+$/);
+  assert.match(removedByAdmin.email, /^deleted_\d+@deleted\.nevely\.invalid$/);
+  assert.notEqual(removedByAdmin.deleted_at, null);
+  assert.equal(
+    Number((await db.query(
+      `SELECT COUNT(*) AS count FROM bans
+       WHERE user_id = $1 AND type = 'permanent' AND created_by = $2`,
+      [adminDeleteTargetId, adminRegistration.body.user.id]
+    )).rows[0].count),
+    1
+  );
 });
 
 test.todo('retention worker acceptance is added with N2.2 implementation');

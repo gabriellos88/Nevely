@@ -56,7 +56,7 @@ async function connectAccount(baseUrl, cookie) {
   return socket;
 }
 
-test('account sockets persist messages, unread/read receipts and ban notifications', {
+test('account sockets match, persist messages, enforce cooldown, report disconnects and emit read/ban events', {
   skip: hasDatabase ? false : 'DATABASE_URL is unavailable outside the disposable CI database'
 }, async (t) => {
   const db = require('../../db');
@@ -152,6 +152,17 @@ test('account sockets persist messages, unread/read receipts and ban notificatio
   const conversationAfterRead = afterRead.body.conversations
     .find((conversation) => Number(conversation.id) === Number(firstMatch.conversationId));
   assert.equal(conversationAfterRead.unread_count, 0);
+
+  const cooldown = eventFrom(first, 'skip-cooldown');
+  first.emit('leave-chat');
+  const cooldownPayload = await cooldown;
+  assert.ok(cooldownPayload.remainingMs > 0);
+  assert.ok(cooldownPayload.remainingMs <= 10_000);
+
+  const partnerLeft = eventFrom(second, 'partner-left');
+  first.disconnect();
+  const partnerLeftPayload = await partnerLeft;
+  assert.equal(Number(partnerLeftPayload.conversationId), Number(firstMatch.conversationId));
 
   const banned = eventFrom(second, 'account-banned');
   await request(baseUrl)

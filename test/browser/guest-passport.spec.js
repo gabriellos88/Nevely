@@ -60,15 +60,18 @@ test('guest identity persists, recovers after cleared storage and supports respo
     Boolean(localStorage.getItem('nevely.guestPassport.v1'))
   ))).toBe(true);
 
-  const trigger = page.locator('#messagesToggle');
-  const drawer = page.locator('#messagesDrawer');
-  await trigger.click();
-  await expect(trigger).toHaveAttribute('aria-expanded', 'true');
-  await expect(drawer).toHaveAttribute('aria-hidden', 'false');
-  await expect(drawer).not.toHaveAttribute('inert', '');
+  for (const name of ['messages', 'friends', 'notifications']) {
+    const trigger = page.locator(`#${name}Toggle`);
+    const drawer = page.locator(`#${name}Drawer`);
+    await trigger.click();
+    await expect(trigger).toHaveAttribute('aria-expanded', 'true');
+    await expect(drawer).toHaveAttribute('aria-hidden', 'false');
+    await expect(drawer).not.toHaveAttribute('inert', '');
+    await expect(drawer.locator('[data-drawer-close]')).toBeFocused();
 
-  await page.keyboard.press('Escape');
-  await expect(trigger).toHaveAttribute('aria-expanded', 'false');
-  await expect(drawer).toHaveAttribute('aria-hidden', 'true');
-  await expect(trigger).toBeFocused();
+    await page.keyboard.press('Escape');
+    await expect(trigger).toHaveAttribute('aria-expanded', 'false');
+    await expect(drawer).toHaveAttribute('aria-hidden', 'true');
+    await expect(trigger).toBeFocused();
+  }
 });
