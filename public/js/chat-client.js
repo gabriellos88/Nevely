@@ -1488,9 +1488,14 @@ function startSkipCooldown(remainingMs) {
 }
 
 async function api(url, options = {}) {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
   const response = await fetch(url, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': csrfToken,
+      ...(options.headers || {})
+    }
   });
   if (response.status === 204) return null;
   const data = await response.json().catch(() => ({}));
@@ -1657,7 +1662,7 @@ async function loadFriendsPanel() {
   data.friends.forEach((friend) => list.appendChild(makeListItem(
     friend.display_name,
     chatCopy.feedback.friendChatHint,
-    () => socket.emit('direct-chat-request', { userId: friend.id }),
+    () => socket.emit('direct-chat-request', { publicId: friend.public_id }),
     friend.online ? uiCopy.common.online : uiCopy.common.offline
   )));
   showListState('friends', data.friends.length > 0);
@@ -1778,7 +1783,9 @@ async function openStoredConversation(item) {
   try {
     const data = await api(`/api/conversations/${item.id}/messages`);
     currentConversationId = Number(item.id);
-    currentPartner = item.partner_user_id ? { userId: Number(item.partner_user_id), displayName: item.partner_name } : null;
+    currentPartner = item.partner_public_id
+      ? { publicId: item.partner_public_id, displayName: item.partner_name }
+      : null;
     currentConversationSaved = Boolean(item.saved);
     saveConversationBtn.textContent = currentConversationSaved
       ? chatCopy.conversation.removeSaved
@@ -1790,12 +1797,13 @@ async function openStoredConversation(item) {
     partnerName.textContent = item.partner_name || chatCopy.drawers.messages.conversations;
     partnerAvatar.textContent = (item.partner_name || '?').charAt(0).toUpperCase();
     data.messages.forEach((message) => {
-      const mine = Number(message.sender_user_id) === Number(currentUser.id);
+      const mine = message.sender_public_id === currentUser.publicId;
       const element = addMessage(message.body, mine ? 'me' : 'them', Number(message.id));
       if (mine && message.delivered_at) element.dataset.delivered = 'true';
       if (mine && message.read_at) element.dataset.read = 'true';
     });
-    const lastIncomingMessage = [...data.messages].reverse().find((message) => Number(message.sender_user_id) !== Number(currentUser.id));
+    const lastIncomingMessage = [...data.messages].reverse()
+      .find((message) => message.sender_public_id !== currentUser.publicId);
     if (lastIncomingMessage) {
       await api(`/api/conversations/${item.id}/read`, {
         method: 'PATCH',
@@ -1850,9 +1858,9 @@ async function deleteCurrentConversation() {
 async function blockCurrentPartner() {
   conversationMenu.classList.add('hidden');
   if (!currentUser) return openAccountSettings();
-  if (!currentPartner?.userId) return alert(chatCopy.feedback.guestBlockUnavailable);
+  if (!currentPartner?.publicId) return alert(chatCopy.feedback.guestBlockUnavailable);
   try {
-    await api(`/api/blocks/${currentPartner.userId}`, { method: 'PUT', body: '{}' });
+    await api(`/api/blocks/${currentPartner.publicId}`, { method: 'PUT', body: '{}' });
     blockPartnerBtn.textContent = chatCopy.conversation.blocked;
     socket.emit('leave-chat');
   } catch (error) {
@@ -1945,12 +1953,20 @@ async function openAccountSettings(initialTab = 'account', { focusTab = false } 
   try {
     const data = await api('/api/account');
     const user = data.user;
+    await loadCountryCatalog();
+    const countrySelect = accountForm.elements.countryCode;
+    countrySelect.replaceChildren(...countryCatalog.map((country) => {
+      const option = document.createElement('option');
+      option.value = country.code;
+      option.textContent = country.name;
+      return option;
+    }));
     accountForm.elements.displayName.value = user.display_name || '';
     accountForm.elements.email.value = user.email || '';
     accountForm.elements.publicId.value = user.public_id || '';
-    accountForm.elements.age.value = user.age || '';
+    accountForm.elements.birthDate.value = user.birth_date || '';
     accountForm.elements.gender.value = user.gender || '';
-    accountForm.elements.country.value = user.country || '';
+    accountForm.elements.countryCode.value = user.country_code || '';
     accountForm.elements.profileImageUrl.value = user.profile_image_url || '';
     accountPlan.textContent = user.plan === 'premium' ? uiCopy.account.premiumPlan : uiCopy.account.freePlan;
     const displayName = user.display_name || uiCopy.common.profile;
@@ -1984,7 +2000,7 @@ async function loadBlockList() {
       const name = document.createElement('span');
       name.textContent = user.display_name;
       const button = actionButton(uiCopy.common.unblock, async () => {
-        await api(`/api/blocks/${user.id}`, { method: 'DELETE' });
+        await api(`/api/blocks/${user.public_id}`, { method: 'DELETE' });
         loadBlockList();
       });
       row.append(name, button);
@@ -2012,6 +2028,36 @@ async function logout() {
   await api('/logout', { method: 'POST', body: '{}' });
   window.location.href = '/';
 }
+
+document.getElementById('passwordChangeForm')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const feedback = document.getElementById('accountSecurityFeedback');
+  try {
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    await api('/api/account/password', {
+      method: 'POST',
+      body: JSON.stringify(values)
+    });
+    window.location.assign('/login');
+  } catch (error) {
+    feedback.textContent = error.message;
+  }
+});
+
+document.getElementById('emailChangeForm')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const feedback = document.getElementById('accountSecurityFeedback');
+  try {
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    const data = await api('/api/account/email-change', {
+      method: 'POST',
+      body: JSON.stringify(values)
+    });
+    feedback.textContent = data.message;
+  } catch (error) {
+    feedback.textContent = error.message;
+  }
+});
 
 function openDeleteAccountConfirmation() {
   if (!deleteAccountModal) return;
@@ -2075,9 +2121,9 @@ async function confirmDeleteAccount() {
 }
 
 async function openPartnerProfile() {
-  if (!currentPartner?.userId || !currentUser) return;
+  if (!currentPartner?.publicId || !currentUser) return;
   try {
-    const data = await api(`/api/users/${currentPartner.userId}/profile`);
+    const data = await api(`/api/users/${currentPartner.publicId}/profile`);
     currentProfile = data.user;
     publicProfileAvatar.textContent = data.user.display_name.charAt(0).toUpperCase();
     document.getElementById('profileModalTitle').textContent = data.user.display_name;
@@ -2098,11 +2144,14 @@ async function toggleFriendship() {
   if (!currentProfile) return;
   try {
     if (currentProfile.is_friend) {
-      await api(`/api/friends/${currentProfile.id}`, { method: 'DELETE' });
+      await api(`/api/friends/${currentProfile.public_id}`, { method: 'DELETE' });
       currentProfile.is_friend = false;
       friendActionBtn.textContent = uiCopy.common.addFriend;
     } else {
-      await api('/api/friend-requests', { method: 'POST', body: JSON.stringify({ userId: currentProfile.id }) });
+      await api('/api/friend-requests', {
+        method: 'POST',
+        body: JSON.stringify({ publicId: currentProfile.public_id })
+      });
       friendActionBtn.textContent = uiCopy.common.requestSent;
       friendActionBtn.disabled = true;
     }
@@ -2116,11 +2165,11 @@ async function toggleProfileBlock() {
   if (!currentProfile) return;
   try {
     if (currentProfile.is_blocked) {
-      await api(`/api/blocks/${currentProfile.id}`, { method: 'DELETE' });
+      await api(`/api/blocks/${currentProfile.public_id}`, { method: 'DELETE' });
       currentProfile.is_blocked = false;
       profileBlockBtn.textContent = uiCopy.common.block;
     } else {
-      await api(`/api/blocks/${currentProfile.id}`, { method: 'PUT', body: '{}' });
+      await api(`/api/blocks/${currentProfile.public_id}`, { method: 'PUT', body: '{}' });
       currentProfile.is_blocked = true;
       profileBlockBtn.textContent = uiCopy.common.unblock;
     }

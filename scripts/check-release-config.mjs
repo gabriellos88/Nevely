@@ -85,6 +85,10 @@ assert.equal(
 
 assert.match(environmentExample, /ANALYTICS_MODE=disabled/);
 assert.match(environmentExample, /ROBOTS_INDEXING=disabled/);
+assert.match(environmentExample, /ADMIN_TOTP_ENCRYPTION_KEY=/);
+assert.match(environmentExample, /GOOGLE_CLIENT_ID=/);
+assert.match(environmentExample, /SUPPORT_EMAIL=support@nevely\.app/);
+assert.match(environmentExample, /RESEND_FROM=Verify <noreply@notifications\.nevely\.app>/);
 assert.equal(
   /RESEND_API_KEY=re_[A-Za-z0-9]{10,}/.test(environmentExample),
   false,

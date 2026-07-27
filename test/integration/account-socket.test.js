@@ -4,6 +4,7 @@ const request = require('supertest');
 const { io: createClient } = require('socket.io-client');
 const { createRuntime } = require('../../server');
 const safeLog = require('../../lib/safe-log');
+const { totp } = require('../../lib/totp');
 const { resetDatabase } = require('../helpers/database');
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
@@ -37,7 +38,14 @@ async function register(baseUrl, username, email) {
   const response = await request(baseUrl)
     .post('/register')
     .set('Accept', 'application/json')
-    .send({ username, email, password: 'SyntheticPassword123!' })
+    .send({
+      username,
+      email,
+      password: 'SyntheticPassword123!',
+      birthDate: '1990-06-15',
+      gender: 'non-binary',
+      countryCode: 'ch'
+    })
     .expect(201);
   return { cookie: cookieFrom(response), user: response.body.user };
 }
@@ -77,7 +85,14 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
   const secondAccount = await register(baseUrl, 'socket_second', 'socket-second@example.test');
   let adminAccount = await register(baseUrl, 'socket_admin', 'socket-admin@example.test');
 
-  await db.query('UPDATE users SET role = $1 WHERE id = $2', ['admin', adminAccount.user.id]);
+  const adminId = Number((await db.query(
+    'SELECT id FROM users WHERE public_id = $1',
+    [adminAccount.user.publicId]
+  )).rows[0].id);
+  await db.query(
+    'UPDATE users SET role = $1, email_verified_at = NOW() WHERE id = $2',
+    ['admin', adminId]
+  );
   await request(baseUrl)
     .post('/logout')
     .set('Accept', 'application/json')
@@ -89,6 +104,22 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
     .send({ email: 'socket-admin@example.test', password: 'SyntheticPassword123!' })
     .expect(200);
   adminAccount = { ...adminAccount, cookie: cookieFrom(adminLogin) };
+  const setup = await request(baseUrl)
+    .post('/api/admin/2fa/setup')
+    .set('Cookie', adminAccount.cookie)
+    .send({ password: 'SyntheticPassword123!' })
+    .expect(200);
+  const confirmed = await request(baseUrl)
+    .post('/api/admin/2fa/confirm')
+    .set('Cookie', adminAccount.cookie)
+    .send({ code: totp(setup.body.secret) })
+    .expect(204);
+  adminAccount.cookie = cookieFrom(confirmed);
+  await request(baseUrl)
+    .post('/api/admin/reauth')
+    .set('Cookie', adminAccount.cookie)
+    .send({ password: 'SyntheticPassword123!', code: totp(setup.body.secret) })
+    .expect(204);
 
   const first = await connectAccount(baseUrl, firstAccount.cookie);
   const second = await connectAccount(baseUrl, secondAccount.cookie);
@@ -166,7 +197,7 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
 
   const banned = eventFrom(second, 'account-banned');
   await request(baseUrl)
-    .post(`/api/admin/users/${secondAccount.user.id}/ban`)
+    .post(`/api/admin/users/${secondAccount.user.publicId}/ban`)
     .set('Cookie', adminAccount.cookie)
     .send({ type: 'temporary', hours: 24, reason: 'Synthetic socket ban test' })
     .expect(201);

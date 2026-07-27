@@ -6,10 +6,12 @@ const path = require('path');
 const session = require('express-session');
 const PgSession = require('connect-pg-simple')(session);
 const { Server } = require('socket.io');
-const { createAuthLimiter, registerAuthRoutes } = require('./lib/auth');
+const { createAuthLimiter, publicSessionUser, registerAuthRoutes } = require('./lib/auth');
+const { createOutboxWorker } = require('./lib/account-email');
 const { registerApiRoutes } = require('./lib/api');
 const { registerChat } = require('./lib/chat');
 const { createPresence } = require('./lib/presence');
+const { csrfProtection, secureHeaders } = require('./lib/security');
 const safeLog = require('./lib/safe-log');
 const uiCopy = require('./public/i18n/en.json');
 
@@ -41,6 +43,7 @@ function createRuntime(options = {}) {
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));
   app.locals.copy = uiCopy;
+  app.use(secureHeaders({ googleEnabled: Boolean(environment.GOOGLE_CLIENT_ID) }));
 
   if (environment.ROBOTS_INDEXING !== 'enabled') {
     app.use((req, res, next) => {
@@ -96,8 +99,22 @@ function createRuntime(options = {}) {
   app.use(express.json({ limit: '32kb' }));
   app.use(express.urlencoded({ extended: false, limit: '32kb' }));
 
-  if (isProduction && !environment.SESSION_SECRET) {
-    throw new Error('SESSION_SECRET must be configured in production.');
+  if (isProduction && (!environment.DATABASE_URL || !db.isConfigured)) {
+    throw new Error('DATABASE_URL must be configured in production.');
+  }
+  if (isProduction && (!environment.SESSION_SECRET || environment.SESSION_SECRET.length < 32)) {
+    throw new Error('SESSION_SECRET with at least 32 characters must be configured in production.');
+  }
+  if (isProduction && !environment.ADMIN_TOTP_ENCRYPTION_KEY) {
+    throw new Error('ADMIN_TOTP_ENCRYPTION_KEY must be configured in production.');
+  }
+  if (isProduction && environment.EMAIL_DELIVERY_MODE === 'live') {
+    if (!environment.RESEND_API_KEY) {
+      throw new Error('RESEND_API_KEY must be configured for live email delivery.');
+    }
+    if (environment.RESEND_FROM !== 'Verify <noreply@notifications.nevely.app>') {
+      throw new Error('RESEND_FROM must use the verified Nevely verification sender.');
+    }
   }
 
   const sessionMiddleware = session({
@@ -119,13 +136,14 @@ function createRuntime(options = {}) {
 
   if (!db.isConfigured) log.warn('session.temporary_memory_store');
 
-  app.use(sessionMiddleware);
   app.use(express.static(path.join(__dirname, 'public')));
+  app.use(sessionMiddleware);
+  app.use(csrfProtection({ publicOrigin: environment.PUBLIC_ORIGIN }));
   io.engine.use(sessionMiddleware);
 
   app.get('/', (req, res) => res.render('home', {
     pageTitle: uiCopy.pageTitles.home,
-    currentUser: req.session.user || null
+    currentUser: publicSessionUser(req.session.user || null)
   }));
   app.get('/about', (req, res) => res.render('about', { pageTitle: uiCopy.pageTitles.about }));
   app.get('/support', (req, res) => res.render('support', { pageTitle: uiCopy.pageTitles.support }));
@@ -138,8 +156,19 @@ function createRuntime(options = {}) {
   });
 
   const authLimiter = createAuthLimiter();
-  app.post(['/login', '/register'], authLimiter);
-  registerAuthRoutes(app, db);
+  app.post([
+    '/login',
+    '/register',
+    '/login/2fa',
+    '/forgot-password',
+    '/reset-password',
+    '/auth/google',
+    '/api/auth/verification/resend'
+  ], authLimiter);
+  registerAuthRoutes(app, db, {
+    environment,
+    googleVerifier: options.googleVerifier
+  });
 
   app.get('/chat', async (req, res, next) => {
     if (db.isConfigured) {
@@ -153,9 +182,10 @@ function createRuntime(options = {}) {
         return next(error);
       }
     }
-    const currentUser = req.session.user || null;
+    const currentUser = publicSessionUser(req.session.user || null);
     const isGuest = !currentUser;
     if (isGuest && req.query.guest !== '1') return res.redirect('/login');
+    if (currentUser && !currentUser.profileComplete) return res.redirect('/complete-profile');
     return res.render('chat', {
       pageTitle: uiCopy.pageTitles.chat,
       isGuest,
@@ -165,11 +195,18 @@ function createRuntime(options = {}) {
   });
 
   const presence = createPresence(io);
-  registerApiRoutes(app, db, presence);
+  registerApiRoutes(app, db, presence, { environment });
   const chat = registerChat(io, db, presence, {
     guestDurationSeconds: GUEST_CHAT_DURATION_SECONDS,
     log
   });
+  const outboxWorker = createOutboxWorker({
+    db,
+    environment,
+    log,
+    fetchImpl: options.fetchImpl
+  });
+  outboxWorker.start();
 
   app.use((req, res) => {
     if (req.path.startsWith('/api/')) {
@@ -211,7 +248,11 @@ function createRuntime(options = {}) {
   }
 
   async function closeSocketServer() {
-    await new Promise((resolve) => io.close(() => resolve()));
+    io.disconnectSockets(true);
+    await Promise.race([
+      new Promise((resolve) => io.close(() => resolve())),
+      new Promise((resolve) => setTimeout(resolve, Math.min(shutdownGraceMs, 2_000)))
+    ]);
   }
 
   async function waitForIdleOrDeadline() {
@@ -237,8 +278,14 @@ function createRuntime(options = {}) {
 
       await waitForIdleOrDeadline();
       await chat.stop();
+      await outboxWorker.stop();
+      server.closeIdleConnections?.();
+      server.closeAllConnections?.();
       await closeSocketServer();
-      await httpClosed;
+      await Promise.race([
+        httpClosed,
+        new Promise((resolve) => setTimeout(resolve, Math.min(shutdownGraceMs, 2_000)))
+      ]);
 
       if (options.closeDatabaseOnShutdown !== false && typeof db.close === 'function') {
         await db.close();
@@ -274,6 +321,7 @@ function createRuntime(options = {}) {
     server,
     io,
     chat,
+    outboxWorker,
     lifecycle,
     start,
     shutdown,

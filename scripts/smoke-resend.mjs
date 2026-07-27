@@ -18,8 +18,8 @@ const from = required('RESEND_FROM');
 const recipient = required('RESEND_TEST_RECIPIENT').toLowerCase();
 
 ensure(
-  /^Nevely Staging </.test(from),
-  'Email smoke requires the staging sender identity'
+  from === 'Verify <noreply@notifications.nevely.app>',
+  'Email smoke requires the verified Nevely verification sender'
 );
 ensure(
   recipient === 'delivered+staging@resend.dev',

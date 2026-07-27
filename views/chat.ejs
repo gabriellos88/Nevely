@@ -3,6 +3,7 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="<%= csrfToken %>" />
     <title><%= pageTitle %> · <%= copy.common.brand %></title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -528,11 +529,20 @@
             <span><strong><%= copy.account.profilePicture %></strong><small><%= copy.account.photoUploadUnavailable %></small></span>
           </div>
           <label><%= copy.common.displayName %><input name="displayName" maxlength="40" required></label>
-          <label><%= copy.common.email %><input name="email" type="email" required></label>
+          <label><%= copy.common.email %><input name="email" type="email" readonly></label>
           <label><%= copy.account.nevelyId %><input name="publicId" readonly></label>
-          <label><%= copy.common.age %><input name="age" type="number" min="18" max="120" required></label>
-          <label><%= copy.common.gender %><input name="gender" maxlength="30"></label>
-          <label><%= copy.common.country %><input name="country" maxlength="80"></label>
+          <label><%= copy.auth.birthDate %><input name="birthDate" type="date" readonly></label>
+          <label>
+            <%= copy.common.gender %>
+            <select name="gender" required>
+              <option value="female"><%= copy.common.female %></option>
+              <option value="male"><%= copy.common.male %></option>
+              <option value="non-binary"><%= copy.common.nonBinary %></option>
+              <option value="other"><%= copy.common.other %></option>
+              <option value="prefer-not-to-say"><%= copy.auth.preferNotToSay %></option>
+            </select>
+          </label>
+          <label><%= copy.common.country %><select name="countryCode" required></select></label>
           <input name="profileImageUrl" type="hidden">
           <div class="account-form-actions">
             <button class="btn btn-primary" type="submit"><%= copy.account.saveProfile %></button>
@@ -544,6 +554,26 @@
 
         <div class="account-tab-panel hidden" id="accountPanelPrivacy" role="tabpanel" aria-labelledby="accountTabPrivacy">
           <div class="registered-privacy-settings hidden" id="registeredPrivacySettings">
+            <section class="account-settings-section" aria-labelledby="accountSecurityTitle">
+              <div class="account-settings-heading">
+                <span aria-hidden="true"><i data-lucide="shield-check"></i></span>
+                <div>
+                  <h3 id="accountSecurityTitle"><%= copy.account.securityTitle %></h3>
+                  <p><%= copy.account.securityDescription %></p>
+                </div>
+              </div>
+              <form class="account-form" id="passwordChangeForm">
+                <label><%= copy.account.currentPassword %><input name="currentPassword" type="password" autocomplete="current-password" required></label>
+                <label><%= copy.auth.newPassword %><input name="newPassword" type="password" minlength="8" maxlength="72" autocomplete="new-password" required></label>
+                <button class="btn btn-primary" type="submit"><%= copy.account.changePassword %></button>
+              </form>
+              <form class="account-form" id="emailChangeForm">
+                <label><%= copy.account.newEmail %><input name="email" type="email" autocomplete="email" required></label>
+                <label><%= copy.common.password %><input name="password" type="password" autocomplete="current-password" required></label>
+                <button class="btn btn-primary" type="submit"><%= copy.account.changeEmail %></button>
+              </form>
+              <p class="account-feedback" id="accountSecurityFeedback" role="status" aria-live="polite"></p>
+            </section>
             <section class="account-settings-section" aria-labelledby="blockedPeopleTitle">
               <div class="account-settings-heading"><span aria-hidden="true"><i data-lucide="user-x"></i></span><div><h3 id="blockedPeopleTitle"><%= copy.account.blockedPeople %></h3><p><%= copy.account.blockedPeopleDescription %></p></div></div>
               <div id="accountBlockList" class="account-block-list"></div>
@@ -621,7 +651,7 @@
       </div>
     </div>
 
-    <script>
+    <script nonce="<%= cspNonce %>">
       window.__COPY__ = <%- JSON.stringify(copy).replace(/</g, '\\u003c') %>;
       window.__IS_GUEST__ = <%= isGuest ? 'true' : 'false' %>;
       window.__GUEST_DURATION__ = <%= guestDurationSeconds %>;

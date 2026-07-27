@@ -1,9 +1,14 @@
 const uiCopy = window.__COPY__;
 
 async function adminApi(url, options = {}) {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
   const response = await fetch(url, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': csrfToken,
+      ...(options.headers || {})
+    }
   });
   if (response.status === 204) return null;
   const data = await response.json().catch(() => ({}));
@@ -50,4 +55,19 @@ document.getElementById('adminPriceForm')?.addEventListener('submit', async (eve
   const values = Object.fromEntries(new FormData(event.currentTarget));
   await adminApi('/api/admin/prices', { method: 'POST', body: JSON.stringify(values) });
   window.location.reload();
+});
+
+document.getElementById('adminReauthForm')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const feedback = document.getElementById('adminReauthFeedback');
+  try {
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    await adminApi('/api/admin/reauth', {
+      method: 'POST',
+      body: JSON.stringify(values)
+    });
+    feedback.textContent = uiCopy.admin.reauthenticationComplete;
+  } catch (error) {
+    feedback.textContent = error.message;
+  }
 });

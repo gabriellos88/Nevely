@@ -70,7 +70,9 @@ remain owned by their roadmap items:
 
 - the controlled retention worker is N2.2;
 - cursor pagination is N2.4;
-- complete server-side ban/session revocation is N1.3/N4.2.
+- session revocation after identity and privilege changes is covered by
+  `test/integration/identity-auth.test.js` as part of N1.3;
+- complete active Socket.IO ban enforcement remains N4.2.
 
 The test runner records retention and pagination as TODO contracts rather than
 pretending those features exist. Their vertical implementation must replace

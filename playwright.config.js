@@ -31,6 +31,7 @@ module.exports = defineConfig({
       APP_ENV: 'test',
       NODE_ENV: 'test',
       PORT: String(port),
+      PUBLIC_ORIGIN: baseURL,
       ROBOTS_INDEXING: 'disabled',
       SESSION_SECRET: 'browser-test-session-secret',
       SHUTDOWN_GRACE_MS: '1000'

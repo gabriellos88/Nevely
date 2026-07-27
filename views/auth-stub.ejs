@@ -43,14 +43,32 @@
       <% } %>
 
       <div class="auth-provider-stack">
-        <button class="auth-provider-button" type="button" disabled>
-          <span><%= copy.auth.googleAction %></span>
-          <span class="auth-provider-status"><%= copy.auth.googleUnavailable %></span>
-        </button>
+        <% if (googleClientId) { %>
+          <div id="g_id_onload"
+               data-client_id="<%= googleClientId %>"
+               data-callback="handleGoogleCredential"
+               data-nonce="<%= googleNonce %>"
+               data-auto_prompt="false"
+               data-cancel_on_tap_outside="true"></div>
+          <div class="g_id_signin"
+               data-type="standard"
+               data-shape="pill"
+               data-theme="filled_black"
+               data-text="continue_with"
+               data-size="large"
+               data-width="360"
+               data-logo_alignment="left"></div>
+        <% } else { %>
+          <button class="auth-provider-button" type="button" disabled>
+            <span><%= copy.auth.googleAction %></span>
+            <span class="auth-provider-status"><%= copy.auth.googleUnavailable %></span>
+          </button>
+        <% } %>
         <p class="auth-provider-divider"><span><%= copy.auth.emailDivider %></span></p>
       </div>
 
       <form class="auth-form" method="post" action="/<%= mode %>">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <% if (mode === 'register') { %>
           <label class="auth-field" for="auth-username">
             <span><%= copy.auth.username %></span>
@@ -59,6 +77,44 @@
               <input id="auth-username" name="username" type="text" minlength="3" maxlength="30" autocomplete="username" required value="<%= values?.username || '' %>" placeholder="<%= copy.auth.usernamePlaceholder %>">
             </span>
             <small><%= copy.auth.usernameHint %></small>
+          </label>
+
+          <label class="auth-field" for="auth-birth-date">
+            <span><%= copy.auth.birthDate %></span>
+            <span class="auth-field-shell">
+              <i data-lucide="calendar-days" aria-hidden="true"></i>
+              <input id="auth-birth-date" name="birthDate" type="date"
+                     autocomplete="bday" required value="<%= values?.birthDate || '' %>">
+            </span>
+            <small><%= copy.auth.birthDateHint %></small>
+          </label>
+
+          <label class="auth-field" for="auth-gender">
+            <span><%= copy.common.gender %></span>
+            <span class="auth-field-shell">
+              <i data-lucide="contact" aria-hidden="true"></i>
+              <select id="auth-gender" name="gender" required>
+                <option value=""><%= copy.auth.selectGender %></option>
+                <option value="female" <%= values?.gender === 'female' ? 'selected' : '' %>><%= copy.common.female %></option>
+                <option value="male" <%= values?.gender === 'male' ? 'selected' : '' %>><%= copy.common.male %></option>
+                <option value="non-binary" <%= values?.gender === 'non-binary' ? 'selected' : '' %>><%= copy.common.nonBinary %></option>
+                <option value="other" <%= values?.gender === 'other' ? 'selected' : '' %>><%= copy.common.other %></option>
+                <option value="prefer-not-to-say" <%= values?.gender === 'prefer-not-to-say' ? 'selected' : '' %>><%= copy.auth.preferNotToSay %></option>
+              </select>
+            </span>
+          </label>
+
+          <label class="auth-field" for="auth-country">
+            <span><%= copy.common.country %></span>
+            <span class="auth-field-shell">
+              <i data-lucide="map-pin" aria-hidden="true"></i>
+              <select id="auth-country" name="countryCode" required>
+                <option value=""><%= copy.auth.selectCountry %></option>
+                <% countries.forEach((country) => { %>
+                  <option value="<%= country.code %>" <%= values?.countryCode === country.code ? 'selected' : '' %>><%= country.name %></option>
+                <% }) %>
+              </select>
+            </span>
           </label>
         <% } %>
 
@@ -83,6 +139,9 @@
           <span><%= mode === 'login' ? copy.auth.loginAction : copy.auth.registerAction %></span>
           <i data-lucide="arrow-right" aria-hidden="true"></i>
         </button>
+        <% if (mode === 'login') { %>
+          <a class="auth-switch-link" href="/forgot-password"><%= copy.auth.forgotPasswordLink %></a>
+        <% } %>
       </form>
 
       <div class="auth-guest-option">
@@ -99,6 +158,15 @@
   </section>
 </main>
 
-<script src="/vendor/lucide-1.24.0.min.js"></script>
+<script nonce="<%= cspNonce %>">
+  window.__AUTH_CONFIG__ = <%- JSON.stringify({
+    mode,
+    csrfToken,
+    googleEnabled: Boolean(googleClientId)
+  }).replace(/</g, '\\u003c') %>;
+</script>
+<% if (googleClientId) { %>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+<% } %>
 <script src="/js/auth-client.js"></script>
 <%- include('partials/footer') %>

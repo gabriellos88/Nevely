@@ -3,6 +3,18 @@
   <div class="admin-wrap">
     <h1><%= copy.admin.title %></h1>
     <section class="admin-section">
+      <h2><%= copy.admin.reauthenticateTitle %></h2>
+      <p><%= copy.admin.reauthenticateBody %></p>
+      <form class="admin-price-form" id="adminReauthForm">
+        <input name="password" type="password" autocomplete="current-password"
+               placeholder="<%= copy.common.password %>">
+        <input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+               autocomplete="one-time-code" required placeholder="<%= copy.auth.twoFactorCode %>">
+        <button class="btn btn-primary" type="submit"><%= copy.admin.reauthenticateAction %></button>
+      </form>
+      <p id="adminReauthFeedback" role="status" aria-live="polite"></p>
+    </section>
+    <section class="admin-section">
       <h2><%= copy.admin.reports %></h2>
       <div class="admin-table-wrap">
         <table class="admin-table">
@@ -22,7 +34,7 @@
           <thead><tr><th><%= copy.admin.id %></th><th><%= copy.admin.name %></th><th><%= copy.admin.email %></th><th><%= copy.admin.role %></th><th><%= copy.admin.plan %></th><th><%= copy.admin.actions %></th></tr></thead>
           <tbody>
             <% users.forEach((user) => { %>
-              <tr><td><%= user.public_id %></td><td><%= user.display_name %></td><td><%= user.email %></td><td><%= user.role %></td><td><%= user.plan %></td><td><button class="admin-action" data-ban="temporary" data-id="<%= user.id %>"><%= copy.admin.banDay %></button><button class="admin-action danger" data-ban="permanent" data-id="<%= user.id %>"><%= copy.admin.banPermanent %></button><button class="admin-action danger" data-delete-user data-id="<%= user.id %>"><%= copy.admin.banDelete %></button></td></tr>
+              <tr><td><%= user.public_id %></td><td><%= user.display_name %></td><td><%= user.email %></td><td><%= user.role %></td><td><%= user.plan %></td><td><button class="admin-action" data-ban="temporary" data-id="<%= user.public_id %>"><%= copy.admin.banDay %></button><button class="admin-action danger" data-ban="permanent" data-id="<%= user.public_id %>"><%= copy.admin.banPermanent %></button><button class="admin-action danger" data-delete-user data-id="<%= user.public_id %>"><%= copy.admin.banDelete %></button></td></tr>
             <% }) %>
           </tbody>
         </table>
@@ -35,6 +47,6 @@
     </section>
   </div>
 </main>
-<script>window.__COPY__ = <%- JSON.stringify(copy).replace(/</g, '\\u003c') %>;</script>
+<script nonce="<%= cspNonce %>">window.__COPY__ = <%- JSON.stringify(copy).replace(/</g, '\\u003c') %>;</script>
 <script src="/js/admin.js"></script>
 <%- include('partials/footer') %>

@@ -31,16 +31,20 @@ NODE_ENV=production
 PUBLIC_ORIGIN=https://<staging-host>
 DATABASE_URL=${{Postgres.DATABASE_URL}}
 SESSION_SECRET=<staging-only sealed secret>
+ADMIN_TOTP_ENCRYPTION_KEY=<staging-only sealed secret>
 PRODUCTION_RAILWAY_ENVIRONMENT_ID=<production environment ID>
 EMAIL_DELIVERY_MODE=test
 RESEND_API_KEY=<staging-only sealed key>
-RESEND_FROM=Nevely Staging <noreply@notifications.nevely.app>
+RESEND_FROM=Verify <noreply@notifications.nevely.app>
 RESEND_TEST_RECIPIENT=delivered+staging@resend.dev
+GOOGLE_CLIENT_ID=<staging Google OAuth web client ID>
+SUPPORT_EMAIL=support@nevely.app
 ANALYTICS_MODE=disabled
 ROBOTS_INDEXING=disabled
 ```
 
-Do not reuse the production session secret or Resend API key. Until the
+Do not reuse the production session secret, TOTP encryption key, Google client
+ID or Resend API key. Until the
 analytics implementation has its own separate non-production property,
 staging analytics remains disabled. Staging must also emit a no-index policy.
 

@@ -135,7 +135,7 @@
     "contactTitle": "Email the Nevely team.",
     "contactBody": "Tell us what happened and we’ll point you in the right direction.",
     "contactNote": "The mailbox is being activated. Please don’t include passwords or other sensitive information.",
-    "email": "support@nevely.com",
+    "email": "support@nevely.app",
     "emailLabel": "Email support",
     "contactLinksAria": "Support and legal links",
     "privacyLink": "Read our Privacy Policy",
@@ -302,12 +302,55 @@
     "loginPasswordPlaceholder": "Enter your password",
     "registerPasswordPlaceholder": "Create a password",
     "passwordHint": "Use at least 8 characters.",
+    "birthDate": "Date of birth",
+    "birthDateHint": "You must be 18 or older. Support controls later corrections.",
+    "selectGender": "Choose a gender",
+    "selectCountry": "Choose a country or territory",
+    "preferNotToSay": "Prefer not to say",
     "loginAction": "Sign in",
     "registerAction": "Create an account",
     "newHere": "New here? Create an account",
     "alreadyMember": "Already have an account? Sign in",
     "guestTitle": "Just looking around?",
-    "guestBody": "Meet someone without creating an account."
+    "guestBody": "Meet someone without creating an account.",
+    "forgotPasswordLink": "Forgot your password?",
+    "forgotPasswordTitle": "Reset your password",
+    "forgotPasswordBody": "Enter your email and we’ll send a single-use reset link if an account exists.",
+    "sendResetAction": "Send reset link",
+    "emailSentTitle": "Check your inbox",
+    "genericEmailResponse": "If that address belongs to an eligible account, an email is on its way.",
+    "resetPasswordTitle": "Choose a new password",
+    "resetPasswordBody": "This link is single-use and expires after one hour.",
+    "newPassword": "New password",
+    "resetPasswordAction": "Reset password",
+    "passwordResetCompleteTitle": "Password changed",
+    "passwordResetCompleteBody": "Your password is updated and every previous session has been signed out.",
+    "confirmEmailTitle": "Confirm your new email",
+    "confirmEmailBody": "Confirming signs you out everywhere and makes this your verified address.",
+    "confirmEmailAction": "Confirm email change",
+    "emailChangeCompleteTitle": "Email changed",
+    "emailChangeCompleteBody": "Your new email is verified and every previous session has been signed out.",
+    "verificationFailedTitle": "We couldn’t verify that link",
+    "verificationCompleteTitle": "Email verified",
+    "verificationCompleteBody": "Your email is verified. You can return to Nevely.",
+    "verifyEmailTitle": "Verify your email",
+    "verifyEmailBody": "Confirm this single-use link to verify your Nevely email.",
+    "verifyEmailAction": "Verify email",
+    "tokenState": {
+      "invalid": "This link is invalid.",
+      "expired": "This link has expired. Request a new one.",
+      "used": "This link has already been used.",
+      "revoked": "This link was replaced by a newer request."
+    },
+    "twoFactorTitle": "Two-factor verification",
+    "twoFactorBody": "Enter the six-digit code from your authenticator app.",
+    "twoFactorCode": "Authenticator code",
+    "twoFactorAction": "Verify and continue",
+    "backToLogin": "Back to sign in"
+    ,"completeProfileEyebrow": "One-time profile repair"
+    ,"completeProfileTitle": "Complete your matching profile"
+    ,"completeProfileBody": "We need canonical birth, gender, and country data before this existing account can match again."
+    ,"completeProfileAction": "Complete profile"
   },
   "chat": {
     "strangerNames": ["Fox", "Panda", "Koala", "Owl", "Octopus", "Butterfly", "Turtle", "Lion"],
@@ -579,7 +622,13 @@
     "cancelDeleteAccount": "Keep my account",
     "cancelDeleteGuest": "Keep this profile",
     "confirmDeleteAccount": "Delete permanently",
-    "confirmDeleteGuest": "Delete guest profile"
+    "confirmDeleteGuest": "Delete guest profile",
+    "securityTitle": "Account security",
+    "securityDescription": "Password and email changes use verified, single-use flows and sign out active sessions.",
+    "currentPassword": "Current password",
+    "changePassword": "Change password",
+    "newEmail": "New email",
+    "changeEmail": "Send verification link"
   },
   "admin": {
     "title": "Admin",
@@ -609,7 +658,25 @@
     "banReasonPrompt": "Why are you banning this account?",
     "banCreated": "Account banned.",
     "deletePrompt": "Type BAN AND DELETE to confirm.",
-    "removalReason": "Account removed by an administrator"
+    "removalReason": "Account removed by an administrator",
+    "securityEyebrow": "Administrator protection",
+    "securityTitle": "Secure administrator access",
+    "securityBody": "Admin access requires a verified email and authenticator-based two-factor authentication.",
+    "emailVerification": "Verified email",
+    "emailVerified": "This administrator email is verified.",
+    "emailNotVerified": "Verify this administrator email before opening the console.",
+    "resendVerification": "Resend verification",
+    "twoFactorTitle": "Two-factor authentication",
+    "twoFactorEnabled": "Two-factor authentication is enabled.",
+    "twoFactorSetupBody": "Add this account to an authenticator app, then confirm one current code.",
+    "beginTwoFactor": "Create setup secret",
+    "twoFactorSecretHint": "Enter this secret in your authenticator app. Do not share or store it in a ticket.",
+    "confirmTwoFactor": "Enable two-factor authentication",
+    "openConsole": "Open admin console",
+    "reauthenticateTitle": "Confirm high-risk actions",
+    "reauthenticateBody": "Re-enter your password and a current authenticator code. Approval lasts ten minutes.",
+    "reauthenticateAction": "Confirm identity",
+    "reauthenticationComplete": "High-risk actions are unlocked for ten minutes."
   },
   "privacy": {
     "updated": "Last updated: July 18, 2026",
@@ -618,7 +685,7 @@
     "sections": [
       {
         "title": "Account and profile data",
-        "body": "If you create an account, we keep your email address, a one-way hash of your password, display name, age, gender, country, plan, and profile image reference. We never store your password as plain text."
+        "body": "If you create an account, we keep your email address, a one-way hash of your password when you use one, display name, date of birth, gender, country, plan, profile image reference, and linked sign-in provider subject. We never store your password as plain text or use your email as the durable Google account key."
       },
       {
         "title": "Chats and retention",
@@ -678,6 +745,7 @@
     "usernameLength": "Use at least 3 characters for your username.",
     "emailInvalid": "Enter a valid email address.",
     "passwordLength": "Use a password between 8 and 72 characters.",
+    "birthDateInvalid": "Enter a valid date of birth. You must be at least 18.",
     "identityTaken": "That username or email is already taken.",
     "credentialsIncorrect": "That email and password don’t match.",
     "accountSuspended": "This account is suspended.",
@@ -722,5 +790,28 @@
     "networkBlocked": "Nevely isn’t available from this network.",
     "browserStorage": "We can’t save your guest profile in this browser.",
     "guestProfileIncomplete": "Finish your guest profile before continuing."
+    ,"csrfRejected": "Your security token expired. Refresh the page and try again."
+    ,"profileChangeCooldown": "Gender or country can be changed once every 30 days. Contact support for a correction."
+    ,"emailVerificationRequired": "Verify your email before continuing."
+    ,"adminTwoFactorRequired": "Set up two-factor authentication before using the admin console."
+    ,"adminTwoFactorChallengeRequired": "Complete the two-factor sign-in challenge first."
+    ,"adminReauthenticationRequired": "Confirm your password and authenticator code before this high-risk action."
+    ,"adminReauthenticationFailed": "The password or authenticator code is incorrect."
+    ,"twoFactorExpired": "This two-factor challenge expired. Sign in again."
+    ,"twoFactorInvalid": "Enter a valid current six-digit authenticator code."
+    ,"twoFactorAlreadyEnabled": "Two-factor authentication is already enabled."
+    ,"twoFactorSetupMissing": "Start two-factor setup again."
+    ,"googleUnavailable": "Google sign-in is not configured."
+    ,"googleReplay": "That Google sign-in response was already used."
+    ,"googleLinkRequired": "Sign in with your password first, then link Google from account security."
+    ,"googleRegistrationProfileRequired": "Complete username, date of birth, gender, and country before continuing with Google."
+    ,"googleInvalid": "Google could not verify this sign-in. Try again."
+    ,"googleEmailMismatch": "Google must use the same verified email as this account."
+    ,"googleIdentityInUse": "That Google account is already linked."
+    ,"googleIdentityMissing": "No Google account is linked."
+    ,"googleOnlyLogin": "Add a password before unlinking your only sign-in method."
+    ,"ownAdminRole": "You can’t remove your own administrator role."
+    ,"protectedProfileInvalid": "Provide a valid birth date and support reason."
+    ,"profileAlreadyComplete": "This profile is already complete."
   }
 }
