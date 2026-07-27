@@ -245,6 +245,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   await linkedAccount
     .post('/login')
     .set('Accept', 'application/json')
+    .set('X-Forwarded-For', '198.51.100.43')
     .send({ email: 'email-member-new@example.test', password: 'ChangedPassword123!' })
     .expect(200);
   await linkedAccount
@@ -263,11 +264,13 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   await request(runtime.app)
     .post('/auth/google')
     .set('Accept', 'application/json')
+    .set('X-Forwarded-For', '198.51.100.44')
     .send({ credential: 'google-revoked' })
     .expect(401);
   await request(runtime.app)
     .post('/auth/google')
     .set('Accept', 'application/json')
+    .set('X-Forwarded-For', '198.51.100.44')
     .send({})
     .expect(401);
 
@@ -275,6 +278,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   const googleRegistration = await google
     .post('/auth/google')
     .set('Accept', 'application/json')
+    .set('X-Forwarded-For', '198.51.100.44')
     .send({
       credential: 'google-new',
       username: 'google_new',
@@ -291,6 +295,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   await request(runtime.app)
     .post('/auth/google')
     .set('Accept', 'application/json')
+    .set('X-Forwarded-For', '198.51.100.44')
     .send({
       credential: 'google-new',
       username: 'google_new_again',
@@ -321,6 +326,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   await request(runtime.app)
     .post('/auth/google')
     .set('Accept', 'application/json')
+    .set('X-Forwarded-For', '198.51.100.44')
     .send({ credential: 'google-banned' })
     .expect(403);
 });
