@@ -27,7 +27,7 @@ This file is the product and engineering source of truth for unfinished work. It
   - Handle `SIGTERM`: reject new matches, notify connected clients, finish/persist active work and close HTTP/Socket.IO cleanly.
   - Repository implementation, automated lifecycle tests and the real staging redeploy evidence are documented in [`docs/release/health-and-draining.md`](docs/release/health-and-draining.md).
 - [x] **N0.5 — Prove recovery.** Self-managed pgBackRest PITR to private Cloudflare R2, the guarded verifier, failure/capacity controls and the reviewed real Railway staging restore drill are documented in [`docs/release/database-recovery.md`](docs/release/database-recovery.md) and [`docs/release/recovery-drill-record.md`](docs/release/recovery-drill-record.md).
-- [ ] **N0.6 — Establish automated coverage (initial scope).**
+- [x] **N0.6 — Establish automated coverage (initial scope).**
   - Integration tests for migrations, registration, login, logout, profile validation.
   - Authorization tests for every admin endpoint and destructive action currently implemented.
   - Two-client Socket.IO tests for guest/account matching, messages, unread counts, read receipts, cooldowns and disconnects.

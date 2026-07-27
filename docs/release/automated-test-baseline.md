@@ -92,7 +92,17 @@ Do not check N0.6 until:
 - Local unit tests: 8 passed on 2026-07-27.
 - Local guest Socket.IO tests: 3 passed on 2026-07-27.
 - Local Chromium guest-passport tests: 2 passed on 2026-07-27.
-- Disposable-Postgres integration tests: pending GitHub CI.
-- Full GitHub Chromium run: pending GitHub CI.
-- Reviewed commit: pending.
-- Successful GitHub Actions run: pending.
+- Reviewed commit:
+  [`da824a675f3785528ad588e3a2db2f83cfcffdd4`](https://github.com/gabriellos88/Nevely/pull/1/commits/da824a675f3785528ad588e3a2db2f83cfcffdd4)
+  on pull request
+  [#1](https://github.com/gabriellos88/Nevely/pull/1).
+- GitHub Actions run
+  [`30279777122`](https://github.com/gabriellos88/Nevely/actions/runs/30279777122)
+  passed on 2026-07-27 in 1m 07s.
+- Its required `Migrations and tests` job passed in 1m 02s, including
+  migrations on disposable PostgreSQL, server/integration tests and the full
+  Chromium suite.
+- The `main` rule still requires `Migrations and tests` before merge, as
+  confirmed during acceptance review.
+- The run uploaded no artifacts, preserving the policy against retaining
+  browser traces, screenshots or user-visible data.
