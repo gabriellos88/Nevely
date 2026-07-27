@@ -663,6 +663,11 @@
     "reportActionTaken": "We reviewed your report and took action.",
     "reportDismissed": "We reviewed your report and closed it."
   },
+  "release": {
+    "drainingTitle": "Update in progress",
+    "drainingBody": "New matches are paused. Active chats have up to {seconds} seconds to finish.",
+    "complete": "The update is ready. Refresh this page to reconnect."
+  },
   "errors": {
     "serviceUnavailable": "This feature isn’t available right now. Please try again soon.",
     "unexpected": "Something went wrong. Please try again.",

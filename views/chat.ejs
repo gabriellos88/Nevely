@@ -59,6 +59,14 @@
         </nav>
       </header>
 
+      <div class="release-notice hidden" id="releaseNotice" role="status" aria-live="assertive">
+        <span class="release-notice-icon" aria-hidden="true"><i data-lucide="clock-3"></i></span>
+        <div>
+          <strong><%= copy.release.drainingTitle %></strong>
+          <span id="releaseNoticeBody"><%= copy.release.drainingBody.replace('{seconds}', '25') %></span>
+        </div>
+      </div>
+
       <% if (!currentUser) { %>
         <aside class="guest-access-reminder" role="note" aria-label="<%= copy.chat.reminder.aria %>">
           <span class="guest-access-reminder-icon" aria-hidden="true"><i data-lucide="user-plus"></i></span>

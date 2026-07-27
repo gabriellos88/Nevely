@@ -1,4 +1,5 @@
 const { Pool } = require('pg');
+const safeLog = require('./lib/safe-log');
 
 const connectionString = process.env.DATABASE_URL;
 const pool = connectionString
@@ -12,10 +13,10 @@ const pool = connectionString
 
 if (pool) {
   pool.on('error', (error) => {
-    console.error('Unexpected PostgreSQL error:', error);
+    safeLog.error('database.pool_error', error);
   });
 } else {
-  console.warn('DATABASE_URL is not configured. PostgreSQL features are disabled.');
+  safeLog.warn('database.not_configured');
 }
 
 function ensurePool() {
@@ -37,5 +38,9 @@ module.exports = {
 
   getClient() {
     return ensurePool().connect();
+  },
+
+  async close() {
+    if (pool) await pool.end();
   }
 };

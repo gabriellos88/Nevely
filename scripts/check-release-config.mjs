@@ -1,0 +1,94 @@
+import assert from 'node:assert/strict';
+import { readFile } from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+
+const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
+
+async function text(relativePath) {
+  return readFile(path.join(root, relativePath), 'utf8');
+}
+
+const railway = JSON.parse(await text('railway.json'));
+const packageJson = JSON.parse(await text('package.json'));
+const workflow = await text('.github/workflows/ci.yml');
+const playwright = await text('playwright.config.js');
+const environmentExample = await text('.env.example');
+const resendSmoke = await text('scripts/smoke-resend.mjs');
+
+assert.equal(railway.deploy.healthcheckPath, '/health/ready');
+assert.ok(Number(railway.deploy.healthcheckTimeout) > 0);
+assert.equal(typeof railway.deploy.overlapSeconds, 'number');
+assert.ok(railway.deploy.overlapSeconds > 0);
+assert.equal(typeof railway.deploy.drainingSeconds, 'number');
+assert.ok(railway.deploy.drainingSeconds >= 30);
+assert.ok(railway.deploy.preDeployCommand.includes('npm run db:migrate'));
+assert.equal(
+  railway.deploy.startCommand,
+  'node server.js',
+  'Railway must signal the Node process directly during draining'
+);
+
+for (const script of [
+  'check',
+  'db:migrate',
+  'smoke:staging:drain',
+  'smoke:staging:email',
+  'test:server',
+  'test:browser'
+]) {
+  assert.ok(packageJson.scripts[script], `Missing package script required by CI: ${script}`);
+}
+
+for (const requiredWorkflowFragment of [
+  'permissions:',
+  'contents: read',
+  'postgres:17-alpine',
+  'npm ci',
+  'npm run db:migrate',
+  'npm run check',
+  'npm run test:server',
+  'npm run test:browser'
+]) {
+  assert.ok(
+    workflow.includes(requiredWorkflowFragment),
+    `CI workflow is missing: ${requiredWorkflowFragment}`
+  );
+}
+assert.equal(workflow.includes('${{ secrets.'), false, 'CI must not load deployment secrets');
+
+for (const privacySetting of [
+  "screenshot: 'off'",
+  "trace: 'off'",
+  "video: 'off'"
+]) {
+  assert.ok(playwright.includes(privacySetting), `Browser tests must retain ${privacySetting}`);
+}
+
+assert.ok(
+  playwright.includes('PLAYWRIGHT_BASE_URL'),
+  'Browser acceptance tests must support a remote staging origin'
+);
+assert.ok(
+  playwright.includes('externalBaseURL ? undefined'),
+  'Remote browser acceptance tests must not start a local server'
+);
+assert.ok(
+  resendSmoke.includes("'delivered+staging@resend.dev'"),
+  'Resend staging smoke must use the fixed provider test recipient'
+);
+assert.equal(
+  resendSmoke.includes('console.log(apiKey)'),
+  false,
+  'Resend staging smoke must not print its API key'
+);
+
+assert.match(environmentExample, /ANALYTICS_MODE=disabled/);
+assert.match(environmentExample, /ROBOTS_INDEXING=disabled/);
+assert.equal(
+  /RESEND_API_KEY=re_[A-Za-z0-9]{10,}/.test(environmentExample),
+  false,
+  '.env.example must not contain a Resend credential'
+);
+
+console.log('Release configuration check passed for CI, Railway and privacy-safe browser artifacts.');
