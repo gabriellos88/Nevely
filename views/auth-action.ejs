@@ -1,0 +1,74 @@
+<%- include('partials/header', { hideSiteHeader: true }) %>
+
+<main class="auth-page auth-page--action">
+  <section class="auth-shell auth-shell--action" aria-labelledby="auth-action-title">
+    <div class="auth-entry">
+      <header class="auth-entry__header">
+        <p class="auth-kicker"><%= copy.common.brand %></p>
+        <h1 id="auth-action-title"><%= title %></h1>
+        <p><%= message %></p>
+      </header>
+
+      <% if (error) { %>
+        <div class="auth-error" role="alert"><%= error %></div>
+      <% } %>
+
+      <% if (mode === 'request-reset') { %>
+        <form class="auth-form" method="post" action="/forgot-password">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label class="auth-field">
+            <span><%= copy.common.email %></span>
+            <span class="auth-field-shell">
+              <i data-lucide="mail" aria-hidden="true"></i>
+              <input name="email" type="email" maxlength="255" autocomplete="email" required>
+            </span>
+          </label>
+          <button class="auth-submit" type="submit"><%= copy.auth.sendResetAction %></button>
+        </form>
+      <% } else if (mode === 'reset-password') { %>
+        <form class="auth-form" method="post" action="/reset-password">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="token" value="<%= token %>">
+          <label class="auth-field">
+            <span><%= copy.auth.newPassword %></span>
+            <span class="auth-field-shell">
+              <i data-lucide="lock-keyhole" aria-hidden="true"></i>
+              <input name="password" type="password" minlength="8" maxlength="72"
+                     autocomplete="new-password" required>
+            </span>
+          </label>
+          <button class="auth-submit" type="submit"><%= copy.auth.resetPasswordAction %></button>
+        </form>
+      <% } else if (mode === 'confirm-email') { %>
+        <form class="auth-form" method="post" action="/confirm-email-change">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="token" value="<%= token %>">
+          <button class="auth-submit" type="submit"><%= copy.auth.confirmEmailAction %></button>
+        </form>
+      <% } else if (mode === 'verify-email') { %>
+        <form class="auth-form" method="post" action="/verify-email">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="token" value="<%= token %>">
+          <button class="auth-submit" type="submit"><%= copy.auth.verifyEmailAction %></button>
+        </form>
+      <% } else if (mode === 'two-factor') { %>
+        <form class="auth-form" method="post" action="/login/2fa">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label class="auth-field">
+            <span><%= copy.auth.twoFactorCode %></span>
+            <span class="auth-field-shell">
+              <i data-lucide="shield-check" aria-hidden="true"></i>
+              <input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+                     autocomplete="one-time-code" required>
+            </span>
+          </label>
+          <button class="auth-submit" type="submit"><%= copy.auth.twoFactorAction %></button>
+        </form>
+      <% } else { %>
+        <a class="auth-submit" href="/login"><%= copy.auth.backToLogin %></a>
+      <% } %>
+    </div>
+  </section>
+</main>
+
+<%- include('partials/footer') %>

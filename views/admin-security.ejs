@@ -1,0 +1,52 @@
+<%- include('partials/header') %>
+<main class="admin-page">
+  <div class="admin-wrap">
+    <header class="admin-security-header">
+      <p class="auth-kicker"><%= copy.admin.securityEyebrow %></p>
+      <h1><%= copy.admin.securityTitle %></h1>
+      <p><%= copy.admin.securityBody %></p>
+    </header>
+
+    <section class="admin-section">
+      <h2><%= copy.admin.emailVerification %></h2>
+      <p><%= user.email_verified_at ? copy.admin.emailVerified : copy.admin.emailNotVerified %></p>
+      <% if (!user.email_verified_at) { %>
+        <button class="btn btn-primary" id="resendAdminVerification" type="button">
+          <%= copy.admin.resendVerification %>
+        </button>
+      <% } %>
+    </section>
+
+    <section class="admin-section">
+      <h2><%= copy.admin.twoFactorTitle %></h2>
+      <% if (user.admin_2fa_enabled_at) { %>
+        <p><%= copy.admin.twoFactorEnabled %></p>
+        <a class="btn btn-primary" href="/admin"><%= copy.admin.openConsole %></a>
+      <% } else { %>
+        <p><%= copy.admin.twoFactorSetupBody %></p>
+        <form class="admin-price-form" id="adminTwoFactorSetup">
+          <label>
+            <span><%= copy.common.password %></span>
+            <input name="password" type="password" autocomplete="current-password">
+          </label>
+          <button class="btn btn-primary" type="submit"><%= copy.admin.beginTwoFactor %></button>
+        </form>
+        <div class="admin-2fa-secret hidden" id="adminTwoFactorSecret">
+          <p><%= copy.admin.twoFactorSecretHint %></p>
+          <code id="adminTwoFactorSecretValue"></code>
+          <form class="admin-price-form" id="adminTwoFactorConfirm">
+            <label>
+              <span><%= copy.auth.twoFactorCode %></span>
+              <input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
+                     autocomplete="one-time-code" required>
+            </label>
+            <button class="btn btn-primary" type="submit"><%= copy.admin.confirmTwoFactor %></button>
+          </form>
+        </div>
+      <% } %>
+      <p id="adminSecurityFeedback" role="status" aria-live="polite"></p>
+    </section>
+  </div>
+</main>
+<script src="/js/admin-security.js"></script>
+<%- include('partials/footer') %>
