@@ -562,6 +562,31 @@
                   <p><%= copy.account.securityDescription %></p>
                 </div>
               </div>
+              <% if (googleClientId) { %>
+                <div class="account-google-provider" id="googleIdentitySettings">
+                  <div class="account-google-provider__header">
+                    <span class="account-google-provider__mark" aria-hidden="true">G</span>
+                    <div>
+                      <strong><%= copy.account.googleProvider %></strong>
+                      <span id="googleIdentityStatus"><%= copy.account.googleNotConnected %></span>
+                    </div>
+                  </div>
+                  <p id="googleIdentityDescription"><%= copy.account.googleLinkDescription %></p>
+                  <div class="account-google-link" id="googleIdentityLink">
+                    <div id="googleIdentityLinkButton" aria-label="<%= copy.account.linkGoogle %>"></div>
+                  </div>
+                  <p class="account-google-only hidden" id="googleIdentityOnly" role="status">
+                    <%= copy.account.googleOnlyDescription %>
+                  </p>
+                  <form class="account-form account-google-unlink-form hidden" id="googleIdentityUnlinkForm">
+                    <label>
+                      <%= copy.account.unlinkPassword %>
+                      <input name="password" type="password" autocomplete="current-password" required>
+                    </label>
+                    <button class="btn btn-outline" type="submit"><%= copy.account.unlinkGoogle %></button>
+                  </form>
+                </div>
+              <% } %>
               <form class="account-form" id="passwordChangeForm">
                 <label><%= copy.account.currentPassword %><input name="currentPassword" type="password" autocomplete="current-password" required></label>
                 <label><%= copy.auth.newPassword %><input name="newPassword" type="password" minlength="8" maxlength="72" autocomplete="new-password" required></label>
@@ -656,10 +681,18 @@
       window.__IS_GUEST__ = <%= isGuest ? 'true' : 'false' %>;
       window.__GUEST_DURATION__ = <%= guestDurationSeconds %>;
       window.__CURRENT_USER__ = <%- JSON.stringify(currentUser || null).replace(/</g, '\\u003c') %>;
+      window.__GOOGLE_CONFIG__ = <%- JSON.stringify({
+        enabled: Boolean(googleClientId),
+        clientId: googleClientId,
+        nonce: googleNonce
+      }).replace(/</g, '\\u003c') %>;
     </script>
     <script src="/socket.io/socket.io.js"></script>
     <script src="/vendor/lucide-1.24.0.min.js"></script>
     <script src="/js/guest-profile-store.js"></script>
     <script src="/js/chat-client.js"></script>
+    <% if (googleClientId) { %>
+      <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <% } %>
   </body>
 </html>

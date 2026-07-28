@@ -21,7 +21,27 @@ window.handleGoogleCredential = async ({ credential } = {}) => {
       body: JSON.stringify({ ...values, credential })
     });
     const data = await response.json().catch(() => ({}));
-    if (!response.ok) throw new Error(data.error || 'Google sign-in could not be completed.');
+    if (!response.ok) {
+      if (response.status === 422
+        && data.code === 'GOOGLE_PROFILE_REQUIRED'
+        && authConfiguration.mode === 'login') {
+        window.location.assign('/register?google=profile-required');
+        return;
+      }
+      throw new Error(data.error || 'Google sign-in could not be completed.');
+    }
+    if (data.twoFactorRequired) {
+      window.location.assign('/login/2fa');
+      return;
+    }
+    if (data.profileCompletionRequired) {
+      window.location.assign('/complete-profile');
+      return;
+    }
+    if (data.adminTwoFactorSetupRequired) {
+      window.location.assign('/admin/security');
+      return;
+    }
     window.location.assign('/chat');
   } catch (error) {
     feedback.textContent = error.message;

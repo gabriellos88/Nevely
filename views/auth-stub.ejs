@@ -42,6 +42,13 @@
         </div>
       <% } %>
 
+      <% if (googleProfileRequired) { %>
+        <div class="auth-notice" role="status">
+          <i data-lucide="info" aria-hidden="true"></i>
+          <span><%= copy.auth.googleProfileHint %></span>
+        </div>
+      <% } %>
+
       <div class="auth-provider-stack">
         <% if (googleClientId) { %>
           <div id="g_id_onload"
@@ -165,8 +172,8 @@
     googleEnabled: Boolean(googleClientId)
   }).replace(/</g, '\\u003c') %>;
 </script>
+<script src="/js/auth-client.js"></script>
 <% if (googleClientId) { %>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 <% } %>
-<script src="/js/auth-client.js"></script>
 <%- include('partials/footer') %>

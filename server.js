@@ -1,5 +1,6 @@
 require('dotenv').config();
 
+const crypto = require('crypto');
 const express = require('express');
 const http = require('http');
 const path = require('path');
@@ -186,11 +187,16 @@ function createRuntime(options = {}) {
     const isGuest = !currentUser;
     if (isGuest && req.query.guest !== '1') return res.redirect('/login');
     if (currentUser && !currentUser.profileComplete) return res.redirect('/complete-profile');
+    if (currentUser && environment.GOOGLE_CLIENT_ID && !req.session.googleNonce) {
+      req.session.googleNonce = crypto.randomBytes(24).toString('base64url');
+    }
     return res.render('chat', {
       pageTitle: uiCopy.pageTitles.chat,
       isGuest,
       currentUser,
-      guestDurationSeconds: GUEST_CHAT_DURATION_SECONDS
+      guestDurationSeconds: GUEST_CHAT_DURATION_SECONDS,
+      googleClientId: currentUser ? environment.GOOGLE_CLIENT_ID || '' : '',
+      googleNonce: currentUser ? req.session.googleNonce || '' : ''
     });
   });
 

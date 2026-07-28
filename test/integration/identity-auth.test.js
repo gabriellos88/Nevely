@@ -4,6 +4,7 @@ const request = require('supertest');
 const { createRuntime } = require('../../server');
 const safeLog = require('../../lib/safe-log');
 const { hashToken } = require('../../lib/account-email');
+const { encryptSecret, totp } = require('../../lib/totp');
 const { resetDatabase } = require('../helpers/database');
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
@@ -65,8 +66,16 @@ test('N1 email tokens, session revocation and Google identity contracts', {
       name: 'Linked Member',
       picture: '',
       expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+    }],
+    ['google-admin', {
+      subject: 'google-subject-admin',
+      email: 'google-admin@example.test',
+      name: 'Google Admin',
+      picture: '',
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     }]
   ]);
+  const totpEncryptionKey = 'identity-integration-totp-key-32-characters';
   const runtime = createRuntime({
     db,
     closeDatabaseOnShutdown: false,
@@ -75,6 +84,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
       NODE_ENV: 'test',
       PUBLIC_ORIGIN: 'http://localhost:3000',
       SESSION_SECRET: 'identity-integration-secret-32-characters',
+      ADMIN_TOTP_ENCRYPTION_KEY: totpEncryptionKey,
       EMAIL_DELIVERY_MODE: 'disabled'
     },
     googleVerifier: async (credential) => {
@@ -248,10 +258,20 @@ test('N1 email tokens, session revocation and Google identity contracts', {
     .set('X-Forwarded-For', '198.51.100.43')
     .send({ email: 'email-member-new@example.test', password: 'ChangedPassword123!' })
     .expect(200);
+  let linkedMethods = (await linkedAccount.get('/api/account').expect(200)).body.user;
+  assert.equal(linkedMethods.hasPassword, true);
+  assert.equal(linkedMethods.hasGoogle, false);
+  await linkedAccount
+    .post('/api/account/identities/google')
+    .send({ credential: 'google-revoked' })
+    .expect(401);
   await linkedAccount
     .post('/api/account/identities/google')
     .send({ credential: 'google-link' })
     .expect(201);
+  linkedMethods = (await linkedAccount.get('/api/account').expect(200)).body.user;
+  assert.equal(linkedMethods.hasPassword, true);
+  assert.equal(linkedMethods.hasGoogle, true);
   await linkedAccount
     .delete('/api/account/identities/google')
     .send({ password: 'wrong-password' })
@@ -260,6 +280,9 @@ test('N1 email tokens, session revocation and Google identity contracts', {
     .delete('/api/account/identities/google')
     .send({ password: 'ChangedPassword123!' })
     .expect(204);
+  linkedMethods = (await linkedAccount.get('/api/account').expect(200)).body.user;
+  assert.equal(linkedMethods.hasPassword, true);
+  assert.equal(linkedMethods.hasGoogle, false);
 
   await request(runtime.app)
     .post('/auth/google')
@@ -288,6 +311,9 @@ test('N1 email tokens, session revocation and Google identity contracts', {
     })
     .expect(201);
   assert.equal(googleRegistration.body.user.emailVerified, true);
+  const googleMethods = (await google.get('/api/account').expect(200)).body.user;
+  assert.equal(googleMethods.hasPassword, false);
+  assert.equal(googleMethods.hasGoogle, true);
   await google
     .delete('/api/account/identities/google')
     .send({})
@@ -329,4 +355,38 @@ test('N1 email tokens, session revocation and Google identity contracts', {
     .set('X-Forwarded-For', '198.51.100.44')
     .send({ credential: 'google-banned' })
     .expect(403);
+
+  const adminTotpSecret = 'JBSWY3DPEHPK3PXP';
+  const googleAdmin = await db.query(
+    `INSERT INTO users
+       (username, email, password_hash, public_id, display_alias, display_name,
+        birth_date, gender, country, country_code, profile_completed_at,
+        email_verified_at, role, admin_totp_secret, admin_2fa_enabled_at)
+     VALUES ('google_admin', 'google-admin@example.test', NULL,
+             'nvy_bbbbbbbbbbbbbbbbbbbb', 'Nevely#bbbbbb', 'Google Admin',
+             '1990-06-15', 'non-binary', 'Switzerland', 'ch', NOW(), NOW(),
+             'admin', $1, NOW())
+     RETURNING id`,
+    [encryptSecret(adminTotpSecret, totpEncryptionKey)]
+  );
+  await db.query(
+    `INSERT INTO account_identities (user_id, provider, provider_subject, provider_email)
+     VALUES ($1, 'google', 'google-subject-admin', 'google-admin@example.test')`,
+    [googleAdmin.rows[0].id]
+  );
+  const adminAgent = request.agent(runtime.app);
+  const adminGoogleLogin = await adminAgent
+    .post('/auth/google')
+    .set('Accept', 'application/json')
+    .set('X-Forwarded-For', '198.51.100.45')
+    .send({ credential: 'google-admin' })
+    .expect(202);
+  assert.equal(adminGoogleLogin.body.twoFactorRequired, true);
+  assert.equal((await adminAgent.get('/api/auth/me').expect(200)).body.user, null);
+  const adminChallenge = await adminAgent
+    .post('/login/2fa')
+    .set('Accept', 'application/json')
+    .send({ code: totp(adminTotpSecret) })
+    .expect(200);
+  assert.equal(adminChallenge.body.user.role, 'admin');
 });

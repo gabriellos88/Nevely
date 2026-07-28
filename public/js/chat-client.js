@@ -1,5 +1,6 @@
 const uiCopy = window.__COPY__;
 const chatCopy = uiCopy.chat;
+const googleConfiguration = window.__GOOGLE_CONFIG__ || {};
 
 function formatCopy(template, values = {}) {
   return template.replace(/\{(\w+)\}/g, (match, key) => String(values[key] ?? match));
@@ -93,6 +94,15 @@ const guestAccountFeedback = document.getElementById('guestAccountFeedback');
 const guestLogoutBtn = document.getElementById('guestLogoutBtn');
 const guestReminderDismiss = document.getElementById('guestReminderDismiss');
 const accountFeedback = document.getElementById('accountFeedback');
+const accountSecurityFeedback = document.getElementById('accountSecurityFeedback');
+const passwordChangeForm = document.getElementById('passwordChangeForm');
+const emailChangeForm = document.getElementById('emailChangeForm');
+const googleIdentityStatus = document.getElementById('googleIdentityStatus');
+const googleIdentityDescription = document.getElementById('googleIdentityDescription');
+const googleIdentityLink = document.getElementById('googleIdentityLink');
+const googleIdentityLinkButton = document.getElementById('googleIdentityLinkButton');
+const googleIdentityOnly = document.getElementById('googleIdentityOnly');
+const googleIdentityUnlinkForm = document.getElementById('googleIdentityUnlinkForm');
 const accountPlan = document.getElementById('accountPlan');
 const logoutBtn = document.getElementById('logoutBtn');
 const deleteAccountBtn = document.getElementById('deleteAccountBtn');
@@ -135,6 +145,12 @@ let guestCountryActiveIndex = -1;
 let chatComposerMode = 'idle';
 let releaseDraining = false;
 let releaseCountdownTimer = null;
+let googleIdentityInitialized = false;
+let accountSecurityState = {
+  email: currentUser?.email || '',
+  hasGoogle: false,
+  hasPassword: false
+};
 const pendingSentMessages = [];
 
 const topbarCounts = { messages: 0, friends: 0, notifications: 0 };
@@ -1931,6 +1947,90 @@ function handleAccountModalKeydown(event) {
   }
 }
 
+function initializeGoogleIdentity(attempt = 0) {
+  if (!googleConfiguration.enabled || !googleIdentityLinkButton || accountSecurityState.hasGoogle) {
+    return;
+  }
+  if (!window.google?.accounts?.id) {
+    if (attempt < 80) {
+      window.setTimeout(() => initializeGoogleIdentity(attempt + 1), 50);
+    } else if (accountSecurityFeedback) {
+      accountSecurityFeedback.textContent = uiCopy.errors.googleUnavailable;
+    }
+    return;
+  }
+  if (!googleIdentityInitialized) {
+    window.google.accounts.id.initialize({
+      client_id: googleConfiguration.clientId,
+      callback: window.handleGoogleLinkCredential,
+      nonce: googleConfiguration.nonce
+    });
+    googleIdentityInitialized = true;
+  }
+  googleIdentityLinkButton.replaceChildren();
+  window.google.accounts.id.renderButton(googleIdentityLinkButton, {
+    type: 'standard',
+    theme: 'filled_black',
+    size: 'large',
+    shape: 'pill',
+    text: 'continue_with',
+    logo_alignment: 'left',
+    width: 320
+  });
+}
+
+function renderAccountSecurity(user) {
+  accountSecurityState = {
+    email: user.email || '',
+    hasGoogle: Boolean(user.hasGoogle),
+    hasPassword: Boolean(user.hasPassword)
+  };
+  passwordChangeForm?.classList.toggle('hidden', !accountSecurityState.hasPassword);
+  emailChangeForm?.classList.toggle('hidden', !accountSecurityState.hasPassword);
+  if (!googleConfiguration.enabled || !googleIdentityStatus) return;
+
+  googleIdentityStatus.textContent = accountSecurityState.hasGoogle
+    ? uiCopy.account.googleConnected
+    : uiCopy.account.googleNotConnected;
+  googleIdentityDescription.textContent = accountSecurityState.hasGoogle
+    ? uiCopy.account.googleLinkedDescription
+    : formatCopy(uiCopy.account.googleLinkDescription, {
+      email: accountSecurityState.email
+    });
+  googleIdentityLink?.classList.toggle('hidden', accountSecurityState.hasGoogle);
+  googleIdentityOnly?.classList.toggle(
+    'hidden',
+    !accountSecurityState.hasGoogle || accountSecurityState.hasPassword
+  );
+  googleIdentityUnlinkForm?.classList.toggle(
+    'hidden',
+    !accountSecurityState.hasGoogle || !accountSecurityState.hasPassword
+  );
+  if (!accountSecurityState.hasGoogle) initializeGoogleIdentity();
+}
+
+window.handleGoogleLinkCredential = async ({ credential } = {}) => {
+  if (!credential || !currentUser) return;
+  if (accountSecurityFeedback) {
+    accountSecurityFeedback.textContent = uiCopy.account.googleLoading;
+  }
+  try {
+    await api('/api/account/identities/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential })
+    });
+    renderAccountSecurity({
+      ...accountSecurityState,
+      hasGoogle: true
+    });
+    if (accountSecurityFeedback) {
+      accountSecurityFeedback.textContent = uiCopy.account.googleLinkedFeedback;
+    }
+  } catch (error) {
+    if (accountSecurityFeedback) accountSecurityFeedback.textContent = error.message;
+  }
+};
+
 async function openAccountSettings(initialTab = 'account', { focusTab = false } = {}) {
   if (accountModal?.classList.contains('hidden')) {
     accountModalRestoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -1968,6 +2068,7 @@ async function openAccountSettings(initialTab = 'account', { focusTab = false } 
     accountForm.elements.gender.value = user.gender || '';
     accountForm.elements.countryCode.value = user.country_code || '';
     accountForm.elements.profileImageUrl.value = user.profile_image_url || '';
+    renderAccountSecurity(user);
     accountPlan.textContent = user.plan === 'premium' ? uiCopy.account.premiumPlan : uiCopy.account.freePlan;
     const displayName = user.display_name || uiCopy.common.profile;
     if (accountAvatarFallback) {
@@ -2029,9 +2130,8 @@ async function logout() {
   window.location.href = '/';
 }
 
-document.getElementById('passwordChangeForm')?.addEventListener('submit', async (event) => {
+passwordChangeForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const feedback = document.getElementById('accountSecurityFeedback');
   try {
     const values = Object.fromEntries(new FormData(event.currentTarget));
     await api('/api/account/password', {
@@ -2040,22 +2140,47 @@ document.getElementById('passwordChangeForm')?.addEventListener('submit', async 
     });
     window.location.assign('/login');
   } catch (error) {
-    feedback.textContent = error.message;
+    accountSecurityFeedback.textContent = error.message;
   }
 });
 
-document.getElementById('emailChangeForm')?.addEventListener('submit', async (event) => {
+emailChangeForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
-  const feedback = document.getElementById('accountSecurityFeedback');
   try {
     const values = Object.fromEntries(new FormData(event.currentTarget));
     const data = await api('/api/account/email-change', {
       method: 'POST',
       body: JSON.stringify(values)
     });
-    feedback.textContent = data.message;
+    accountSecurityFeedback.textContent = data.message;
   } catch (error) {
-    feedback.textContent = error.message;
+    accountSecurityFeedback.textContent = error.message;
+  }
+});
+
+googleIdentityUnlinkForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  accountSecurityFeedback.textContent = '';
+  try {
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    await api('/api/account/identities/google', {
+      method: 'DELETE',
+      body: JSON.stringify(values)
+    });
+    event.currentTarget.reset();
+    renderAccountSecurity({
+      ...accountSecurityState,
+      hasGoogle: false
+    });
+    accountSecurityFeedback.textContent = uiCopy.account.googleUnlinkedFeedback;
+  } catch (error) {
+    accountSecurityFeedback.textContent = error.message;
+  } finally {
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
   }
 });
 
