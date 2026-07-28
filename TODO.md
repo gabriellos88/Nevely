@@ -68,7 +68,7 @@ This file is the product and engineering source of truth for unfinished work. It
   - Define explicit and takeover-safe flows for new Google accounts, linking/unlinking an existing password account, passwordless accounts and guest claim/merge.
   - Do not request or retain Google access/refresh tokens unless a future feature genuinely needs a separate Google API authorization.
   - Test cancellation, replay, duplicate email/account conflicts, revoked access, banned accounts and staging/production configuration.
-  - **Repository status:** the application flow and its automated contracts are implemented. Keep this item open until separate staging/production Google web clients are created, their exact origins and secrets are configured and staging acceptance is recorded.
+  - **Repository status:** application flow, automated contracts, staging OAuth client, exact staging origin/environment value and staging acceptance are complete. Keep this item open until the separate production Google web client is created and only the exact production origin/environment value is configured.
 - [x] **N1.6 — Add password-reset and verified email-change flows.** Reuse the token/outbox foundation, revoke active sessions after success and notify the previous address after an email change.
 - [x] **N1.7 — Protect administrators.** Add re-authentication for high-risk actions, 2FA for admin accounts and server-side role checks that do not trust stale session role data.
 - [x] **N1.8 — Correct the support address everywhere.** Replace `support@nevely.com` with the configured and verified `support@nevely.app`.

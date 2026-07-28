@@ -31,6 +31,12 @@ codice, migrazione, test, rollout e rollback. `main` richiede PR, CI
 7. Annotare esito, anomalie e rollback nel PR/runbook.
 8. Fare merge in `main`, distribuire produzione e controllare readiness/log.
 
+Per i click Railway, i comandi di verifica, il destinatario email isolato, le
+correzioni più comuni e il rollback dello staging, seguire il
+[Runbook staging](staging-release-runbook.md). Non sostituire questa checklist
+con un deploy manuale: il runbook documenta l'ordine sicuro GitHub → Railway →
+verifiche → gate di produzione.
+
 ## Migrazioni database
 
 Railway esegue `npm run db:migrate` prima dell'avvio. Per modifiche rischiose:

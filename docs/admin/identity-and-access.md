@@ -32,6 +32,12 @@ Google e protezione amministratori.
 `EMAIL_DELIVERY_MODE=disabled` conserva il lavoro nell'outbox senza fingere un
 invio. Il worker usa retry con backoff e una chiave idempotente stabile.
 
+Per verificare senza esporre segreti la configurazione e l'invio isolato di
+staging, usare nell'ordine `npm run check:env:staging` e
+`npm run smoke:staging:email` come descritto nel
+[Runbook staging](staging-release-runbook.md). Lo smoke test è consentito solo
+con `EMAIL_DELIVERY_MODE=test` e il destinatario Resend di test.
+
 ## Verifica email e recupero account
 
 I token sono casuali, monouso, legati a uno scopo e salvati solo come hash in
@@ -69,6 +75,11 @@ La chiave durevole è il `sub` Google in `account_identities`, non l'email.
 Non vengono richiesti né conservati access token o refresh token. Un'email
 già presente non viene collegata automaticamente: l'utente deve autenticarsi
 prima con il metodo esistente.
+
+L'accettazione OAuth di staging del 28 luglio 2026 è registrata in
+[N1.5 Google staging acceptance](../release/n1-google-staging-acceptance.md).
+N1.5 resta aperta finché non viene creato e configurato il client Web separato
+di produzione.
 
 ## Abilitare un amministratore
 
