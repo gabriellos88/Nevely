@@ -386,6 +386,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   const adminChallenge = await adminAgent
     .post('/login/2fa')
     .set('Accept', 'application/json')
+    .set('X-Forwarded-For', '198.51.100.45')
     .send({ code: totp(adminTotpSecret) })
     .expect(200);
   assert.equal(adminChallenge.body.user.role, 'admin');
