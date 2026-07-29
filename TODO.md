@@ -59,7 +59,7 @@ This file is the product and engineering source of truth for unfinished work. It
   - Use an outbox/worker with retries and idempotency instead of an untracked background promise.
   - Add verify, resend and expired/used-token flows with rate limits that do not reveal whether an email exists.
   - Decide which registered features remain restricted until verification.
-- [ ] **N1.5 — Implement Sign in with Google using Google Identity Services.**
+- [x] **N1.5 — Implement Sign in with Google using Google Identity Services.**
   - Create separate production and staging OAuth web clients in a Google Cloud project owned by the private admin account; configure only exact authorized origins/redirects and keep credentials in environment secrets.
   - Replace the disabled placeholder with the official Google Identity Services button and request only authentication scopes (`openid`, `email`, `profile`).
   - Validate the ID token server-side, including signature, issuer, audience, expiry, nonce/CSRF protections and `email_verified`.
@@ -68,12 +68,14 @@ This file is the product and engineering source of truth for unfinished work. It
   - Define explicit and takeover-safe flows for new Google accounts, linking/unlinking an existing password account, passwordless accounts and guest claim/merge.
   - Do not request or retain Google access/refresh tokens unless a future feature genuinely needs a separate Google API authorization.
   - Test cancellation, replay, duplicate email/account conflicts, revoked access, banned accounts and staging/production configuration.
-  - **Repository status:** application flow, automated contracts, staging OAuth client, exact staging origin/environment value and staging acceptance are complete. Keep this item open until the separate production Google web client is created and only the exact production origin/environment value is configured.
+  - **Production acceptance (2026-07-30):** the separate production OAuth client, published consent screen, exact production origin, isolated sealed credentials, live Google login, verified email, admin TOTP challenge and dashboard access all passed.
 - [x] **N1.6 — Add password-reset and verified email-change flows.** Reuse the token/outbox foundation, revoke active sessions after success and notify the previous address after an email change.
 - [x] **N1.7 — Protect administrators.** Add re-authentication for high-risk actions, 2FA for admin accounts and server-side role checks that do not trust stale session role data.
 - [x] **N1.8 — Correct the support address everywhere.** Replace `support@nevely.com` with the configured and verified `support@nevely.app`.
 
 Implementation and operations evidence for N1 is collected in [`docs/admin/identity-and-access.md`](docs/admin/identity-and-access.md). Database-backed identity contracts live in `test/integration/identity-auth.test.js`; unit, Socket.IO and guest-browser checks remain part of the release baseline.
+
+**N1 status:** complete as of 2026-07-30.
 
 ### N2. Database retention, query bounds and capacity
 
