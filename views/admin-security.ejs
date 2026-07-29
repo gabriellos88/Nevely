@@ -25,10 +25,12 @@
       <% } else { %>
         <p><%= copy.admin.twoFactorSetupBody %></p>
         <form class="admin-price-form" id="adminTwoFactorSetup">
+          <% if (hasPassword) { %>
           <label>
             <span><%= copy.common.password %></span>
-            <input name="password" type="password" autocomplete="current-password">
+            <input name="password" type="password" autocomplete="current-password" required>
           </label>
+          <% } %>
           <button class="btn btn-primary" type="submit"><%= copy.admin.beginTwoFactor %></button>
         </form>
         <div class="admin-2fa-secret hidden" id="adminTwoFactorSecret">

@@ -688,6 +688,8 @@
     "openConsole": "Open admin console",
     "reauthenticateTitle": "Confirm high-risk actions",
     "reauthenticateBody": "Re-enter your password and a current authenticator code. Approval lasts ten minutes.",
+    "reauthenticateGoogleBody": "Confirm the linked Google account and enter a current authenticator code. Approval lasts ten minutes.",
+    "reauthenticateUnavailable": "This administrator has no supported primary sign-in method. Restore a password or linked Google identity before continuing.",
     "reauthenticateAction": "Confirm identity",
     "reauthenticationComplete": "High-risk actions are unlocked for ten minutes."
   },

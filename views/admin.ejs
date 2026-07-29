@@ -4,14 +4,40 @@
     <h1><%= copy.admin.title %></h1>
     <section class="admin-section">
       <h2><%= copy.admin.reauthenticateTitle %></h2>
-      <p><%= copy.admin.reauthenticateBody %></p>
-      <form class="admin-price-form" id="adminReauthForm">
-        <input name="password" type="password" autocomplete="current-password"
-               placeholder="<%= copy.common.password %>">
+      <p><%= adminReauthMethod === 'google'
+        ? copy.admin.reauthenticateGoogleBody
+        : copy.admin.reauthenticateBody %></p>
+      <% if (adminReauthMethod !== 'unavailable') { %>
+      <form class="admin-price-form" id="adminReauthForm"
+            data-reauth-method="<%= adminReauthMethod %>">
+        <% if (adminReauthMethod === 'password') { %>
+          <input name="password" type="password" autocomplete="current-password" required
+                 placeholder="<%= copy.common.password %>">
+        <% } %>
         <input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
                autocomplete="one-time-code" required placeholder="<%= copy.auth.twoFactorCode %>">
-        <button class="btn btn-primary" type="submit"><%= copy.admin.reauthenticateAction %></button>
+        <% if (adminReauthMethod === 'password') { %>
+          <button class="btn btn-primary" type="submit"><%= copy.admin.reauthenticateAction %></button>
+        <% } %>
       </form>
+      <% if (adminReauthMethod === 'google') { %>
+        <div id="g_id_onload"
+             data-client_id="<%= googleClientId %>"
+             data-callback="handleAdminGoogleReauth"
+             data-nonce="<%= adminGoogleNonce %>"
+             data-auto_prompt="false"
+             data-cancel_on_tap_outside="true"></div>
+        <div class="g_id_signin"
+             data-type="standard"
+             data-shape="pill"
+             data-theme="filled_black"
+             data-text="continue_with"
+             data-size="large"
+             data-logo_alignment="left"></div>
+      <% } %>
+      <% } else { %>
+        <p role="alert"><%= copy.admin.reauthenticateUnavailable %></p>
+      <% } %>
       <p id="adminReauthFeedback" role="status" aria-live="polite"></p>
     </section>
     <section class="admin-section">
@@ -47,6 +73,15 @@
     </section>
   </div>
 </main>
-<script nonce="<%= cspNonce %>">window.__COPY__ = <%- JSON.stringify(copy).replace(/</g, '\\u003c') %>;</script>
+<script nonce="<%= cspNonce %>">
+  window.__COPY__ = <%- JSON.stringify(copy).replace(/</g, '\\u003c') %>;
+  window.__ADMIN_CONFIG__ = <%- JSON.stringify({
+    csrfToken,
+    reauthMethod: adminReauthMethod
+  }).replace(/</g, '\\u003c') %>;
+</script>
 <script src="/js/admin.js"></script>
+<% if (adminReauthMethod === 'google') { %>
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+<% } %>
 <%- include('partials/footer') %>

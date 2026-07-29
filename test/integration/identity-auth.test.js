@@ -73,6 +73,20 @@ test('N1 email tokens, session revocation and Google identity contracts', {
       name: 'Google Admin',
       picture: '',
       expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+    }],
+    ['google-admin-reauth', {
+      subject: 'google-subject-admin',
+      email: 'google-admin@example.test',
+      name: 'Google Admin',
+      picture: '',
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+    }],
+    ['google-other-reauth', {
+      subject: 'google-subject-other',
+      email: 'google-other@example.test',
+      name: 'Google Other',
+      picture: '',
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     }]
   ]);
   const totpEncryptionKey = 'identity-integration-totp-key-32-characters';
@@ -85,6 +99,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
       PUBLIC_ORIGIN: 'http://localhost:3000',
       SESSION_SECRET: 'identity-integration-secret-32-characters',
       ADMIN_TOTP_ENCRYPTION_KEY: totpEncryptionKey,
+      GOOGLE_CLIENT_ID: 'synthetic-google-client-id',
       EMAIL_DELIVERY_MODE: 'disabled'
     },
     googleVerifier: async (credential) => {
@@ -390,4 +405,19 @@ test('N1 email tokens, session revocation and Google identity contracts', {
     .send({ code: totp(adminTotpSecret) })
     .expect(200);
   assert.equal(adminChallenge.body.user.role, 'admin');
+  const googleAdminPage = await adminAgent.get('/admin').expect(200);
+  assert.doesNotMatch(googleAdminPage.text, /name="password"/);
+  assert.match(googleAdminPage.text, /data-callback="handleAdminGoogleReauth"/);
+  await adminAgent
+    .post('/api/admin/reauth')
+    .send({ password: 'ArbitraryPassword123!', code: totp(adminTotpSecret) })
+    .expect(401);
+  await adminAgent
+    .post('/api/admin/reauth')
+    .send({ credential: 'google-other-reauth', code: totp(adminTotpSecret) })
+    .expect(401);
+  await adminAgent
+    .post('/api/admin/reauth')
+    .send({ credential: 'google-admin-reauth', code: totp(adminTotpSecret) })
+    .expect(204);
 });

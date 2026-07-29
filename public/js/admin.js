@@ -1,12 +1,14 @@
 const uiCopy = window.__COPY__;
+const adminConfiguration = window.__ADMIN_CONFIG__ || {};
 
 async function adminApi(url, options = {}) {
-  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
   const response = await fetch(url, {
     ...options,
     headers: {
       'Content-Type': 'application/json',
-      'X-CSRF-Token': csrfToken,
+      'X-CSRF-Token': adminConfiguration.csrfToken
+        || document.querySelector('meta[name="csrf-token"]')?.content
+        || '',
       ...(options.headers || {})
     }
   });
@@ -59,6 +61,7 @@ document.getElementById('adminPriceForm')?.addEventListener('submit', async (eve
 
 document.getElementById('adminReauthForm')?.addEventListener('submit', async (event) => {
   event.preventDefault();
+  if (adminConfiguration.reauthMethod !== 'password') return;
   const feedback = document.getElementById('adminReauthFeedback');
   try {
     const values = Object.fromEntries(new FormData(event.currentTarget));
@@ -71,3 +74,20 @@ document.getElementById('adminReauthForm')?.addEventListener('submit', async (ev
     feedback.textContent = error.message;
   }
 });
+
+window.handleAdminGoogleReauth = async ({ credential } = {}) => {
+  if (adminConfiguration.reauthMethod !== 'google' || !credential) return;
+  const form = document.getElementById('adminReauthForm');
+  const feedback = document.getElementById('adminReauthFeedback');
+  if (!form?.reportValidity()) return;
+  try {
+    const values = Object.fromEntries(new FormData(form));
+    await adminApi('/api/admin/reauth', {
+      method: 'POST',
+      body: JSON.stringify({ ...values, credential })
+    });
+    feedback.textContent = uiCopy.admin.reauthenticationComplete;
+  } catch (error) {
+    feedback.textContent = error.message;
+  }
+};

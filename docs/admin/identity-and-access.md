@@ -111,8 +111,11 @@ Procedura per il primo amministratore:
    reinserisce la password se ne possiede una e
    registra il seed nell'app authenticator.
 6. Conferma un codice TOTP corrente.
-7. Effettua nuovamente il login. La console richiede password + TOTP per
-   sbloccare per 10 minuti ban, eliminazioni, ruoli, report e prezzi.
+7. Effettua nuovamente il login. Per sbloccare per 10 minuti ban,
+   eliminazioni, ruoli, report e prezzi, la console richiede password + TOTP
+   agli account con password oppure una credenziale Google fresca + TOTP agli
+   account Google-only. Un campo password non viene mostrato né accettato come
+   fattore per gli account passwordless.
 
 Dopo il bootstrap iniziale, ogni promozione successiva deve passare
 dall'endpoint amministrativo protetto e da una ri-autenticazione recente.
