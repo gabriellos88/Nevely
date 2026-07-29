@@ -179,6 +179,7 @@
 
 .auth-form input,
 .account-form input,
+.account-form select,
 .premium-filter-grid input,
 .premium-filter-grid select,
 .premium-filter-field input {
@@ -5517,7 +5518,8 @@ body:has(> main.auth-page) {
   background: var(--color-border-default);
 }
 
-.auth-error {
+.auth-error,
+.auth-notice {
   width: 100%;
   display: flex;
   align-items: center;
@@ -5533,7 +5535,14 @@ body:has(> main.auth-page) {
   line-height: var(--line-height-body);
 }
 
-.auth-error .lucide {
+.auth-notice {
+  border-color: var(--color-brand);
+  background: var(--color-brand-softer);
+  color: var(--color-fg-brand-strong);
+}
+
+.auth-error .lucide,
+.auth-notice .lucide {
   width: var(--spacing-4);
   height: var(--spacing-4);
   flex: none;
@@ -5581,7 +5590,8 @@ body:has(> main.auth-page) {
   stroke-width: 1.8;
 }
 
-.auth-field-shell input {
+.auth-field-shell input,
+.auth-field-shell select {
   width: 100%;
   min-height: var(--spacing-12);
   padding: var(--spacing-0);
@@ -5602,9 +5612,53 @@ body:has(> main.auth-page) {
 }
 
 .auth-field-shell input:focus,
-.auth-field-shell input:focus-visible {
+.auth-field-shell input:focus-visible,
+.auth-field-shell select:focus,
+.auth-field-shell select:focus-visible {
   outline: var(--spacing-0);
   box-shadow: none;
+}
+
+.auth-shell--action {
+  grid-template-columns: minmax(0, 38rem);
+  justify-content: center;
+}
+
+.auth-shell--action .auth-entry {
+  border: var(--spacing-px) solid var(--color-border-medium);
+  border-radius: var(--radius-xxl);
+  background: var(--color-neutral-primary);
+}
+
+.auth-provider-stack .g_id_signin {
+  min-height: var(--spacing-11);
+  display: flex;
+  justify-content: center;
+}
+
+.admin-security-header {
+  max-width: 48rem;
+  margin-bottom: 4rem;
+}
+
+.admin-2fa-secret {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1.5rem;
+  padding: 1.5rem;
+  border: 1px solid var(--border);
+  border-radius: 1.5rem;
+  background: #fff;
+}
+
+.admin-2fa-secret code {
+  overflow-wrap: anywhere;
+  font-size: 1rem;
+}
+
+.auth-field-shell select {
+  appearance: none;
+  cursor: pointer;
 }
 
 .auth-field small {
@@ -6546,7 +6600,8 @@ body:has(> main.auth-page) .footer-bottom p {
   font-weight: var(--font-weight-medium);
 }
 
-.chat-app-page .account-form input {
+.chat-app-page .account-form input,
+.chat-app-page .account-form select {
   min-height: var(--spacing-12);
   padding: var(--spacing-2-5) var(--spacing-3);
   border: var(--spacing-px) solid var(--color-border-default);
@@ -6557,7 +6612,8 @@ body:has(> main.auth-page) .footer-bottom p {
   font-size: var(--font-size-sm);
 }
 
-.chat-app-page .account-form input:focus-visible {
+.chat-app-page .account-form input:focus-visible,
+.chat-app-page .account-form select:focus-visible {
   outline: var(--spacing-0);
   border-color: var(--color-brand-medium);
   box-shadow: var(--focus-ring-brand);
@@ -6698,6 +6754,86 @@ body:has(> main.auth-page) .footer-bottom p {
   color: var(--color-body-subtle);
   font-size: var(--font-size-md);
   line-height: var(--line-height-body);
+}
+
+.chat-app-page .account-google-provider {
+  display: grid;
+  gap: var(--spacing-4);
+  margin-top: var(--spacing-5);
+  padding: var(--spacing-4);
+  border: var(--spacing-px) solid var(--color-border-default);
+  border-radius: var(--radius-md);
+  background: var(--color-neutral-tertiary);
+}
+
+.chat-app-page .account-google-provider__header {
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
+}
+
+.chat-app-page .account-google-provider__mark {
+  width: var(--spacing-8);
+  height: var(--spacing-8);
+  flex: none;
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-full);
+  background: var(--color-neutral-quaternary);
+  color: var(--color-heading);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-bold);
+}
+
+.chat-app-page .account-google-provider__header > div {
+  display: grid;
+  gap: var(--spacing-1);
+}
+
+.chat-app-page .account-google-provider__header strong {
+  color: var(--color-heading);
+  font-size: var(--font-size-sm);
+}
+
+.chat-app-page .account-google-provider__header span:last-child {
+  color: var(--color-fg-brand-strong);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.chat-app-page .account-google-provider > p {
+  margin: var(--spacing-0);
+  color: var(--color-body-subtle);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-body);
+}
+
+.chat-app-page .account-google-link {
+  min-height: var(--spacing-11);
+}
+
+.chat-app-page .account-google-only {
+  padding: var(--spacing-4);
+  border-radius: var(--radius-xxl);
+  background: var(--color-brand-softer);
+  color: var(--color-fg-brand-strong);
+}
+
+.chat-app-page .account-google-unlink-form {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
+.chat-app-page .account-google-unlink-form .btn {
+  min-height: var(--spacing-11);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-width: calc(var(--spacing-px) * 2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+}
+
+.chat-app-page .account-settings-section > .account-form {
+  margin-top: var(--spacing-5);
 }
 
 .chat-app-page .account-block-list {

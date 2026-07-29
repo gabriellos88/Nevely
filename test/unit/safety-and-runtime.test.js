@@ -123,12 +123,15 @@ test('staging validator accepts isolated safe configuration and rejects producti
     PUBLIC_ORIGIN: 'https://staging.example.test',
     DATABASE_URL: 'postgres://staging:staging@127.0.0.1:5432/nevely_staging',
     SESSION_SECRET: 'staging-contract-secret-32-characters-minimum',
+    ADMIN_TOTP_ENCRYPTION_KEY: 'staging-totp-secret-32-characters-minimum',
+    GOOGLE_CLIENT_ID: 'staging-client-id.apps.googleusercontent.com',
+    SUPPORT_EMAIL: 'support@nevely.app',
     RAILWAY_ENVIRONMENT_NAME: 'staging',
     RAILWAY_ENVIRONMENT_ID: 'railway-staging-id',
     PRODUCTION_RAILWAY_ENVIRONMENT_ID: 'railway-production-id',
     EMAIL_DELIVERY_MODE: 'test',
     RESEND_API_KEY: 're_synthetic_test_value',
-    RESEND_FROM: 'Nevely Staging <noreply@notifications.nevely.app>',
+    RESEND_FROM: 'Verify <noreply@notifications.nevely.app>',
     RESEND_TEST_RECIPIENT: 'delivered+staging@resend.dev',
     ANALYTICS_MODE: 'disabled',
     ROBOTS_INDEXING: 'disabled'
@@ -162,7 +165,7 @@ test('Resend staging smoke fails closed before network access and redacts config
       APP_ENV: 'staging',
       EMAIL_DELIVERY_MODE: 'test',
       RESEND_API_KEY: syntheticKey,
-      RESEND_FROM: 'Nevely Staging <noreply@notifications.nevely.app>',
+      RESEND_FROM: 'Verify <noreply@notifications.nevely.app>',
       RESEND_TEST_RECIPIENT: 'unexpected@example.test'
     },
     encoding: 'utf8'

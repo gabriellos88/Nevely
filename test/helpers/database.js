@@ -2,6 +2,11 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 const tables = [
+  'google_token_replays',
+  'email_outbox',
+  'account_tokens',
+  'account_identities',
+  'security_events',
   'message_receipts',
   'saved_chats',
   'messages',

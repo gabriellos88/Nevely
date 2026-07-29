@@ -33,27 +33,27 @@ This file is the product and engineering source of truth for unfinished work. It
   - Two-client Socket.IO tests for guest/account matching, messages, unread counts, read receipts, cooldowns and disconnects.
   - Browser tests for guest-passport focus management, validation, persisted identity, cleared-storage fallback and responsive drawers.
   - Current coverage and deliberately open contracts are recorded in [`docs/release/automated-test-baseline.md`](docs/release/automated-test-baseline.md).
-  - **Deferred by design:** session-revocation, retention and ban tests are re-specified as explicit acceptance criteria of N1.3 (session revocation), N2.2/N2.4 (retention, pagination) and N4.2 (ban enforcement) respectively, and will be added there rather than blocking this checkbox indefinitely.
+  - **Deferred by design:** retention and ban tests are re-specified as explicit acceptance criteria of N2.2/N2.4 (retention, pagination) and N4.2 (ban enforcement) respectively. Session-revocation coverage is now delivered by N1.3.
 
 ### N1. Identity, registered profiles and authentication
 
-- [ ] **N1.1 — Replace short account Public IDs before growth.**
+- [x] **N1.1 — Replace short account Public IDs before growth.**
   - Introduce an opaque public identifier with at least 64–80 bits of randomness.
   - Backfill existing users, preserve uniqueness and stop exposing sequential database IDs.
   - Keep a separate shortened display alias if a compact UI label is desired.
-- [ ] **N1.2 — Fix registered-user onboarding.**
+- [x] **N1.2 — Fix registered-user onboarding.**
   - Collect the profile fields required for matching during registration or claim.
   - Store date/year of birth rather than a permanently stale numeric age, enforce the 18+ rule server-side and compute current age.
   - Validate gender and country against canonical allowed values.
   - Make birth data support-controlled or strongly protected; allow legitimate gender/country changes with audit and cooldown rather than unrestricted edits.
   - Migrate or repair existing accounts whose age, gender or country is missing.
-- [ ] **N1.3 — Keep Postgres-backed cookie sessions and harden them.**
+- [x] **N1.3 — Keep Postgres-backed cookie sessions and harden them.**
   - Add CSRF protection to every state-changing HTTP route.
   - Rotate/regenerate sessions on authentication and privilege changes.
   - Invalidate all sessions after password changes, account deletion, role changes and bans.
   - Require production `DATABASE_URL` and `SESSION_SECRET`; never silently use the in-memory session store in production.
   - Add secure headers and a tested Content Security Policy.
-- [ ] **N1.4 — Implement email verification with Resend.**
+- [x] **N1.4 — Implement email verification with Resend.**
   - Add purpose-scoped, single-use verification records with a hashed token, expiry, `used_at`, attempt metadata and revocation.
   - Send the raw token only in the email link from `Verify <noreply@notifications.nevely.app>`.
   - Use an outbox/worker with retries and idempotency instead of an untracked background promise.
@@ -68,9 +68,12 @@ This file is the product and engineering source of truth for unfinished work. It
   - Define explicit and takeover-safe flows for new Google accounts, linking/unlinking an existing password account, passwordless accounts and guest claim/merge.
   - Do not request or retain Google access/refresh tokens unless a future feature genuinely needs a separate Google API authorization.
   - Test cancellation, replay, duplicate email/account conflicts, revoked access, banned accounts and staging/production configuration.
-- [ ] **N1.6 — Add password-reset and verified email-change flows.** Reuse the token/outbox foundation, revoke active sessions after success and notify the previous address after an email change.
-- [ ] **N1.7 — Protect administrators.** Add re-authentication for high-risk actions, 2FA for admin accounts and server-side role checks that do not trust stale session role data.
-- [ ] **N1.8 — Correct the support address everywhere.** Replace `support@nevely.com` with the configured and verified `support@nevely.app`.
+  - **Repository status:** application flow, automated contracts, staging OAuth client, exact staging origin/environment value and staging acceptance are complete. Keep this item open until the separate production Google web client is created and only the exact production origin/environment value is configured.
+- [x] **N1.6 — Add password-reset and verified email-change flows.** Reuse the token/outbox foundation, revoke active sessions after success and notify the previous address after an email change.
+- [x] **N1.7 — Protect administrators.** Add re-authentication for high-risk actions, 2FA for admin accounts and server-side role checks that do not trust stale session role data.
+- [x] **N1.8 — Correct the support address everywhere.** Replace `support@nevely.com` with the configured and verified `support@nevely.app`.
+
+Implementation and operations evidence for N1 is collected in [`docs/admin/identity-and-access.md`](docs/admin/identity-and-access.md). Database-backed identity contracts live in `test/integration/identity-auth.test.js`; unit, Socket.IO and guest-browser checks remain part of the release baseline.
 
 ### N2. Database retention, query bounds and capacity
 

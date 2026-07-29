@@ -1,0 +1,52 @@
+<%- include('partials/header', { hideSiteHeader: true }) %>
+<main class="auth-page auth-page--action">
+  <section class="auth-shell auth-shell--action" aria-labelledby="profile-completion-title">
+    <div class="auth-entry">
+      <header class="auth-entry__header">
+        <p class="auth-kicker"><%= copy.auth.completeProfileEyebrow %></p>
+        <h1 id="profile-completion-title"><%= copy.auth.completeProfileTitle %></h1>
+        <p><%= copy.auth.completeProfileBody %></p>
+      </header>
+      <% if (error) { %><div class="auth-error" role="alert"><%= error %></div><% } %>
+      <form class="auth-form" method="post" action="/complete-profile">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <label class="auth-field">
+          <span><%= copy.auth.birthDate %></span>
+          <span class="auth-field-shell">
+            <i data-lucide="calendar-days" aria-hidden="true"></i>
+            <input name="birthDate" type="date" autocomplete="bday" required
+                   value="<%= values?.birthDate || '' %>">
+          </span>
+        </label>
+        <label class="auth-field">
+          <span><%= copy.common.gender %></span>
+          <span class="auth-field-shell">
+            <i data-lucide="contact" aria-hidden="true"></i>
+            <select name="gender" required>
+              <option value=""><%= copy.auth.selectGender %></option>
+              <option value="female"><%= copy.common.female %></option>
+              <option value="male"><%= copy.common.male %></option>
+              <option value="non-binary"><%= copy.common.nonBinary %></option>
+              <option value="other"><%= copy.common.other %></option>
+              <option value="prefer-not-to-say"><%= copy.auth.preferNotToSay %></option>
+            </select>
+          </span>
+        </label>
+        <label class="auth-field">
+          <span><%= copy.common.country %></span>
+          <span class="auth-field-shell">
+            <i data-lucide="map-pin" aria-hidden="true"></i>
+            <select name="countryCode" required>
+              <option value=""><%= copy.auth.selectCountry %></option>
+              <% countries.forEach((country) => { %>
+                <option value="<%= country.code %>"><%= country.name %></option>
+              <% }) %>
+            </select>
+          </span>
+        </label>
+        <button class="auth-submit" type="submit"><%= copy.auth.completeProfileAction %></button>
+      </form>
+    </div>
+  </section>
+</main>
+<%- include('partials/footer') %>

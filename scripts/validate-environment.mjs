@@ -45,6 +45,26 @@ if (deployedProfiles.has(requestedProfile)) {
   const sessionSecret = required('SESSION_SECRET');
   assert.ok(sessionSecret.length >= 32, 'SESSION_SECRET must contain at least 32 characters');
   assert.ok(!sessionSecret.toLowerCase().includes('replace'), 'SESSION_SECRET still contains a placeholder');
+  const totpEncryptionKey = required('ADMIN_TOTP_ENCRYPTION_KEY');
+  assert.ok(
+    totpEncryptionKey.length >= 32,
+    'ADMIN_TOTP_ENCRYPTION_KEY must contain at least 32 characters'
+  );
+  assert.notEqual(
+    totpEncryptionKey,
+    sessionSecret,
+    'ADMIN_TOTP_ENCRYPTION_KEY must be distinct from SESSION_SECRET'
+  );
+  assert.match(
+    required('GOOGLE_CLIENT_ID'),
+    /\.apps\.googleusercontent\.com$/,
+    'GOOGLE_CLIENT_ID must be a Google OAuth web client ID'
+  );
+  assert.equal(
+    required('SUPPORT_EMAIL').toLowerCase(),
+    'support@nevely.app',
+    'SUPPORT_EMAIL must use the verified support address'
+  );
 
   const railwayName = required('RAILWAY_ENVIRONMENT_NAME').toLowerCase();
   assert.ok(
@@ -70,8 +90,8 @@ if (requestedProfile === 'staging') {
   );
   required('RESEND_API_KEY');
   ensure(
-    /^Nevely Staging </.test(required('RESEND_FROM')),
-    'Staging must use the staging sender identity'
+    required('RESEND_FROM') === 'Verify <noreply@notifications.nevely.app>',
+    'Staging must use the verified Nevely verification sender'
   );
   const testRecipient = required('RESEND_TEST_RECIPIENT').toLowerCase();
   ensure(
@@ -86,7 +106,10 @@ if (requestedProfile === 'staging') {
 if (requestedProfile === 'production') {
   ensure(required('EMAIL_DELIVERY_MODE') === 'live', 'Production email delivery must be live');
   required('RESEND_API_KEY');
-  required('RESEND_FROM');
+  ensure(
+    required('RESEND_FROM') === 'Verify <noreply@notifications.nevely.app>',
+    'Production must use the verified Nevely verification sender'
+  );
   ensure(
     required('ROBOTS_INDEXING') === 'enabled',
     'Production indexing must be explicitly enabled'

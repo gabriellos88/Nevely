@@ -11,15 +11,28 @@ All JSON endpoints except health and authentication require a valid account sess
 - `POST /logout`: destroys the current session.
 - `GET /api/auth/me`: returns the current session user or `null`.
 
-Planned: password reset email, email verification and Google sign-in.
+Implemented in N1:
+
+- `POST /verify-email` and `POST /api/auth/verification/resend`;
+- `POST /forgot-password` and `POST /reset-password`;
+- `POST /auth/google` using a server-validated Google ID token;
+- `POST /login/2fa` for protected administrator login.
 
 ### Account and profiles
 
 - `GET /api/account`: private account details.
-- `PATCH /api/account`: update display name, email, age, gender, country and temporary image URL.
+- `PATCH /api/account`: update display name, canonical gender/country and
+  temporary image URL. Birth date is support-controlled; email uses a separate
+  verified flow.
+- `POST /api/account/password`: change password and revoke every session.
+- `POST /api/account/email-change`, `POST /confirm-email-change`: verify a new
+  address, notify the old address and revoke every session.
+- `POST /api/account/identities/google`,
+  `DELETE /api/account/identities/google`: explicit linking and safe unlinking.
 - `DELETE /api/account`: anonymize existing messages and delete the account. Body confirmation: `DELETE`.
 - `POST /api/account/avatar`: reserved endpoint; returns `501` until object storage is configured.
-- `GET /api/users/:id/profile`: public profile plus friendship/block state.
+- `GET /api/users/:id/profile`: public profile plus friendship/block state;
+  `:id` is the opaque `nvy_...` public identifier.
 - `GET /api/blocks`, `PUT /api/blocks/:id`, `DELETE /api/blocks/:id`: block-list management.
 
 ### Conversations

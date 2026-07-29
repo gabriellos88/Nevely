@@ -1,5 +1,6 @@
 const uiCopy = window.__COPY__;
 const chatCopy = uiCopy.chat;
+const googleConfiguration = window.__GOOGLE_CONFIG__ || {};
 
 function formatCopy(template, values = {}) {
   return template.replace(/\{(\w+)\}/g, (match, key) => String(values[key] ?? match));
@@ -93,6 +94,15 @@ const guestAccountFeedback = document.getElementById('guestAccountFeedback');
 const guestLogoutBtn = document.getElementById('guestLogoutBtn');
 const guestReminderDismiss = document.getElementById('guestReminderDismiss');
 const accountFeedback = document.getElementById('accountFeedback');
+const accountSecurityFeedback = document.getElementById('accountSecurityFeedback');
+const passwordChangeForm = document.getElementById('passwordChangeForm');
+const emailChangeForm = document.getElementById('emailChangeForm');
+const googleIdentityStatus = document.getElementById('googleIdentityStatus');
+const googleIdentityDescription = document.getElementById('googleIdentityDescription');
+const googleIdentityLink = document.getElementById('googleIdentityLink');
+const googleIdentityLinkButton = document.getElementById('googleIdentityLinkButton');
+const googleIdentityOnly = document.getElementById('googleIdentityOnly');
+const googleIdentityUnlinkForm = document.getElementById('googleIdentityUnlinkForm');
 const accountPlan = document.getElementById('accountPlan');
 const logoutBtn = document.getElementById('logoutBtn');
 const deleteAccountBtn = document.getElementById('deleteAccountBtn');
@@ -135,6 +145,12 @@ let guestCountryActiveIndex = -1;
 let chatComposerMode = 'idle';
 let releaseDraining = false;
 let releaseCountdownTimer = null;
+let googleIdentityInitialized = false;
+let accountSecurityState = {
+  email: currentUser?.email || '',
+  hasGoogle: false,
+  hasPassword: false
+};
 const pendingSentMessages = [];
 
 const topbarCounts = { messages: 0, friends: 0, notifications: 0 };
@@ -1488,9 +1504,14 @@ function startSkipCooldown(remainingMs) {
 }
 
 async function api(url, options = {}) {
+  const csrfToken = document.querySelector('meta[name="csrf-token"]')?.content || '';
   const response = await fetch(url, {
     ...options,
-    headers: { 'Content-Type': 'application/json', ...(options.headers || {}) }
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRF-Token': csrfToken,
+      ...(options.headers || {})
+    }
   });
   if (response.status === 204) return null;
   const data = await response.json().catch(() => ({}));
@@ -1657,7 +1678,7 @@ async function loadFriendsPanel() {
   data.friends.forEach((friend) => list.appendChild(makeListItem(
     friend.display_name,
     chatCopy.feedback.friendChatHint,
-    () => socket.emit('direct-chat-request', { userId: friend.id }),
+    () => socket.emit('direct-chat-request', { publicId: friend.public_id }),
     friend.online ? uiCopy.common.online : uiCopy.common.offline
   )));
   showListState('friends', data.friends.length > 0);
@@ -1778,7 +1799,9 @@ async function openStoredConversation(item) {
   try {
     const data = await api(`/api/conversations/${item.id}/messages`);
     currentConversationId = Number(item.id);
-    currentPartner = item.partner_user_id ? { userId: Number(item.partner_user_id), displayName: item.partner_name } : null;
+    currentPartner = item.partner_public_id
+      ? { publicId: item.partner_public_id, displayName: item.partner_name }
+      : null;
     currentConversationSaved = Boolean(item.saved);
     saveConversationBtn.textContent = currentConversationSaved
       ? chatCopy.conversation.removeSaved
@@ -1790,12 +1813,13 @@ async function openStoredConversation(item) {
     partnerName.textContent = item.partner_name || chatCopy.drawers.messages.conversations;
     partnerAvatar.textContent = (item.partner_name || '?').charAt(0).toUpperCase();
     data.messages.forEach((message) => {
-      const mine = Number(message.sender_user_id) === Number(currentUser.id);
+      const mine = message.sender_public_id === currentUser.publicId;
       const element = addMessage(message.body, mine ? 'me' : 'them', Number(message.id));
       if (mine && message.delivered_at) element.dataset.delivered = 'true';
       if (mine && message.read_at) element.dataset.read = 'true';
     });
-    const lastIncomingMessage = [...data.messages].reverse().find((message) => Number(message.sender_user_id) !== Number(currentUser.id));
+    const lastIncomingMessage = [...data.messages].reverse()
+      .find((message) => message.sender_public_id !== currentUser.publicId);
     if (lastIncomingMessage) {
       await api(`/api/conversations/${item.id}/read`, {
         method: 'PATCH',
@@ -1850,9 +1874,9 @@ async function deleteCurrentConversation() {
 async function blockCurrentPartner() {
   conversationMenu.classList.add('hidden');
   if (!currentUser) return openAccountSettings();
-  if (!currentPartner?.userId) return alert(chatCopy.feedback.guestBlockUnavailable);
+  if (!currentPartner?.publicId) return alert(chatCopy.feedback.guestBlockUnavailable);
   try {
-    await api(`/api/blocks/${currentPartner.userId}`, { method: 'PUT', body: '{}' });
+    await api(`/api/blocks/${currentPartner.publicId}`, { method: 'PUT', body: '{}' });
     blockPartnerBtn.textContent = chatCopy.conversation.blocked;
     socket.emit('leave-chat');
   } catch (error) {
@@ -1923,6 +1947,90 @@ function handleAccountModalKeydown(event) {
   }
 }
 
+function initializeGoogleIdentity(attempt = 0) {
+  if (!googleConfiguration.enabled || !googleIdentityLinkButton || accountSecurityState.hasGoogle) {
+    return;
+  }
+  if (!window.google?.accounts?.id) {
+    if (attempt < 80) {
+      window.setTimeout(() => initializeGoogleIdentity(attempt + 1), 50);
+    } else if (accountSecurityFeedback) {
+      accountSecurityFeedback.textContent = uiCopy.errors.googleUnavailable;
+    }
+    return;
+  }
+  if (!googleIdentityInitialized) {
+    window.google.accounts.id.initialize({
+      client_id: googleConfiguration.clientId,
+      callback: window.handleGoogleLinkCredential,
+      nonce: googleConfiguration.nonce
+    });
+    googleIdentityInitialized = true;
+  }
+  googleIdentityLinkButton.replaceChildren();
+  window.google.accounts.id.renderButton(googleIdentityLinkButton, {
+    type: 'standard',
+    theme: 'filled_black',
+    size: 'large',
+    shape: 'pill',
+    text: 'continue_with',
+    logo_alignment: 'left',
+    width: 320
+  });
+}
+
+function renderAccountSecurity(user) {
+  accountSecurityState = {
+    email: user.email || '',
+    hasGoogle: Boolean(user.hasGoogle),
+    hasPassword: Boolean(user.hasPassword)
+  };
+  passwordChangeForm?.classList.toggle('hidden', !accountSecurityState.hasPassword);
+  emailChangeForm?.classList.toggle('hidden', !accountSecurityState.hasPassword);
+  if (!googleConfiguration.enabled || !googleIdentityStatus) return;
+
+  googleIdentityStatus.textContent = accountSecurityState.hasGoogle
+    ? uiCopy.account.googleConnected
+    : uiCopy.account.googleNotConnected;
+  googleIdentityDescription.textContent = accountSecurityState.hasGoogle
+    ? uiCopy.account.googleLinkedDescription
+    : formatCopy(uiCopy.account.googleLinkDescription, {
+      email: accountSecurityState.email
+    });
+  googleIdentityLink?.classList.toggle('hidden', accountSecurityState.hasGoogle);
+  googleIdentityOnly?.classList.toggle(
+    'hidden',
+    !accountSecurityState.hasGoogle || accountSecurityState.hasPassword
+  );
+  googleIdentityUnlinkForm?.classList.toggle(
+    'hidden',
+    !accountSecurityState.hasGoogle || !accountSecurityState.hasPassword
+  );
+  if (!accountSecurityState.hasGoogle) initializeGoogleIdentity();
+}
+
+window.handleGoogleLinkCredential = async ({ credential } = {}) => {
+  if (!credential || !currentUser) return;
+  if (accountSecurityFeedback) {
+    accountSecurityFeedback.textContent = uiCopy.account.googleLoading;
+  }
+  try {
+    await api('/api/account/identities/google', {
+      method: 'POST',
+      body: JSON.stringify({ credential })
+    });
+    renderAccountSecurity({
+      ...accountSecurityState,
+      hasGoogle: true
+    });
+    if (accountSecurityFeedback) {
+      accountSecurityFeedback.textContent = uiCopy.account.googleLinkedFeedback;
+    }
+  } catch (error) {
+    if (accountSecurityFeedback) accountSecurityFeedback.textContent = error.message;
+  }
+};
+
 async function openAccountSettings(initialTab = 'account', { focusTab = false } = {}) {
   if (accountModal?.classList.contains('hidden')) {
     accountModalRestoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : null;
@@ -1945,13 +2053,22 @@ async function openAccountSettings(initialTab = 'account', { focusTab = false } 
   try {
     const data = await api('/api/account');
     const user = data.user;
+    await loadCountryCatalog();
+    const countrySelect = accountForm.elements.countryCode;
+    countrySelect.replaceChildren(...countryCatalog.map((country) => {
+      const option = document.createElement('option');
+      option.value = country.code;
+      option.textContent = country.name;
+      return option;
+    }));
     accountForm.elements.displayName.value = user.display_name || '';
     accountForm.elements.email.value = user.email || '';
     accountForm.elements.publicId.value = user.public_id || '';
-    accountForm.elements.age.value = user.age || '';
+    accountForm.elements.birthDate.value = user.birth_date || '';
     accountForm.elements.gender.value = user.gender || '';
-    accountForm.elements.country.value = user.country || '';
+    accountForm.elements.countryCode.value = user.country_code || '';
     accountForm.elements.profileImageUrl.value = user.profile_image_url || '';
+    renderAccountSecurity(user);
     accountPlan.textContent = user.plan === 'premium' ? uiCopy.account.premiumPlan : uiCopy.account.freePlan;
     const displayName = user.display_name || uiCopy.common.profile;
     if (accountAvatarFallback) {
@@ -1984,7 +2101,7 @@ async function loadBlockList() {
       const name = document.createElement('span');
       name.textContent = user.display_name;
       const button = actionButton(uiCopy.common.unblock, async () => {
-        await api(`/api/blocks/${user.id}`, { method: 'DELETE' });
+        await api(`/api/blocks/${user.public_id}`, { method: 'DELETE' });
         loadBlockList();
       });
       row.append(name, button);
@@ -2012,6 +2129,60 @@ async function logout() {
   await api('/logout', { method: 'POST', body: '{}' });
   window.location.href = '/';
 }
+
+passwordChangeForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  try {
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    await api('/api/account/password', {
+      method: 'POST',
+      body: JSON.stringify(values)
+    });
+    window.location.assign('/login');
+  } catch (error) {
+    accountSecurityFeedback.textContent = error.message;
+  }
+});
+
+emailChangeForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  try {
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    const data = await api('/api/account/email-change', {
+      method: 'POST',
+      body: JSON.stringify(values)
+    });
+    accountSecurityFeedback.textContent = data.message;
+  } catch (error) {
+    accountSecurityFeedback.textContent = error.message;
+  }
+});
+
+googleIdentityUnlinkForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  accountSecurityFeedback.textContent = '';
+  try {
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    await api('/api/account/identities/google', {
+      method: 'DELETE',
+      body: JSON.stringify(values)
+    });
+    event.currentTarget.reset();
+    renderAccountSecurity({
+      ...accountSecurityState,
+      hasGoogle: false
+    });
+    accountSecurityFeedback.textContent = uiCopy.account.googleUnlinkedFeedback;
+  } catch (error) {
+    accountSecurityFeedback.textContent = error.message;
+  } finally {
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+  }
+});
 
 function openDeleteAccountConfirmation() {
   if (!deleteAccountModal) return;
@@ -2075,9 +2246,9 @@ async function confirmDeleteAccount() {
 }
 
 async function openPartnerProfile() {
-  if (!currentPartner?.userId || !currentUser) return;
+  if (!currentPartner?.publicId || !currentUser) return;
   try {
-    const data = await api(`/api/users/${currentPartner.userId}/profile`);
+    const data = await api(`/api/users/${currentPartner.publicId}/profile`);
     currentProfile = data.user;
     publicProfileAvatar.textContent = data.user.display_name.charAt(0).toUpperCase();
     document.getElementById('profileModalTitle').textContent = data.user.display_name;
@@ -2098,11 +2269,14 @@ async function toggleFriendship() {
   if (!currentProfile) return;
   try {
     if (currentProfile.is_friend) {
-      await api(`/api/friends/${currentProfile.id}`, { method: 'DELETE' });
+      await api(`/api/friends/${currentProfile.public_id}`, { method: 'DELETE' });
       currentProfile.is_friend = false;
       friendActionBtn.textContent = uiCopy.common.addFriend;
     } else {
-      await api('/api/friend-requests', { method: 'POST', body: JSON.stringify({ userId: currentProfile.id }) });
+      await api('/api/friend-requests', {
+        method: 'POST',
+        body: JSON.stringify({ publicId: currentProfile.public_id })
+      });
       friendActionBtn.textContent = uiCopy.common.requestSent;
       friendActionBtn.disabled = true;
     }
@@ -2116,11 +2290,11 @@ async function toggleProfileBlock() {
   if (!currentProfile) return;
   try {
     if (currentProfile.is_blocked) {
-      await api(`/api/blocks/${currentProfile.id}`, { method: 'DELETE' });
+      await api(`/api/blocks/${currentProfile.public_id}`, { method: 'DELETE' });
       currentProfile.is_blocked = false;
       profileBlockBtn.textContent = uiCopy.common.block;
     } else {
-      await api(`/api/blocks/${currentProfile.id}`, { method: 'PUT', body: '{}' });
+      await api(`/api/blocks/${currentProfile.public_id}`, { method: 'PUT', body: '{}' });
       currentProfile.is_blocked = true;
       profileBlockBtn.textContent = uiCopy.common.unblock;
     }

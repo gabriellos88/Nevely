@@ -3,6 +3,7 @@ const { test } = require('node:test');
 const request = require('supertest');
 const { createRuntime } = require('../../server');
 const safeLog = require('../../lib/safe-log');
+const { totp } = require('../../lib/totp');
 const { expectedMigrations, resetDatabase } = require('../helpers/database');
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
@@ -13,6 +14,24 @@ const quietLog = {
     safeLog.error(event, error);
   }
 };
+
+function registrationPayload(username, email) {
+  return {
+    username,
+    email,
+    password: 'SyntheticPassword123!',
+    birthDate: '1990-06-15',
+    gender: 'non-binary',
+    countryCode: 'ch'
+  };
+}
+
+async function internalId(db, publicId) {
+  return Number((await db.query(
+    'SELECT id FROM users WHERE public_id = $1',
+    [publicId]
+  )).rows[0].id);
+}
 
 test('CI always supplies disposable PostgreSQL', () => {
   if (process.env.CI === 'true') assert.equal(hasDatabase, true);
@@ -49,14 +68,13 @@ test('migrations, authentication, profile validation and authorization contracts
   const registration = await primary
     .post('/register')
     .set('Accept', 'application/json')
-    .send({
-      username: 'primary_user',
-      email: 'primary-user@example.test',
-      password: 'SyntheticPassword123!'
-    })
+    .send(registrationPayload('primary_user', 'primary-user@example.test'))
     .expect(201);
-  const primaryId = registration.body.user.id;
+  const primaryPublicId = registration.body.user.publicId;
+  const primaryId = await internalId(db, primaryPublicId);
   assert.equal(Number.isSafeInteger(primaryId), true);
+  assert.match(primaryPublicId, /^nvy_[a-f0-9]{20}$/);
+  assert.equal(Object.hasOwn(registration.body.user, 'id'), false);
   assert.equal(Object.hasOwn(registration.body.user, 'password'), false);
   assert.equal(Object.hasOwn(registration.body.user, 'password_hash'), false);
 
@@ -64,10 +82,8 @@ test('migrations, authentication, profile validation and authorization contracts
     .patch('/api/account')
     .send({
       displayName: 'Primary User',
-      email: 'primary-user@example.test',
-      age: 17,
-      gender: 'non-binary',
-      country: 'Switzerland'
+      gender: 'invalid-value',
+      countryCode: 'ch'
     })
     .expect(400);
 
@@ -75,13 +91,11 @@ test('migrations, authentication, profile validation and authorization contracts
     .patch('/api/account')
     .send({
       displayName: 'Primary User',
-      email: 'primary-user@example.test',
-      age: 28,
       gender: 'non-binary',
-      country: 'Switzerland'
+      countryCode: 'ch'
     })
     .expect(200);
-  assert.equal(profile.body.user.age, 28);
+  assert.equal(profile.body.user.birthDate, '1990-06-15');
   assert.equal(profile.body.user.displayName, 'Primary User');
 
   await primary.post('/logout').set('Accept', 'application/json').expect(204);
@@ -91,35 +105,28 @@ test('migrations, authentication, profile validation and authorization contracts
     .set('Accept', 'application/json')
     .send({ email: 'primary-user@example.test', password: 'SyntheticPassword123!' })
     .expect(200);
-  assert.equal((await primary.get('/api/auth/me').expect(200)).body.user.id, primaryId);
+  assert.equal((await primary.get('/api/auth/me').expect(200)).body.user.publicId, primaryPublicId);
 
   const member = request.agent(runtime.app);
   const memberRegistration = await member
     .post('/register')
     .set('Accept', 'application/json')
-    .send({
-      username: 'ordinary_member',
-      email: 'ordinary-member@example.test',
-      password: 'SyntheticPassword123!'
-    })
+    .send(registrationPayload('ordinary_member', 'ordinary-member@example.test'))
     .expect(201);
-  const memberId = memberRegistration.body.user.id;
+  const memberPublicId = memberRegistration.body.user.publicId;
+  const memberId = await internalId(db, memberPublicId);
 
   const outsider = request.agent(runtime.app);
   await outsider
     .post('/register')
     .set('Accept', 'application/json')
-    .send({
-      username: 'outside_member',
-      email: 'outside-member@example.test',
-      password: 'SyntheticPassword123!'
-    })
+    .send(registrationPayload('outside_member', 'outside-member@example.test'))
     .expect(201);
 
   const adminRoutes = [
     { method: 'get', path: '/admin' },
-    { method: 'post', path: `/api/admin/users/${memberId}/ban`, body: { type: 'temporary', hours: 24 } },
-    { method: 'delete', path: `/api/admin/users/${memberId}`, body: { confirmation: 'BAN AND DELETE' } },
+    { method: 'post', path: `/api/admin/users/${memberPublicId}/ban`, body: { type: 'temporary', hours: 24 } },
+    { method: 'delete', path: `/api/admin/users/${memberPublicId}`, body: { confirmation: 'BAN AND DELETE' } },
     { method: 'patch', path: '/api/admin/reports/1', body: { action: 'dismiss' } },
     { method: 'post', path: '/api/admin/prices', body: { price: 0, currency: 'USD' } }
   ];
@@ -205,7 +212,7 @@ test('migrations, authentication, profile validation and authorization contracts
     1
   );
 
-  await outsider.delete(`/api/friends/${memberId}`).expect(204);
+  await outsider.delete(`/api/friends/${memberPublicId}`).expect(204);
   assert.equal(
     Number((await db.query(
       'SELECT COUNT(*) AS count FROM friendships WHERE user_id = $1 AND friend_id = $2',
@@ -214,7 +221,7 @@ test('migrations, authentication, profile validation and authorization contracts
     1
   );
 
-  await outsider.delete(`/api/blocks/${memberId}`).expect(204);
+  await outsider.delete(`/api/blocks/${memberPublicId}`).expect(204);
   assert.equal(
     Number((await db.query(
       'SELECT COUNT(*) AS count FROM blocked_users WHERE blocker_user_id = $1 AND blocked_user_id = $2',
@@ -228,8 +235,8 @@ test('migrations, authentication, profile validation and authorization contracts
     .send({ confirmation: 'wrong value' })
     .expect(400);
   await primary.delete(`/api/conversations/${conversationId}/saved`).expect(204);
-  await primary.delete(`/api/friends/${memberId}`).expect(204);
-  await primary.delete(`/api/blocks/${memberId}`).expect(204);
+  await primary.delete(`/api/friends/${memberPublicId}`).expect(204);
+  await primary.delete(`/api/blocks/${memberPublicId}`).expect(204);
   await primary
     .delete(`/api/conversations/${conversationId}`)
     .send({ confirmation: 'DELETE FOR EVERYONE' })
@@ -257,17 +264,14 @@ test('migrations, authentication, profile validation and authorization contracts
   const selfDeleteRegistration = await selfDelete
     .post('/register')
     .set('Accept', 'application/json')
-    .send({
-      username: 'self_delete_member',
-      email: 'self-delete-member@example.test',
-      password: 'SyntheticPassword123!'
-    })
+    .send(registrationPayload('self_delete_member', 'self-delete-member@example.test'))
     .expect(201);
+  const selfDeleteId = await internalId(db, selfDeleteRegistration.body.user.publicId);
   await selfDelete.delete('/api/account').send({ confirmation: 'wrong value' }).expect(400);
   await selfDelete.delete('/api/account').send({ confirmation: 'DELETE' }).expect(204);
   const deletedSelf = (await db.query(
     'SELECT username, email, deleted_at FROM users WHERE id = $1',
-    [selfDeleteRegistration.body.user.id]
+    [selfDeleteId]
   )).rows[0];
   assert.match(deletedSelf.username, /^deleted_\d+$/);
   assert.match(deletedSelf.email, /^deleted_\d+@deleted\.nevely\.invalid$/);
@@ -278,31 +282,41 @@ test('migrations, authentication, profile validation and authorization contracts
   const adminRegistration = await admin
     .post('/register')
     .set('Accept', 'application/json')
-    .send({
-      username: 'admin_member',
-      email: 'admin-member@example.test',
-      password: 'SyntheticPassword123!'
-    })
+    .send(registrationPayload('admin_member', 'admin-member@example.test'))
     .expect(201);
-  await db.query('UPDATE users SET role = $1 WHERE id = $2', ['admin', adminRegistration.body.user.id]);
+  const adminPublicId = adminRegistration.body.user.publicId;
+  const adminId = await internalId(db, adminPublicId);
+  await db.query(
+    'UPDATE users SET role = $1, email_verified_at = NOW() WHERE id = $2',
+    ['admin', adminId]
+  );
   await admin.post('/logout').set('Accept', 'application/json').expect(204);
   await admin
     .post('/login')
     .set('Accept', 'application/json')
     .send({ email: 'admin-member@example.test', password: 'SyntheticPassword123!' })
     .expect(200);
+  const setup = await admin
+    .post('/api/admin/2fa/setup')
+    .send({ password: 'SyntheticPassword123!' })
+    .expect(200);
+  await admin
+    .post('/api/admin/2fa/confirm')
+    .send({ code: totp(setup.body.secret) })
+    .expect(204);
+  await admin
+    .post('/api/admin/reauth')
+    .send({ password: 'SyntheticPassword123!', code: totp(setup.body.secret) })
+    .expect(204);
 
   const adminDeleteTarget = request.agent(runtime.app);
   const adminDeleteRegistration = await adminDeleteTarget
     .post('/register')
     .set('Accept', 'application/json')
-    .send({
-      username: 'admin_delete_target',
-      email: 'admin-delete-target@example.test',
-      password: 'SyntheticPassword123!'
-    })
+    .send(registrationPayload('admin_delete_target', 'admin-delete-target@example.test'))
     .expect(201);
-  const adminDeleteTargetId = adminDeleteRegistration.body.user.id;
+  const adminDeleteTargetPublicId = adminDeleteRegistration.body.user.publicId;
+  const adminDeleteTargetId = await internalId(db, adminDeleteTargetPublicId);
 
   const report = await db.query(
     `INSERT INTO reports (reporter_user_id, reported_user_id, reason, details)
@@ -313,7 +327,7 @@ test('migrations, authentication, profile validation and authorization contracts
 
   await admin.get('/admin').expect(200);
   const ban = await admin
-    .post(`/api/admin/users/${memberId}/ban`)
+    .post(`/api/admin/users/${memberPublicId}/ban`)
     .send({ type: 'temporary', hours: 24, reason: 'Synthetic authorization test' })
     .expect(201);
   assert.equal(Number.isSafeInteger(ban.body.banId), true);
@@ -323,10 +337,10 @@ test('migrations, authentication, profile validation and authorization contracts
   );
 
   await admin
-    .delete(`/api/admin/users/${memberId}`)
+    .delete(`/api/admin/users/${memberPublicId}`)
     .send({ confirmation: 'wrong value' })
     .expect(400);
-  await admin.delete(`/api/admin/users/${adminRegistration.body.user.id}`)
+  await admin.delete(`/api/admin/users/${adminPublicId}`)
     .send({ confirmation: 'BAN AND DELETE' })
     .expect(400);
 
@@ -340,7 +354,7 @@ test('migrations, authentication, profile validation and authorization contracts
     [reportId]
   )).rows[0];
   assert.equal(reviewedReport.status, 'dismissed');
-  assert.equal(Number(reviewedReport.reviewed_by), Number(adminRegistration.body.user.id));
+  assert.equal(Number(reviewedReport.reviewed_by), adminId);
   assert.notEqual(reviewedReport.reviewed_at, null);
   assert.equal(reviewedReport.resolution, 'Synthetic reviewed outcome');
 
@@ -351,7 +365,7 @@ test('migrations, authentication, profile validation and authorization contracts
   assert.equal(price.body.priceCents, 0);
 
   await admin
-    .delete(`/api/admin/users/${adminDeleteTargetId}`)
+    .delete(`/api/admin/users/${adminDeleteTargetPublicId}`)
     .send({ confirmation: 'BAN AND DELETE', reason: 'Synthetic removal test' })
     .expect(204);
   const removedByAdmin = (await db.query(
@@ -365,10 +379,13 @@ test('migrations, authentication, profile validation and authorization contracts
     Number((await db.query(
       `SELECT COUNT(*) AS count FROM bans
        WHERE user_id = $1 AND type = 'permanent' AND created_by = $2`,
-      [adminDeleteTargetId, adminRegistration.body.user.id]
+      [adminDeleteTargetId, adminId]
     )).rows[0].count),
     1
   );
+
+  await db.query('UPDATE users SET role = $1 WHERE id = $2', ['user', adminId]);
+  await admin.get('/admin').set('Accept', 'application/json').expect(403);
 });
 
 test.todo('retention worker acceptance is added with N2.2 implementation');
