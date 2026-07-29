@@ -205,6 +205,14 @@ stato verificato.
 - per un account amministratore sintetico: configurazione TOTP, nuovo login e
   apertura di `/admin`.
 
+Se lo staging non contiene ancora amministratori, usare esclusivamente il
+bootstrap versionato descritto in
+[`identity-and-access.md`](identity-and-access.md#abilitare-un-amministratore).
+Impostare con **Seal** le tre variabili `ADMIN_BOOTSTRAP_*`, eseguire
+`npm run admin:bootstrap`, eliminarle immediatamente e registrare nel PR
+l'esito senza email, ID o valori di configurazione. Non sostituire il comando
+con un `UPDATE users SET role = 'admin'` manuale.
+
 Non promuovere N1 in produzione finché non esistono un client Google Web
 separato per produzione, l'origine `https://nevely.app` è quella esatta e le
 verifiche Google in staging sono registrate.

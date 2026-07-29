@@ -83,14 +83,39 @@ di produzione.
 
 ## Abilitare un amministratore
 
-1. Promuovere il ruolo con un'azione amministrativa recente, non con una
-   modifica manuale ordinaria al database.
-2. L'amministratore verifica l'email.
-3. Apre `/admin/security`, reinserisce la password se ne possiede una e
+Il primo amministratore viene promosso con il comando versionato
+`npm run admin:bootstrap`, mai con una query SQL manuale. Il comando:
+
+- funziona soltanto con `APP_ENV=staging` o `production`,
+  `NODE_ENV=production` e nome/ID Railway coerenti;
+- richiede il latch temporaneo `ADMIN_BOOTSTRAP_ENABLED=true`, l'email esatta
+  dell'account e la conferma legata all'ambiente;
+- accetta soltanto un account esistente, verificato, completo, non bannato e
+  dotato di password o identità Google;
+- usa un lock transazionale, fallisce se esiste già un amministratore, revoca
+  le sessioni del promosso e registra `first_admin_bootstrapped` negli eventi
+  di sicurezza;
+- non stampa email, ID, credenziali o valori di configurazione.
+
+Procedura per il primo amministratore:
+
+1. Creare e verificare l'account che diventerà amministratore.
+2. Nell'ambiente Railway corretto impostare temporaneamente e con **Seal**
+   `ADMIN_BOOTSTRAP_ENABLED=true`, `ADMIN_BOOTSTRAP_EMAIL=<email esatta>` e
+   `ADMIN_BOOTSTRAP_CONFIRM=bootstrap-first-admin:<staging|production>`.
+3. In Railway Console eseguire `npm run admin:bootstrap`. Il comando deve
+   terminare con `admin.first_bootstrap_completed`.
+4. Eliminare subito tutte le variabili `ADMIN_BOOTSTRAP_*`. Un secondo avvio
+   deve fallire perché esiste già un amministratore.
+5. L'amministratore effettua nuovamente il login e apre `/admin/security`;
+   reinserisce la password se ne possiede una e
    registra il seed nell'app authenticator.
-4. Conferma un codice TOTP corrente.
-5. Effettua nuovamente il login. La console richiede password + TOTP per
+6. Conferma un codice TOTP corrente.
+7. Effettua nuovamente il login. La console richiede password + TOTP per
    sbloccare per 10 minuti ban, eliminazioni, ruoli, report e prezzi.
+
+Dopo il bootstrap iniziale, ogni promozione successiva deve passare
+dall'endpoint amministrativo protetto e da una ri-autenticazione recente.
 
 Una promozione, un ban, una modifica ruolo, un cambio password/email o
 un'eliminazione incrementano la versione sessione e cancellano le sessioni
