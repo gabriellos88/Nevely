@@ -210,3 +210,37 @@ with `APP_ENV=production`. Optional bounded controls are
 Record staging output after the first N2 deployment. Investigate an unexpected
 sequential scan only after using representative row counts; PostgreSQL may
 correctly prefer a sequential scan on a tiny disposable database.
+
+## Staging acceptance — 2026-07-30
+
+Railway deployed `codex/n2-database-retention` at commit
+`94bc650358d9f5099ab8fa7d3f37c1805a9b8a83` after the GitHub Actions migration
+and test job passed. Deployment `83574d7d-b7fc-4939-92c4-0f5728903087`
+successfully applied `005_retention_capacity_and_query_bounds.sql`, emitted
+`server.listening`, returned HTTP 200 from both `/health/live` and
+`/health/ready`, and completed the first worker cycle with
+`retention.completed`.
+
+The rollback-only load test ran against the staging database through its
+existing Railway TCP proxy:
+
+```json
+{"rolledBack":true,"conversations":100,"messages":10000,"messageRowBytes":3280000,"durationMs":1425,"messageQueryExecutionMs":0.121,"retentionQueryExecutionMs":0.075}
+```
+
+The post-test readiness check still returned HTTP 200. The capacity snapshot
+reported 10,876,607 database bytes, 376,832 table bytes and 1,810,432 index
+bytes: 0.2% of the 5 GiB budget, below all alert thresholds.
+
+Representative `EXPLAIN (ANALYZE, BUFFERS)` execution times were 0.047 ms for
+case-insensitive user prefix search, 0.035 ms for both the conversation cursor
+and message cursor, 0.031 ms for active bans and 0.019 ms for the pending report
+cursor. The active-ban and pending-report queries used
+`bans_user_active_lookup_idx` and `reports_status_cursor_idx`; PostgreSQL chose
+small-table plans for the other three queries, as expected for the current
+staging row counts.
+
+The Railway staging Observability dashboard now includes the primary
+`postgres-volume-RYjl` in the existing **Staging Postgres volumes** Disk Usage
+widget while preserving the recovery-drill volume. Application sampling and
+email alerts remain the source of truth for the 60%, 75% and 90% thresholds.

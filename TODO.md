@@ -85,30 +85,32 @@ Implementation and operations evidence for N1 is collected in [`docs/admin/ident
   - Report evidence: retain a separate immutable snapshot for the moderation-policy period.
   - Ban/account/audit records: retain independently from ordinary chat content.
   - Notifications, sessions, requests and guest records: assign explicit expiry rules.
-- [ ] **N2.2 — Replace the in-process all-at-once cleanup with a controlled retention worker.**
+- [x] **N2.2 — Replace the in-process all-at-once cleanup with a controlled retention worker.**
   - Run one scheduled worker, delete in bounded batches and make repeated execution idempotent.
   - Cascade message receipts and related rows deliberately.
   - Record deleted-row counts, duration and failures.
   - Verify that autovacuum reclaims reusable space and monitor table/index bloat.
-  - Implementation, policy and the staging runbook are in [`docs/operations/database-retention-and-capacity.md`](docs/operations/database-retention-and-capacity.md); disposable-Postgres acceptance remains to be run in CI.
-- [ ] **N2.3 — Monitor the 5 GB Postgres budget.**
+  - Implementation, policy and the staging runbook are in [`docs/operations/database-retention-and-capacity.md`](docs/operations/database-retention-and-capacity.md); disposable-Postgres acceptance passed in CI and the first staging cycle completed successfully.
+- [x] **N2.3 — Monitor the 5 GB Postgres budget.**
   - Track database, table and index sizes.
   - Alert at 60%, 75% and 90%.
   - Add a dashboard/runbook for cleanup failures and unexpected growth.
   - Load-test estimated message volume before launch.
-  - Aggregate sampling and 60%/75%/90% email alerts are implemented; Railway monitors and the staging load-test record remain operational acceptance work.
-- [ ] **N2.4 — Add mandatory server-side pagination to every potentially growing collection.**
+  - Aggregate sampling and 60%/75%/90% email alerts, the Railway staging disk dashboard and the rollback-only staging load test are accepted.
+- [x] **N2.4 — Add mandatory server-side pagination to every potentially growing collection.**
   - Prefer cursor/keyset pagination over deep `OFFSET`.
   - Messages: `beforeMessageId`; conversations/users/reports: stable `(created_at, id)` cursors.
   - Validate a default page size of 20–50 and a hard maximum of 100.
   - Cover users, guests, bans, reports, messages, conversations, notifications, friends, requests and blocks.
   - All existing database-backed collections are bounded; the persistent guest collection remains owned by N3.1 because guests currently live only in expiring server sessions.
-- [ ] **N2.5 — Add indexes for the final query shapes.**
+- [x] **N2.5 — Add indexes for the final query shapes.**
   - Case-insensitive username/email search.
   - Conversation/message cursors.
   - Active bans and report queues.
   - Confirm plans with representative `EXPLAIN (ANALYZE, BUFFERS)` data.
-  - Indexes and the read-only `db:explain:n2` command are implemented; representative staging output remains to be recorded.
+  - Indexes and the read-only `db:explain:n2` command are implemented; representative staging output is recorded in the operations runbook.
+
+**N2 status:** complete in staging as of 2026-07-30; continue observation before production rollout.
 
 ### N3. Persistent guest identity and account claim
 
