@@ -125,6 +125,10 @@ test('migrations, authentication, profile validation and authorization contracts
 
   const adminRoutes = [
     { method: 'get', path: '/admin' },
+    { method: 'get', path: '/api/admin/users' },
+    { method: 'get', path: '/api/admin/reports' },
+    { method: 'get', path: '/api/admin/bans' },
+    { method: 'get', path: '/api/admin/database-capacity' },
     { method: 'post', path: `/api/admin/users/${memberPublicId}/ban`, body: { type: 'temporary', hours: 24 } },
     { method: 'delete', path: `/api/admin/users/${memberPublicId}`, body: { confirmation: 'BAN AND DELETE' } },
     { method: 'patch', path: '/api/admin/reports/1', body: { action: 'dismiss' } },
@@ -336,6 +340,25 @@ test('migrations, authentication, profile validation and authorization contracts
     1
   );
 
+  const pagedUsers = await admin.get('/api/admin/users?limit=2').expect(200);
+  assert.equal(pagedUsers.body.users.length, 2);
+  assert.equal(pagedUsers.body.page.limit, 2);
+  assert.equal(pagedUsers.body.page.hasMore, true);
+  assert.equal(Object.hasOwn(pagedUsers.body.users[0], 'id'), false);
+  await admin.get('/api/admin/users?cursor=invalid').expect(400);
+
+  const pagedReports = await admin.get('/api/admin/reports?limit=20').expect(200);
+  assert.equal(pagedReports.body.reports.some((item) => Number(item.id) === reportId), true);
+  assert.equal(pagedReports.body.page.limit, 20);
+
+  const pagedBans = await admin.get('/api/admin/bans?limit=20').expect(200);
+  assert.equal(pagedBans.body.bans.some((item) => Number(item.id) === ban.body.banId), true);
+  assert.equal(pagedBans.body.page.limit, 20);
+
+  const databaseCapacity = await admin.get('/api/admin/database-capacity').expect(200);
+  assert.equal(Array.isArray(databaseCapacity.body.capacity), true);
+  assert.equal(Array.isArray(databaseCapacity.body.retention), true);
+
   await admin
     .delete(`/api/admin/users/${memberPublicId}`)
     .send({ confirmation: 'wrong value' })
@@ -387,6 +410,3 @@ test('migrations, authentication, profile validation and authorization contracts
   await db.query('UPDATE users SET role = $1 WHERE id = $2', ['user', adminId]);
   await admin.get('/admin').set('Accept', 'application/json').expect(403);
 });
-
-test.todo('retention worker acceptance is added with N2.2 implementation');
-test.todo('cursor pagination acceptance is added with N2.4 implementation');

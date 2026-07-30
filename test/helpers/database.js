@@ -2,6 +2,9 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 const tables = [
+  'database_capacity_snapshots',
+  'retention_runs',
+  'report_evidence_snapshots',
   'google_token_replays',
   'email_outbox',
   'account_tokens',

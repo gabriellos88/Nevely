@@ -65,18 +65,15 @@ command in GitHub's Linux runner.
 
 ## Deliberately deferred contracts
 
-The following contracts are outside the explicit initial scope of N0.6 and
-remain owned by their roadmap items:
+The following contract remains outside the explicit initial scope of N0.6:
 
-- the controlled retention worker is N2.2;
-- cursor pagination is N2.4;
 - session revocation after identity and privilege changes is covered by
   `test/integration/identity-auth.test.js` as part of N1.3;
 - complete active Socket.IO ban enforcement remains N4.2.
 
-The test runner records retention and pagination as TODO contracts rather than
-pretending those features exist. Their vertical implementation must replace
-the TODO contracts with passing tests.
+N2 replaced the former retention and pagination TODO contracts with
+`test/integration/retention-pagination.test.js` and added the admin collection
+coverage to `test/integration/application.test.js`.
 
 ## N0.6 completion gate
 

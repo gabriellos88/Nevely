@@ -1120,10 +1120,22 @@ async function refreshTopbarBadges() {
       api('/api/friend-requests'),
       api('/api/notifications')
     ]);
-    const unreadMessages = conversations.conversations?.reduce((total, item) => total + (Number(item.unread_count) || 0), 0) || 0;
+    const unreadMessages = conversations.unreadCount == null
+      ? conversations.conversations?.reduce((total, item) => total + (Number(item.unread_count) || 0), 0) || 0
+      : Number(conversations.unreadCount);
     updateTopbarBadge('messages', unreadMessages);
-    updateTopbarBadge('friends', friendRequests.requests?.length || 0);
-    updateTopbarBadge('notifications', notifications.notifications?.filter((item) => !item.read_at).length || 0);
+    updateTopbarBadge(
+      'friends',
+      friendRequests.pendingCount == null
+        ? friendRequests.requests?.length || 0
+        : Number(friendRequests.pendingCount)
+    );
+    updateTopbarBadge(
+      'notifications',
+      notifications.unreadCount == null
+        ? notifications.notifications?.filter((item) => !item.read_at).length || 0
+        : Number(notifications.unreadCount)
+    );
   } catch (error) {
     // Keep request failures local; error objects may contain sensitive context.
   }
@@ -1597,7 +1609,9 @@ async function loadMessagesPanel() {
   list.innerHTML = '';
   const data = await api('/api/conversations');
   const conversations = data.conversations.filter((item) => item.type === 'direct');
-  const unreadMessages = data.conversations.reduce((total, item) => total + (Number(item.unread_count) || 0), 0);
+  const unreadMessages = data.unreadCount == null
+    ? data.conversations.reduce((total, item) => total + (Number(item.unread_count) || 0), 0)
+    : Number(data.unreadCount);
   updateTopbarBadge('messages', unreadMessages);
   conversations.forEach((item) => list.appendChild(makeListItem(
     item.partner_name,
@@ -1639,7 +1653,9 @@ async function loadChatRequestsPanel() {
     return showListState('chatRequests', false);
   }
   const data = await api('/api/chat-requests');
-  updateChatRequestBadge(data.requests.length);
+  updateChatRequestBadge(
+    data.pendingCount == null ? data.requests.length : Number(data.pendingCount)
+  );
   data.requests.forEach((request) => {
     const row = makeListItem(request.display_name, chatCopy.feedback.wantsToChat, null);
     const actions = document.createElement('span');
@@ -1689,7 +1705,10 @@ async function loadFriendRequestsPanel() {
   const { list } = listElements('friendRequests');
   list.innerHTML = '';
   const data = await api('/api/friend-requests');
-  updateTopbarBadge('friends', data.requests.length);
+  updateTopbarBadge(
+    'friends',
+    data.pendingCount == null ? data.requests.length : Number(data.pendingCount)
+  );
   data.requests.forEach((request) => {
     const row = makeListItem(request.display_name, chatCopy.feedback.sentFriendRequest, null);
     const actions = document.createElement('span');
@@ -1768,7 +1787,12 @@ async function loadNotificationsPanel() {
     return;
   }
   const data = await api('/api/notifications');
-  updateTopbarBadge('notifications', data.notifications.filter((item) => !item.read_at).length);
+  updateTopbarBadge(
+    'notifications',
+    data.unreadCount == null
+      ? data.notifications.filter((item) => !item.read_at).length
+      : Number(data.unreadCount)
+  );
   data.notifications.forEach((item) => list.appendChild(makeListItem(
     item.title,
     `${item.body || ''} ${new Date(item.created_at).toLocaleString()}`,

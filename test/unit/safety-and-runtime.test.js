@@ -126,6 +126,7 @@ test('staging validator accepts isolated safe configuration and rejects producti
     ADMIN_TOTP_ENCRYPTION_KEY: 'staging-totp-secret-32-characters-minimum',
     GOOGLE_CLIENT_ID: 'staging-client-id.apps.googleusercontent.com',
     SUPPORT_EMAIL: 'support@nevely.app',
+    CAPACITY_ALERT_EMAIL: 'admin@nevely.app',
     RAILWAY_ENVIRONMENT_NAME: 'staging',
     RAILWAY_ENVIRONMENT_ID: 'railway-staging-id',
     PRODUCTION_RAILWAY_ENVIRONMENT_ID: 'railway-production-id',

@@ -12,6 +12,7 @@ const { createOutboxWorker } = require('./lib/account-email');
 const { registerApiRoutes } = require('./lib/api');
 const { registerChat } = require('./lib/chat');
 const { createPresence } = require('./lib/presence');
+const { createRetentionWorker } = require('./lib/retention');
 const { csrfProtection, secureHeaders } = require('./lib/security');
 const safeLog = require('./lib/safe-log');
 const uiCopy = require('./public/i18n/en.json');
@@ -175,7 +176,13 @@ function createRuntime(options = {}) {
     if (db.isConfigured) {
       try {
         const ipBan = await db.query(
-          `SELECT 1 FROM bans WHERE type = 'ip' AND ip_address = $1 LIMIT 1`,
+          `SELECT 1 FROM bans
+           WHERE type = 'ip'
+             AND ip_address = $1
+             AND starts_at <= NOW()
+             AND (ends_at IS NULL OR ends_at > NOW())
+           ORDER BY starts_at DESC, id DESC
+           LIMIT 1`,
           [req.ip]
         );
         if (ipBan.rowCount) return res.status(403).send(uiCopy.errors.networkBlocked);
@@ -213,6 +220,12 @@ function createRuntime(options = {}) {
     fetchImpl: options.fetchImpl
   });
   outboxWorker.start();
+  const retentionWorker = createRetentionWorker({
+    db,
+    environment,
+    log
+  });
+  retentionWorker.start();
 
   app.use((req, res) => {
     if (req.path.startsWith('/api/')) {
@@ -284,6 +297,7 @@ function createRuntime(options = {}) {
 
       await waitForIdleOrDeadline();
       await chat.stop();
+      await retentionWorker.stop();
       await outboxWorker.stop();
       server.closeIdleConnections?.();
       server.closeAllConnections?.();
@@ -328,6 +342,7 @@ function createRuntime(options = {}) {
     io,
     chat,
     outboxWorker,
+    retentionWorker,
     lifecycle,
     start,
     shutdown,

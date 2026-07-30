@@ -112,7 +112,7 @@
       },
       {
         "question": "How many chats can I save?",
-        "answer": "Free accounts can keep 2 saved chats. Premium accounts can keep up to 10."
+        "answer": "Free accounts can keep 2 saved chats. Premium accounts can keep up to 10. Saved chats are deleted 12 months after their last activity."
       },
       {
         "question": "What do advanced filters do?",
@@ -704,7 +704,7 @@
       },
       {
         "title": "Chats and retention",
-        "body": "We store one copy of each message in the shared conversation. If neither person saves a chat, it is deleted after 30 days. A saved chat stays until it is unsaved or deleted for everyone. Guests cannot save chats."
+        "body": "We store one copy of each message in the shared conversation. An unsaved chat is deleted 7 days after its last activity, and older unsaved chats may be deleted sooner when either participant has more than 50 chats with messages. A saved chat is deleted 12 months after its last activity. Guests cannot save chats. If someone reports a conversation, a separate evidence window may be kept for 24 months for moderation."
       },
       {
         "title": "Account deletion",
@@ -828,5 +828,6 @@
     ,"ownAdminRole": "You can’t remove your own administrator role."
     ,"protectedProfileInvalid": "Provide a valid birth date and support reason."
     ,"profileAlreadyComplete": "This profile is already complete."
+    ,"paginationInvalid": "That page link is invalid or has expired."
   }
 }

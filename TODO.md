@@ -79,9 +79,9 @@ Implementation and operations evidence for N1 is collected in [`docs/admin/ident
 
 ### N2. Database retention, query bounds and capacity
 
-- [ ] **N2.1 — Approve and document one retention matrix before changing deletion code.**
-  - Unsaved conversations: hard-delete after 30 days.
-  - Saved conversations: define a visible maximum lifetime (proposed: 12 months from last activity) instead of retaining them forever.
+- [x] **N2.1 — Approve and document one retention matrix before changing deletion code.**
+  - Unsaved conversations: hard-delete after 7 days from last activity, or when a registered user exceeds 50 unsaved conversations with messages.
+  - Saved conversations: hard-delete after 12 months from last activity instead of retaining them forever.
   - Report evidence: retain a separate immutable snapshot for the moderation-policy period.
   - Ban/account/audit records: retain independently from ordinary chat content.
   - Notifications, sessions, requests and guest records: assign explicit expiry rules.
@@ -90,21 +90,25 @@ Implementation and operations evidence for N1 is collected in [`docs/admin/ident
   - Cascade message receipts and related rows deliberately.
   - Record deleted-row counts, duration and failures.
   - Verify that autovacuum reclaims reusable space and monitor table/index bloat.
+  - Implementation, policy and the staging runbook are in [`docs/operations/database-retention-and-capacity.md`](docs/operations/database-retention-and-capacity.md); disposable-Postgres acceptance remains to be run in CI.
 - [ ] **N2.3 — Monitor the 5 GB Postgres budget.**
   - Track database, table and index sizes.
   - Alert at 60%, 75% and 90%.
   - Add a dashboard/runbook for cleanup failures and unexpected growth.
   - Load-test estimated message volume before launch.
+  - Aggregate sampling and 60%/75%/90% email alerts are implemented; Railway monitors and the staging load-test record remain operational acceptance work.
 - [ ] **N2.4 — Add mandatory server-side pagination to every potentially growing collection.**
   - Prefer cursor/keyset pagination over deep `OFFSET`.
   - Messages: `beforeMessageId`; conversations/users/reports: stable `(created_at, id)` cursors.
   - Validate a default page size of 20–50 and a hard maximum of 100.
   - Cover users, guests, bans, reports, messages, conversations, notifications, friends, requests and blocks.
+  - All existing database-backed collections are bounded; the persistent guest collection remains owned by N3.1 because guests currently live only in expiring server sessions.
 - [ ] **N2.5 — Add indexes for the final query shapes.**
   - Case-insensitive username/email search.
   - Conversation/message cursors.
   - Active bans and report queues.
   - Confirm plans with representative `EXPLAIN (ANALYZE, BUFFERS)` data.
+  - Indexes and the read-only `db:explain:n2` command are implemented; representative staging output remains to be recorded.
 
 ### N3. Persistent guest identity and account claim
 
@@ -294,7 +298,7 @@ Implementation and operations evidence for N1 is collected in [`docs/admin/ident
 - [x] Server-session Guest ID and passport with immutable demographic fields, one allowed name change and local self-hosted avatar presets.
 - [x] Server-authoritative guest profile data used during matching.
 - [x] Basic account registration/login/logout with bcrypt password hashing and authentication rate limiting.
-- [x] Conversation persistence, read receipts, recent/saved chat APIs for registered accounts and 30-day expiry metadata.
+- [x] Conversation persistence, read receipts, recent/saved chat APIs for registered accounts and N2 retention metadata.
 - [x] Basic message and skip cooldowns, block checks and fallback word moderation.
 - [x] Minimal admin users/reports view with temporary/permanent ban scaffolding.
 - [x] Account settings with Astra Account, Privacy and Plans tabs.

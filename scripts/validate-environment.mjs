@@ -26,6 +26,17 @@ function parseUrl(name, protocols) {
   return parsed;
 }
 
+function optionalBoundedInteger(name, minimum, maximum) {
+  const rawValue = process.env[name]?.trim();
+  if (!rawValue) return;
+  assert.match(rawValue, /^\d+$/, `${name} must be an integer`);
+  const value = Number(rawValue);
+  assert.ok(
+    Number.isSafeInteger(value) && value >= minimum && value <= maximum,
+    `${name} must be between ${minimum} and ${maximum}`
+  );
+}
+
 assert.ok(supportedProfiles.has(requestedProfile), `Unsupported environment profile: ${requestedProfile}`);
 ensure(required('APP_ENV') === requestedProfile, 'APP_ENV must match the requested profile');
 
@@ -72,6 +83,17 @@ if (deployedProfiles.has(requestedProfile)) {
     `RAILWAY_ENVIRONMENT_NAME must identify ${requestedProfile}`
   );
   required('RAILWAY_ENVIRONMENT_ID');
+
+  optionalBoundedInteger('RETENTION_INTERVAL_MS', 60_000, 7 * 24 * 60 * 60 * 1000);
+  optionalBoundedInteger('RETENTION_BATCH_SIZE', 10, 5_000);
+  optionalBoundedInteger('RETENTION_MAX_BATCHES_PER_POLICY', 1, 100);
+  optionalBoundedInteger('RETENTION_MAX_UNSAVED_PER_USER', 10, 1_000);
+  optionalBoundedInteger('DATABASE_BUDGET_BYTES', 1024 * 1024, Number.MAX_SAFE_INTEGER);
+  assert.match(
+    required('CAPACITY_ALERT_EMAIL'),
+    /^[^\s@]+@[^\s@]+\.[^\s@]+$/,
+    'CAPACITY_ALERT_EMAIL must be an email address'
+  );
 }
 
 if (requestedProfile === 'staging') {
