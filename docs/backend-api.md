@@ -1,6 +1,8 @@
 # Nevely backend reference
 
-All JSON endpoints except health and authentication require a valid account session. Admin endpoints also require `users.role = 'admin'`.
+All JSON endpoints except health, authentication and the session-bound guest
+passport require a valid account session. Admin endpoints also require
+`users.role = 'admin'`.
 
 ## Express routes
 
@@ -20,6 +22,9 @@ Implemented in N1:
 
 ### Account and profiles
 
+- `GET`, `POST`, `PATCH`, `DELETE /api/guest-profile`: create, restore, update
+  or tombstone the persistent guest principal bound to the current server
+  session. A browser-supplied UUID is never accepted as proof of ownership.
 - `GET /api/account`: private account details.
 - `PATCH /api/account`: update display name, canonical gender/country and
   temporary image URL. Birth date is support-controlled; email uses a separate
@@ -60,7 +65,10 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
 
 - `GET /api/database-health`: PostgreSQL status.
 - `GET /admin`: minimal users, reports and plan-price view.
-- `GET /api/admin/users`, `GET /api/admin/reports`, `GET /api/admin/bans`: keyset-paginated operational collections.
+- `GET /api/admin/guests`, `GET /api/admin/users`,
+  `GET /api/admin/reports`, `GET /api/admin/bans`: keyset-paginated
+  operational collections. Guest cursors use `(created_at, UUID)` and guest
+  responses expose the compact alias rather than the internal UUID.
 - `GET /api/admin/database-capacity`: last 30 aggregate capacity samples and retention runs.
 - `POST /api/admin/users/:id/ban`: temporary or permanent ban.
 - `DELETE /api/admin/users/:id`: permanent ban, IP ban when available and account anonymization.
@@ -96,4 +104,4 @@ The server enforces text length and a per-socket rate limit. `BANNED_WORDS` can 
 
 ## Database migrations
 
-Run `npm run db:migrate` with `DATABASE_URL` configured. The runner records applied SQL files in `schema_migrations`, removes an accidental UTF-8 BOM and applies each new migration in its own transaction. N2 operations, rollback and verification are documented in [`docs/operations/database-retention-and-capacity.md`](operations/database-retention-and-capacity.md).
+Run `npm run db:migrate` with `DATABASE_URL` configured. The runner records applied SQL files in `schema_migrations`, removes an accidental UTF-8 BOM and applies each new migration in its own transaction. N2 operations, rollback and verification are documented in [`docs/operations/database-retention-and-capacity.md`](operations/database-retention-and-capacity.md). Persistent guest identity and its session/retention contract are documented in [`docs/admin/guest-identity.md`](admin/guest-identity.md).

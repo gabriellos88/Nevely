@@ -114,10 +114,11 @@ Implementation and operations evidence for N1 is collected in [`docs/admin/ident
 
 ### N3. Persistent guest identity and account claim
 
-- [ ] **N3.1 — Add a minimal persistent guest principal without creating anonymous `users` rows.**
+- [x] **N3.1 — Add a minimal persistent guest principal without creating anonymous `users` rows.**
   - Store UUID, canonical passport fields, avatar preset, creation/last-seen timestamps, status and retention metadata.
   - Bind access to the server session; never authorize ownership from a browser-supplied UUID alone.
   - Preserve the full UUID internally and display a separate compact alias where needed.
+  - Migration, API/session contract, 30-day expiry, admin cursor and tests are documented in [`docs/admin/guest-identity.md`](docs/admin/guest-identity.md).
 - [ ] **N3.2 — Attach guest ownership to product data.**
   - Add `guest_id` to conversation participants, reports and other guest-owned records.
   - Implement recent chat and saved chat ownership for guests with explicit limits.

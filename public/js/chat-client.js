@@ -539,6 +539,7 @@ function persistServerGuest(serverGuest, localProfile = guestProfile) {
     country: serverGuest.country,
     avatarId: serverGuest.avatarId,
     guestId: serverGuest.id,
+    displayAlias: serverGuest.displayAlias,
     nameChanges: serverGuest.nameChanges,
     accountNotificationRead: localProfile?.accountNotificationRead === true
   }, countryCatalog);
@@ -579,7 +580,11 @@ function renderGuestIdentity() {
       ? chatCopy.feedback.nameChangeUsed
       : chatCopy.feedback.nameChangeAvailable;
   }
-  if (guestSettingsUserId) guestSettingsUserId.textContent = guestProfile?.guestId || uiCopy.account.settingUp;
+  if (guestSettingsUserId) {
+    guestSettingsUserId.textContent = guestProfile?.displayAlias
+      || guestProfile?.guestId
+      || uiCopy.account.settingUp;
+  }
   if (guestSettingsAge) guestSettingsAge.textContent = guestProfile?.age ? String(guestProfile.age) : '—';
   if (guestSettingsGender) {
     guestSettingsGender.textContent = GuestProfileStore?.GENDERS.find((item) => item.value === guestProfile?.gender)?.label || '—';

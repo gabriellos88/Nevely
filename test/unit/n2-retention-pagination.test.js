@@ -3,9 +3,12 @@ const { test } = require('node:test');
 const {
   cursorPage,
   decodeCursor,
+  decodeUuidCursor,
   encodeCursor,
+  encodeUuidCursor,
   messagePage,
-  pageSize
+  pageSize,
+  uuidCursorPage
 } = require('../../lib/pagination');
 const {
   DATABASE_BUDGET_BYTES,
@@ -38,6 +41,30 @@ test('page sizes and cursors are bounded, stable and reject malformed input', ()
   assert.deepEqual(decodeCursor(paged.page.nextCursor), {
     createdAt: '2026-07-30T10:00:00.000Z',
     id: 42
+  });
+
+  const uuidRow = {
+    id: 'b079ed5c-b2d8-49d4-9df3-169264d25e47',
+    created_at: '2026-07-30T08:00:00.000Z'
+  };
+  const uuidCursor = encodeUuidCursor(uuidRow);
+  assert.deepEqual(decodeUuidCursor(uuidCursor), {
+    createdAt: '2026-07-30T08:00:00.000Z',
+    id: uuidRow.id
+  });
+  assert.equal(decodeUuidCursor(cursor), null);
+  const uuidPaged = uuidCursorPage([
+    uuidRow,
+    {
+      id: 'aa832b4a-331d-4fe6-a05a-20810359c190',
+      created_at: '2026-07-30T07:00:00.000Z'
+    }
+  ], 1);
+  assert.equal(uuidPaged.items.length, 1);
+  assert.equal(uuidPaged.page.hasMore, true);
+  assert.deepEqual(decodeUuidCursor(uuidPaged.page.nextCursor), {
+    createdAt: '2026-07-30T08:00:00.000Z',
+    id: uuidRow.id
   });
 });
 

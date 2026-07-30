@@ -125,6 +125,7 @@ test('migrations, authentication, profile validation and authorization contracts
 
   const adminRoutes = [
     { method: 'get', path: '/admin' },
+    { method: 'get', path: '/api/admin/guests' },
     { method: 'get', path: '/api/admin/users' },
     { method: 'get', path: '/api/admin/reports' },
     { method: 'get', path: '/api/admin/bans' },

@@ -4,6 +4,7 @@ const path = require('node:path');
 const tables = [
   'database_capacity_snapshots',
   'retention_runs',
+  'guest_principals',
   'report_evidence_snapshots',
   'google_token_replays',
   'email_outbox',
