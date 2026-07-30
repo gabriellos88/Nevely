@@ -283,7 +283,8 @@ test('guest sessions own conversations, messages, receipts, reports and bounded 
   for (let index = 0; index < 11; index += 1) {
     await seedEndedConversation(db, secondGuest.guest.id, `retention-${index}`);
   }
-  const worker = createRetentionWorker(db, {
+  const worker = createRetentionWorker({
+    db,
     environment: {
       NODE_ENV: 'test',
       RETENTION_WORKER_ENABLED: 'true',
