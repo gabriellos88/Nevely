@@ -3,6 +3,7 @@ const { test } = require('node:test');
 const request = require('supertest');
 const { createRuntime } = require('../../server');
 const { createRetentionWorker } = require('../../lib/retention');
+const { totp } = require('../../lib/totp');
 const { resetDatabase } = require('../helpers/database');
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
@@ -120,7 +121,7 @@ test('persistent guest principals are session-bound, paginated and retained', {
     .send(registrationPayload())
     .expect(201);
   await db.query(
-    `UPDATE users SET role = 'admin'
+    `UPDATE users SET role = 'admin', email_verified_at = NOW()
      WHERE email = 'guest-admin@example.test'`
   );
   await admin.post('/logout').set('Accept', 'application/json').expect(204);
@@ -132,6 +133,14 @@ test('persistent guest principals are session-bound, paginated and retained', {
       password: 'SyntheticPassword123!'
     })
     .expect(200);
+  const setup = await admin
+    .post('/api/admin/2fa/setup')
+    .send({ password: 'SyntheticPassword123!' })
+    .expect(200);
+  await admin
+    .post('/api/admin/2fa/confirm')
+    .send({ code: totp(setup.body.secret) })
+    .expect(204);
 
   const firstPage = await admin
     .get('/api/admin/guests?limit=1')
