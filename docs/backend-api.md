@@ -1,8 +1,8 @@
 # Nevely backend reference
 
-All JSON endpoints except health, authentication and the session-bound guest
-passport require a valid account session. Admin endpoints also require
-`users.role = 'admin'`.
+All JSON endpoints except health and authentication require either a valid
+account session or, for the guest passport and conversation archive, a
+session-bound guest principal. Admin endpoints require `users.role = 'admin'`.
 
 ## Express routes
 
@@ -42,13 +42,19 @@ Implemented in N1:
 
 ### Conversations
 
-- `GET /api/conversations`: active and retained conversation history, paginated with `cursor`.
+- `GET /api/conversations`: active and retained conversation history for the
+  account or guest principal in the current session, paginated with `cursor`.
 - `GET /api/conversations/:id/messages`: read a retained or saved conversation, newest page first with `beforeMessageId` for older messages.
 - `DELETE /api/conversations/:id`: delete a conversation for both participants. Body confirmation: `DELETE FOR EVERYONE`.
-- `GET /api/saved-chats`: saved chats and the current plan limit.
+- `GET /api/saved-chats`: saved chats and the current account/guest limit.
 - `PUT /api/conversations/:id/saved`, `DELETE /api/conversations/:id/saved`: save or unsave a chat.
 
-Unsaved conversations are deleted 7 days after last activity, or oldest first when a registered account exceeds 50 unsaved conversations with messages. Saved conversations are deleted 12 months after last activity. Limits are 2 for free accounts and 10 for premium accounts. Reports retain a separate immutable 50-message evidence window for 24 months.
+Unsaved conversations are deleted 7 days after last activity, or oldest first
+when an account or guest exceeds the configured limit (50 by default) of
+unsaved conversations with messages. Saved conversations are deleted 12 months
+after last activity. Saved-chat limits are 2 for guests and free accounts, and
+10 for premium accounts. Reports retain a separate immutable 50-message
+evidence window for 24 months.
 
 ### Friends and inbox
 

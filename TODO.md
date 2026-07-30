@@ -119,10 +119,11 @@ Implementation and operations evidence for N1 is collected in [`docs/admin/ident
   - Bind access to the server session; never authorize ownership from a browser-supplied UUID alone.
   - Preserve the full UUID internally and display a separate compact alias where needed.
   - Migration, API/session contract, 30-day expiry, admin cursor and tests are documented in [`docs/admin/guest-identity.md`](docs/admin/guest-identity.md).
-- [ ] **N3.2 — Attach guest ownership to product data.**
+- [x] **N3.2 — Attach guest ownership to product data.**
   - Add `guest_id` to conversation participants, reports and other guest-owned records.
   - Implement recent chat and saved chat ownership for guests with explicit limits.
   - Preserve current server-authoritative immutable passport fields, one allowed name change and preset-avatar updates.
+  - Migration, authorization, limits, retention and tests are documented in [`docs/admin/guest-product-ownership.md`](docs/admin/guest-product-ownership.md).
 - [ ] **N3.3 — Implement transactional claim on account creation.**
   - Verify the email before finalizing ownership.
   - Attach eligible recent/saved conversations and profile data to the new user.

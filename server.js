@@ -219,6 +219,7 @@ function createRuntime(options = {}) {
   registerApiRoutes(app, db, presence, { environment });
   const chat = registerChat(io, db, presence, {
     guestDurationSeconds: GUEST_CHAT_DURATION_SECONDS,
+    enforcePersistentGuestOwnership: options.enforcePersistentGuestOwnership,
     log
   });
   const outboxWorker = createOutboxWorker({

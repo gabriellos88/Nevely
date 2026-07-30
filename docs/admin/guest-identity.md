@@ -29,6 +29,9 @@ Il worker elimina le righe scadute in batch limitati. Gli stati `claimed` ed
 `expired` sono già riservati nello schema; claim, merge e comportamento
 post-claim appartengono alle fasi N3.3-N3.5.
 
+L'ownership di conversazioni, messaggi, ricevute, chat salvate e report è
+descritta in [`guest-product-ownership.md`](guest-product-ownership.md).
+
 ## API e amministrazione
 
 `GET`, `POST`, `PATCH` e `DELETE /api/guest-profile` operano solo sul principal

@@ -1092,7 +1092,7 @@ function updateTopbarBadge(name, count) {
   const badges = { messages: messagesBadge, friends: friendsBadge, notifications: notificationsBadge };
   const badge = badges[name];
   if (!config?.trigger || !badge) return;
-  const canShowCount = Boolean(currentUser) || name === 'notifications';
+  const canShowCount = Boolean(currentUser || guestProfile) || name === 'notifications';
   const safeCount = canShowCount ? Math.max(0, Number(count) || 0) : 0;
   topbarCounts[name] = safeCount;
   badge.textContent = safeCount > 99 ? '99+' : String(safeCount);
@@ -1114,7 +1114,21 @@ function updateTopbarBadge(name, count) {
 
 async function refreshTopbarBadges() {
   if (!currentUser) {
-    updateTopbarBadge('messages', 0);
+    let unreadMessages = 0;
+    if (guestProfile) {
+      try {
+        const conversations = await api('/api/conversations');
+        unreadMessages = conversations.unreadCount == null
+          ? conversations.conversations?.reduce(
+            (total, item) => total + (Number(item.unread_count) || 0),
+            0
+          ) || 0
+          : Number(conversations.unreadCount);
+      } catch (error) {
+        unreadMessages = 0;
+      }
+    }
+    updateTopbarBadge('messages', unreadMessages);
     updateTopbarBadge('friends', 0);
     updateTopbarBadge('notifications', guestProfile?.accountNotificationRead ? 0 : 1);
     return;
@@ -1263,7 +1277,8 @@ function sendMessage() {
 function queueReadReceipt(conversationId, messageId) {
   const safeConversationId = Number(conversationId);
   const safeMessageId = Number(messageId);
-  if (!currentUser || !Number.isSafeInteger(safeConversationId) || safeConversationId <= 0
+  if ((!currentUser && !guestProfile)
+      || !Number.isSafeInteger(safeConversationId) || safeConversationId <= 0
       || !Number.isSafeInteger(safeMessageId) || safeMessageId <= 0) return;
   pendingReadReceipt = { conversationId: safeConversationId, upToMessageId: safeMessageId };
   flushPendingReadReceipt();
@@ -1384,7 +1399,7 @@ socket.on('matched', (data) => {
 socket.on('receive-message', (message) => {
   const messageId = typeof message === 'object' ? Number(message.id) : null;
   addMessage(typeof message === 'string' ? message : message.text, 'them', messageId);
-  if (currentUser && document.visibilityState !== 'visible') refreshTopbarBadges();
+  if ((currentUser || guestProfile) && document.visibilityState !== 'visible') refreshTopbarBadges();
   queueReadReceipt(currentConversationId, messageId);
 });
 
@@ -1593,7 +1608,7 @@ function makeListItem(title, meta, onClick, badge) {
 }
 
 async function loadPanel(name) {
-  if (!currentUser && ['messages', 'history', 'friends', 'saved'].includes(name)) {
+  if (!currentUser && name === 'friends') {
     renderAccountRequired(name);
     return;
   }
@@ -1609,7 +1624,6 @@ async function loadPanel(name) {
 }
 
 async function loadMessagesPanel() {
-  if (!currentUser) return renderAccountRequired('messages');
   const { list } = listElements('messages');
   list.innerHTML = '';
   const data = await api('/api/conversations');
@@ -1842,13 +1856,15 @@ async function openStoredConversation(item) {
     partnerName.textContent = item.partner_name || chatCopy.drawers.messages.conversations;
     partnerAvatar.textContent = (item.partner_name || '?').charAt(0).toUpperCase();
     data.messages.forEach((message) => {
-      const mine = message.sender_public_id === currentUser.publicId;
+      const mine = Boolean(message.sender_is_owner)
+        || Boolean(currentUser && message.sender_public_id === currentUser.publicId);
       const element = addMessage(message.body, mine ? 'me' : 'them', Number(message.id));
       if (mine && message.delivered_at) element.dataset.delivered = 'true';
       if (mine && message.read_at) element.dataset.read = 'true';
     });
     const lastIncomingMessage = [...data.messages].reverse()
-      .find((message) => message.sender_public_id !== currentUser.publicId);
+      .find((message) => !message.sender_is_owner
+        && (!currentUser || message.sender_public_id !== currentUser.publicId));
     if (lastIncomingMessage) {
       await api(`/api/conversations/${item.id}/read`, {
         method: 'PATCH',
@@ -1866,7 +1882,7 @@ async function openStoredConversation(item) {
 
 async function saveCurrentConversation() {
   conversationMenu.classList.add('hidden');
-  if (!currentUser) return openAccountSettings();
+  if (!currentUser && !guestProfile) return openAccountSettings();
   if (!currentConversationId) return alert(chatCopy.feedback.nothingToSave);
   try {
     if (currentConversationSaved) {
