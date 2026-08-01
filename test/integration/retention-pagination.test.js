@@ -33,18 +33,18 @@ async function register(runtime, username) {
     'SELECT id FROM users WHERE public_id = $1',
     [response.body.user.publicId]
   )).rows[0];
-  await runtime.db.query(
-    'UPDATE users SET email_verified_at = NOW() WHERE id = $1',
-    [row.id]
-  );
-  await agent.post('/logout').set('Accept', 'application/json').expect(204);
+  const outbox = (await runtime.db.query(
+    `SELECT text_body FROM email_outbox
+     WHERE purpose = 'verify_email' AND recipient = $1
+     ORDER BY created_at DESC LIMIT 1`,
+    [`${username}@example.test`]
+  )).rows[0];
+  const match = /[?&]token=([A-Za-z0-9_-]+)/.exec(outbox?.text_body || '');
+  assert.ok(match, 'verification outbox body contains a single-use token');
   await agent
-    .post('/login')
+    .post('/verify-email')
     .set('Accept', 'application/json')
-    .send({
-      email: `${username}@example.test`,
-      password: 'SyntheticPassword123!'
-    })
+    .send({ token: match[1] })
     .expect(200);
   return {
     agent,
