@@ -33,17 +33,17 @@ Implemented in N1:
 - `POST /api/account/avatar`: reserved endpoint; returns `501` until object storage is configured.
 - `GET /api/users/:id/profile`: public profile plus friendship/block state;
   `:id` is the opaque `nvy_...` public identifier.
-- `GET /api/blocks`, `PUT /api/blocks/:id`, `DELETE /api/blocks/:id`: block-list management.
+- `GET /api/blocks`, `PUT /api/blocks/:id`, `DELETE /api/blocks/:id`: block-list management. The list uses the shared `cursor` contract.
 
 ### Conversations
 
-- `GET /api/conversations`: active and retained conversation history.
-- `GET /api/conversations/:id/messages`: read a retained or saved conversation.
+- `GET /api/conversations`: active and retained conversation history, paginated with `cursor`.
+- `GET /api/conversations/:id/messages`: read a retained or saved conversation, newest page first with `beforeMessageId` for older messages.
 - `DELETE /api/conversations/:id`: delete a conversation for both participants. Body confirmation: `DELETE FOR EVERYONE`.
 - `GET /api/saved-chats`: saved chats and the current plan limit.
 - `PUT /api/conversations/:id/saved`, `DELETE /api/conversations/:id/saved`: save or unsave a chat.
 
-Unsaved conversations are deleted after 30 days. Saved chats do not expire automatically. Limits are 2 for free accounts and 10 for premium accounts.
+Unsaved conversations are deleted 7 days after last activity, or oldest first when a registered account exceeds 50 unsaved conversations with messages. Saved conversations are deleted 12 months after last activity. Limits are 2 for free accounts and 10 for premium accounts. Reports retain a separate immutable 50-message evidence window for 24 months.
 
 ### Friends and inbox
 
@@ -54,10 +54,14 @@ Unsaved conversations are deleted after 30 days. Saved chats do not expire autom
 - `GET /api/notifications`: list notifications.
 - `PATCH /api/notifications/:id/read`: mark a notification as read.
 
+Every growing list in this section uses keyset `cursor` pagination. The default page size is 30 and `limit` is capped at 100. Responses include `page.hasMore` and `page.nextCursor`; malformed cursors return HTTP 400.
+
 ### Operations
 
 - `GET /api/database-health`: PostgreSQL status.
 - `GET /admin`: minimal users, reports and plan-price view.
+- `GET /api/admin/users`, `GET /api/admin/reports`, `GET /api/admin/bans`: keyset-paginated operational collections.
+- `GET /api/admin/database-capacity`: last 30 aggregate capacity samples and retention runs.
 - `POST /api/admin/users/:id/ban`: temporary or permanent ban.
 - `DELETE /api/admin/users/:id`: permanent ban, IP ban when available and account anonymization.
 - `PATCH /api/admin/reports/:id`: resolve or dismiss a report.
@@ -92,4 +96,4 @@ The server enforces text length and a per-socket rate limit. `BANNED_WORDS` can 
 
 ## Database migrations
 
-Run `npm run db:migrate` with `DATABASE_URL` configured. The runner records applied SQL files in `schema_migrations`, removes an accidental UTF-8 BOM and applies each new migration in its own transaction.
+Run `npm run db:migrate` with `DATABASE_URL` configured. The runner records applied SQL files in `schema_migrations`, removes an accidental UTF-8 BOM and applies each new migration in its own transaction. N2 operations, rollback and verification are documented in [`docs/operations/database-retention-and-capacity.md`](operations/database-retention-and-capacity.md).

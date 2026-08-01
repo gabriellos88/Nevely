@@ -33,6 +33,10 @@ for (const script of [
   'check',
   'admin:bootstrap',
   'db:migrate',
+  'db:capacity',
+  'db:explain:n2',
+  'retention:run',
+  'test:n2-load',
   'smoke:staging:drain',
   'smoke:staging:email',
   'test:server',
@@ -91,6 +95,9 @@ assert.match(environmentExample, /ADMIN_BOOTSTRAP_ENABLED=false/);
 assert.match(environmentExample, /GOOGLE_CLIENT_ID=/);
 assert.match(environmentExample, /SUPPORT_EMAIL=support@nevely\.app/);
 assert.match(environmentExample, /RESEND_FROM=Verify <noreply@notifications\.nevely\.app>/);
+assert.match(environmentExample, /RETENTION_MAX_UNSAVED_PER_USER=50/);
+assert.match(environmentExample, /DATABASE_BUDGET_BYTES=5368709120/);
+assert.match(environmentExample, /CAPACITY_ALERT_EMAIL=admin@nevely\.app/);
 assert.equal(
   /RESEND_API_KEY=re_[A-Za-z0-9]{10,}/.test(environmentExample),
   false,
