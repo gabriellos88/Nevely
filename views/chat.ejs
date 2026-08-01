@@ -485,9 +485,12 @@
         </header>
         <div class="account-tab-panel" id="accountPanelAccount" role="tabpanel" aria-labelledby="accountTabAccount">
         <div id="guestAccountPrompt" class="account-guest-prompt hidden">
-          <div class="guest-settings-identity">
-            <img id="guestSettingsAvatar" alt="<%= copy.account.selectedAvatarAlt %>">
-            <div><strong id="guestSettingsName"><%= copy.common.guest %></strong><span><%= copy.account.guestProfile %></span></div>
+          <div class="guest-settings-identity-row">
+            <div class="guest-settings-identity">
+              <img id="guestSettingsAvatar" alt="<%= copy.account.selectedAvatarAlt %>">
+              <div><strong id="guestSettingsName"><%= copy.common.guest %></strong><span><%= copy.account.guestProfile %></span></div>
+            </div>
+            <a id="guestClaimAccountButton" class="btn btn-primary guest-claim-account-button<%= guestClaimEligible ? '' : ' hidden' %>" href="/register?claim=1"><%= copy.account.claimGuestAccount %></a>
           </div>
           <form class="guest-name-settings" id="guestNameForm" novalidate>
             <label for="guestSettingsNameInput"><%= copy.common.displayName %></label>
@@ -517,7 +520,7 @@
           <p class="account-feedback" id="guestAccountFeedback" role="status" aria-live="polite"></p>
           <div class="guest-account-cta">
             <p><%= copy.account.guestCta %></p>
-            <a class="btn btn-primary" href="/register"><%= copy.common.createAccount %></a>
+            <a class="btn btn-outline" href="/login"><%= copy.common.createAccount %></a>
           </div>
         </div>
         <form id="accountForm" class="account-form hidden">

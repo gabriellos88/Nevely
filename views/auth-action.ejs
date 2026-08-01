@@ -71,4 +71,10 @@
   </section>
 </main>
 
+<% if (typeof clearGuestProfile !== 'undefined' && clearGuestProfile) { %>
+  <script nonce="<%= cspNonce %>">
+    window.localStorage?.removeItem('nevely.guestPassport.v1');
+  </script>
+<% } %>
+
 <%- include('partials/footer') %>

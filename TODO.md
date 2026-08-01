@@ -208,6 +208,10 @@ Implementation and operations evidence for N1 is collected in [`docs/admin/ident
 - [ ] **N7.1 — Prepare the public site for indexing.**
   - Define the canonical production origin `https://nevely.app` and redirect alternate hosts/protocols.
   - Add canonical URLs and appropriate titles/descriptions to public pages.
+  - Add a stable, crawlable square Nevely favicon to the shared page head and `Organization` structured data on the homepage with the canonical logo URL.
+  - Mark Nevely clearly as a beta on public and registration surfaces, explaining that features may change, remain limited or be temporarily unavailable and that registered users participate as beta testers.
+  - Offer a feedback link that opens an email to `admin@nevely.app` with a prefilled questionnaire in the message body instead of storing a feedback form in the application.
+  - Tell users that every feedback email is read and, when a response is needed, answered within one day.
   - Add `robots.txt` and a generated `sitemap.xml` containing only canonical public/indexable routes.
   - Add `noindex` to login, registration, chat, account, admin and other private/application surfaces; do not treat `robots.txt` as access control.
   - Validate status codes, 404 behavior and canonical consistency.

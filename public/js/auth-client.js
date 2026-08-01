@@ -18,14 +18,14 @@ window.handleGoogleCredential = async ({ credential } = {}) => {
         'Content-Type': 'application/json',
         'X-CSRF-Token': authConfiguration.csrfToken || ''
       },
-      body: JSON.stringify({ ...values, credential })
+      body: JSON.stringify({ ...values, credential, claim: authConfiguration.claimMode ? '1' : undefined })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       if (response.status === 422
         && data.code === 'GOOGLE_PROFILE_REQUIRED'
         && authConfiguration.mode === 'login') {
-        window.location.assign('/register?google=profile-required');
+        window.location.assign(`/register?google=profile-required${authConfiguration.claimMode ? '&claim=1' : ''}`);
         return;
       }
       throw new Error(data.error || 'Google sign-in could not be completed.');

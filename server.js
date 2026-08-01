@@ -11,6 +11,7 @@ const { createAuthLimiter, publicSessionUser, registerAuthRoutes } = require('./
 const { createOutboxWorker } = require('./lib/account-email');
 const { registerApiRoutes } = require('./lib/api');
 const { registerChat } = require('./lib/chat');
+const { findActiveGuestPrincipal, guestPassportComplete } = require('./lib/guest-principals');
 const { createPresence } = require('./lib/presence');
 const { createRetentionWorker } = require('./lib/retention');
 const { csrfProtection, secureHeaders } = require('./lib/security');
@@ -201,6 +202,15 @@ function createRuntime(options = {}) {
     const currentUser = publicSessionUser(req.session.user || null);
     const isGuest = !currentUser;
     if (isGuest && req.query.guest !== '1') return res.redirect('/login');
+    let guestClaimEligible = false;
+    if (isGuest && db.isConfigured && req.session.guestPrincipalId) {
+      try {
+        const guest = await findActiveGuestPrincipal(db, req.session.guestPrincipalId, { touch: false });
+        guestClaimEligible = guestPassportComplete(guest);
+      } catch (error) {
+        return next(error);
+      }
+    }
     if (currentUser && !currentUser.profileComplete) return res.redirect('/complete-profile');
     if (currentUser && environment.GOOGLE_CLIENT_ID && !req.session.googleNonce) {
       req.session.googleNonce = crypto.randomBytes(24).toString('base64url');
@@ -209,6 +219,7 @@ function createRuntime(options = {}) {
       pageTitle: uiCopy.pageTitles.chat,
       isGuest,
       currentUser,
+      guestClaimEligible,
       guestDurationSeconds: GUEST_CHAT_DURATION_SECONDS,
       googleClientId: currentUser ? environment.GOOGLE_CLIENT_ID || '' : '',
       googleNonce: currentUser ? req.session.googleNonce || '' : ''

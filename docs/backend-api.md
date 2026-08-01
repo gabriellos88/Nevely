@@ -8,9 +8,12 @@ session-bound guest principal. Admin endpoints require `users.role = 'admin'`.
 
 ### Authentication
 
-- `GET /register`, `POST /register`: registration page and account creation.
-- `GET /login`, `POST /login`: login page and session creation.
-- `POST /logout`: destroys the current session.
+- `GET /register`, `POST /register`: registration page and account creation;
+  `?claim=1` is available only to an eligible server-session guest.
+- `GET /login`, `POST /login`: login page and session creation. An existing
+  account login never merges a current guest.
+- `POST /logout`: destroys the account session, or restores the validated
+  guest session saved as a return principal.
 - `GET /api/auth/me`: returns the current session user or `null`.
 
 Implemented in N1:
@@ -64,6 +67,9 @@ evidence window for 24 months.
 - `GET /api/chat-requests`: list pending direct-chat requests.
 - `GET /api/notifications`: list notifications.
 - `PATCH /api/notifications/:id/read`: mark a notification as read.
+
+Guest notifications use the same endpoints and are authorized by the current
+guest principal session.
 
 Every growing list in this section uses keyset `cursor` pagination. The default page size is 30 and `limit` is capped at 100. Responses include `page.hasMore` and `page.nextCursor`; malformed cursors return HTTP 400.
 
