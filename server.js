@@ -174,7 +174,8 @@ function createRuntime(options = {}) {
     '/forgot-password',
     '/reset-password',
     '/auth/google',
-    '/api/auth/verification/resend'
+    '/api/auth/verification/resend',
+    '/verify-email/resend'
   ], authLimiter);
   registerAuthRoutes(app, db, {
     environment,
@@ -202,6 +203,7 @@ function createRuntime(options = {}) {
     const currentUser = publicSessionUser(req.session.user || null);
     const isGuest = !currentUser;
     if (isGuest && req.query.guest !== '1') return res.redirect('/login');
+    if (currentUser && !currentUser.emailVerified) return res.redirect('/verify-email/pending');
     let guestClaimEligible = false;
     if (isGuest && db.isConfigured && req.session.guestPrincipalId) {
       try {

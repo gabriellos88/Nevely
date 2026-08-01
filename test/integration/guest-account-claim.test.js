@@ -130,6 +130,9 @@ test('guest account claims are session-authorized, verified, transactional and n
     })
     .expect(201);
   assert.equal(registration.body.guestClaimPending, true);
+  const pendingClaimChat = await guest.get('/chat').expect(302);
+  assert.equal(pendingClaimChat.headers.location, '/verify-email/pending');
+  await guest.get('/api/conversations').expect(403);
 
   const pending = (await db.query(
     `SELECT claim.status, claim.guest_id, guest.status AS guest_status

@@ -353,9 +353,13 @@
     "verificationFailedTitle": "We couldn’t verify that link",
     "verificationCompleteTitle": "Email verified",
     "verificationCompleteBody": "Your email is verified. You can return to Nevely.",
+    "verificationPendingTitle": "Check your inbox",
+    "verificationPendingBody": "We sent a verification link to your email. Verify it before using your account.",
+    "verificationResentBody": "If the account is still awaiting verification, we sent a fresh verification link. Check your inbox.",
     "verifyEmailTitle": "Verify your email",
     "verifyEmailBody": "Confirm this single-use link to verify your Nevely email.",
     "verifyEmailAction": "Verify email",
+    "resendVerificationAction": "Resend verification email",
     "tokenState": {
       "invalid": "This link is invalid.",
       "expired": "This link has expired. Request a new one.",

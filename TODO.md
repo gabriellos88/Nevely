@@ -72,6 +72,16 @@ This file is the product and engineering source of truth for unfinished work. It
 - [x] **N1.6 — Add password-reset and verified email-change flows.** Reuse the token/outbox foundation, revoke active sessions after success and notify the previous address after an email change.
 - [x] **N1.7 — Protect administrators.** Add re-authentication for high-risk actions, 2FA for admin accounts and server-side role checks that do not trust stale session role data.
 - [x] **N1.8 — Correct the support address everywhere.** Replace `support@nevely.com` with the configured and verified `support@nevely.app`.
+- [ ] **N1.9 — Fix the Google onboarding form state.**
+  - When Google is used from `/register` without a guest claim, the Google path must not require the email and password fields; Google supplies the verified email and authentication.
+  - When Google is used from `/login` for an email that has no Nevely account, the profile-completion redirect must likewise request only the fields needed to create the profile before retrying Google.
+  - Keep the normal email/password registration path explicit and unaffected, with provider-specific validation and accessible error copy.
+  - Add acceptance coverage for both red and purple messages, including the absence of false email/password requirements.
+- [ ] **N1.10 — Make account authentication settings symmetrical and discoverable.**
+  - For password/email accounts, make the email row actionable and open the Privacy tab with the existing verified change-email action focused or clearly exposed.
+  - For Google-only accounts, allow an authenticated user to set a Nevely password through a verified, rate-limited flow; do not confuse this with changing the already verified Google email.
+  - Preserve at least one usable sign-in method, require re-authentication for adding/removing methods, and keep email-account Google linking takeover-safe.
+- [ ] **N1.11 — Give registered profiles the same default-avatar baseline as guests.** Assign a preset from the existing local avatar set at account creation/claim and expose it consistently in Account settings; keep uploaded profile pictures as a separate storage feature.
 
 Implementation and operations evidence for N1 is collected in [`docs/admin/identity-and-access.md`](docs/admin/identity-and-access.md). Database-backed identity contracts live in `test/integration/identity-auth.test.js`; unit, Socket.IO and guest-browser checks remain part of the release baseline.
 
@@ -271,7 +281,7 @@ Implementation and operations evidence for N1 is collected in [`docs/admin/ident
 - [ ] **N9.2 — Add structured logs, request correlation IDs and error monitoring** with redaction for credentials, tokens, session cookies, profile data and chat content.
 - [ ] **N9.3 — Add service alerts and runbooks** for database saturation, cleanup failure, email-outbox backlog, elevated authentication failures and Socket.IO disconnect rates.
 - [ ] **N9.4 — Self-host the approved production font** if CSP, performance or privacy requirements prohibit the current Google Fonts request.
-- [ ] **N9.5 — Complete production avatar storage** with upload validation, resizing, quotas, abuse scanning, deletion and lifecycle retention; then remove the temporary profile-image URL field and the `501` API response.
+- [ ] **N9.5 — Complete production avatar storage** with upload validation, resizing to a constrained square target (for example 150×150), quotas, abuse scanning, deletion and lifecycle retention; then remove the temporary profile-image URL field and the `501` API response. This is the upload portion of N1.11, not a replacement for the preset default avatar.
 
 ---
 

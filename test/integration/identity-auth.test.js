@@ -136,6 +136,12 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   assert.match(registration.body.user.publicId, /^nvy_[a-f0-9]{20}$/);
   assert.equal(Object.hasOwn(registration.body.user, 'internalId'), false);
   assert.equal(Object.hasOwn(registration.body.user, 'id'), false);
+  const pendingChat = await account.get('/chat').expect(302);
+  assert.equal(pendingChat.headers.location, '/verify-email/pending');
+  await account.get('/api/account').expect(403);
+  await account.get('/api/conversations').expect(403);
+  const pendingVerification = await account.get('/verify-email/pending').expect(200);
+  assert.match(pendingVerification.text, /Verify it before using your account/);
 
   const verificationOutbox = (await db.query(
     `SELECT eo.text_body, at.token_hash
@@ -157,6 +163,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
     (await account.get('/api/auth/me').expect(200)).body.user.emailVerified,
     true
   );
+  await account.get('/chat').expect(200);
   await account
     .post('/verify-email')
     .set('Accept', 'application/json')
