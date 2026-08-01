@@ -11,6 +11,7 @@ const { createAuthLimiter, publicSessionUser, registerAuthRoutes } = require('./
 const { createOutboxWorker } = require('./lib/account-email');
 const { registerApiRoutes } = require('./lib/api');
 const { registerChat } = require('./lib/chat');
+const { createPrivatePreview } = require('./lib/private-preview');
 const { createPresence } = require('./lib/presence');
 const { createRetentionWorker } = require('./lib/retention');
 const { csrfProtection, secureHeaders } = require('./lib/security');
@@ -119,6 +120,11 @@ function createRuntime(options = {}) {
     }
   }
 
+  const privatePreview = createPrivatePreview({
+    environment,
+    copy: uiCopy
+  });
+
   const sessionMiddleware = session({
     name: 'nevely.sid',
     store: db.isConfigured && db.pool
@@ -142,6 +148,8 @@ function createRuntime(options = {}) {
   app.use(sessionMiddleware);
   app.use(csrfProtection({ publicOrigin: environment.PUBLIC_ORIGIN }));
   io.engine.use(sessionMiddleware);
+  privatePreview.registerHttp(app);
+  privatePreview.registerSocket(io);
 
   app.get('/', (req, res) => res.render('home', {
     pageTitle: uiCopy.pageTitles.home,
@@ -343,6 +351,7 @@ function createRuntime(options = {}) {
     chat,
     outboxWorker,
     retentionWorker,
+    privatePreview,
     lifecycle,
     start,
     shutdown,

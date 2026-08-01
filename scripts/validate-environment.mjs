@@ -136,6 +136,17 @@ if (requestedProfile === 'production') {
     required('ROBOTS_INDEXING') === 'enabled',
     'Production indexing must be explicitly enabled'
   );
+  const privatePreviewEnabled = required('PRIVATE_PREVIEW_ENABLED').toLowerCase();
+  ensure(
+    privatePreviewEnabled === 'true' || privatePreviewEnabled === 'false',
+    'PRIVATE_PREVIEW_ENABLED must be true or false'
+  );
+  if (privatePreviewEnabled === 'true') {
+    ensure(
+      /^\$2[aby]\$(1[0-5])\$[./A-Za-z0-9]{53}$/.test(required('PRIVATE_PREVIEW_PASSWORD_HASH')),
+      'PRIVATE_PREVIEW_PASSWORD_HASH must be a bcrypt hash using 10 to 15 rounds'
+    );
+  }
 }
 
 console.log(`Environment validation passed for profile "${requestedProfile}". No configuration values were printed.`);

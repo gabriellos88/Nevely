@@ -90,6 +90,8 @@ assert.equal(
 
 assert.match(environmentExample, /ANALYTICS_MODE=disabled/);
 assert.match(environmentExample, /ROBOTS_INDEXING=disabled/);
+assert.match(environmentExample, /PRIVATE_PREVIEW_ENABLED=false/);
+assert.match(environmentExample, /PRIVATE_PREVIEW_PASSWORD_HASH=/);
 assert.match(environmentExample, /ADMIN_TOTP_ENCRYPTION_KEY=/);
 assert.match(environmentExample, /ADMIN_BOOTSTRAP_ENABLED=false/);
 assert.match(environmentExample, /GOOGLE_CLIENT_ID=/);
