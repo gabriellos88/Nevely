@@ -48,6 +48,13 @@ test('guest account claims are session-authorized, verified, transactional and n
       NODE_ENV: 'test',
       SESSION_SECRET: 'guest-account-claim-integration-secret'
     },
+    googleVerifier: async (credential) => ({
+      subject: `google-${credential}`,
+      email: `${credential}@example.test`,
+      expiresAt: new Date(Date.now() + 60 * 60 * 1000),
+      name: 'Google Profile',
+      picture: 'https://example.test/google-profile.png'
+    }),
     log: quietLog
   });
   t.after(async () => {
@@ -66,6 +73,10 @@ test('guest account claims are session-authorized, verified, transactional and n
   assert.match(loginPage.text, /\/register\?claim=1/);
   const registerPage = await guest.get('/register?claim=1').expect(200);
   assert.match(registerPage.text, /guest data will move only after the required verification/i);
+  assert.doesNotMatch(registerPage.text, /name="username"/);
+  assert.doesNotMatch(registerPage.text, /name="birthDate"/);
+  assert.doesNotMatch(registerPage.text, /name="gender"/);
+  assert.doesNotMatch(registerPage.text, /name="countryCode"/);
   const anonymousLoginPage = await request(runtime.app).get('/login').expect(200);
   assert.doesNotMatch(anonymousLoginPage.text, /Claim your current guest account/);
 
@@ -112,7 +123,11 @@ test('guest account claims are session-authorized, verified, transactional and n
   const registration = await guest
     .post('/register')
     .set('Accept', 'application/json')
-    .send(registrationPayload('claimed_member', 'claimed-member@example.test', { claim: '1' }))
+    .send({
+      email: 'claimed-member@example.test',
+      password: 'SyntheticPassword123!',
+      claim: '1'
+    })
     .expect(201);
   assert.equal(registration.body.guestClaimPending, true);
 
@@ -148,6 +163,17 @@ test('guest account claims are session-authorized, verified, transactional and n
     'SELECT id FROM users WHERE email = $1',
     ['claimed-member@example.test']
   )).rows[0].id);
+  const claimedUser = (await db.query(
+    `SELECT username, display_name, birth_date, age, gender, country_code
+     FROM users WHERE id = $1`,
+    [userId]
+  )).rows[0];
+  assert.match(claimedUser.username, /^g_[0-9a-f]{28}$/);
+  assert.equal(claimedUser.display_name, 'Claimable Guest');
+  assert.equal(claimedUser.birth_date, null);
+  assert.equal(Number(claimedUser.age), 28);
+  assert.equal(claimedUser.gender, 'non-binary');
+  assert.equal(claimedUser.country_code, 'ch');
   const claimed = (await db.query(
     `SELECT claim.status, claim.claimed_at, guest.status AS guest_status, guest.claimed_by_user_id
      FROM guest_account_claims claim
@@ -194,6 +220,26 @@ test('guest account claims are session-authorized, verified, transactional and n
     )).rows[0].count),
     1
   );
+
+  const googleGuest = request.agent(runtime.app);
+  await googleGuest.post('/api/guest-profile').send(guestPayload('Google Claim Guest')).expect(201);
+  const googleClaim = await googleGuest
+    .post('/auth/google')
+    .set('Accept', 'application/json')
+    .send({ credential: 'google-claim', claim: '1' })
+    .expect(201);
+  assert.equal(googleClaim.body.guestClaimed, true);
+  const googleClaimedUser = (await db.query(
+    `SELECT username, display_name, birth_date, age, gender, country_code
+     FROM users WHERE email = $1`,
+    ['google-claim@example.test']
+  )).rows[0];
+  assert.match(googleClaimedUser.username, /^g_[0-9a-f]{28}$/);
+  assert.equal(googleClaimedUser.display_name, 'Google Claim Guest');
+  assert.equal(googleClaimedUser.birth_date, null);
+  assert.equal(Number(googleClaimedUser.age), 28);
+  assert.equal(googleClaimedUser.gender, 'non-binary');
+  assert.equal(googleClaimedUser.country_code, 'ch');
 
   const existing = request.agent(runtime.app);
   await existing

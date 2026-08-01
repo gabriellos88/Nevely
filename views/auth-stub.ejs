@@ -97,6 +97,7 @@
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <% if (mode === 'register') { %>
           <% if (claimMode) { %><input type="hidden" name="claim" value="1"><% } %>
+          <% if (!claimMode) { %>
           <label class="auth-field" for="auth-username">
             <span><%= copy.auth.username %></span>
             <span class="auth-field-shell">
@@ -143,6 +144,7 @@
               </select>
             </span>
           </label>
+          <% } %>
         <% } %>
 
         <label class="auth-field" for="auth-email">
