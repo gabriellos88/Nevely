@@ -33,6 +33,19 @@ async function register(runtime, username) {
     'SELECT id FROM users WHERE public_id = $1',
     [response.body.user.publicId]
   )).rows[0];
+  await runtime.db.query(
+    'UPDATE users SET email_verified_at = NOW() WHERE id = $1',
+    [row.id]
+  );
+  await agent.post('/logout').set('Accept', 'application/json').expect(204);
+  await agent
+    .post('/login')
+    .set('Accept', 'application/json')
+    .send({
+      email: `${username}@example.test`,
+      password: 'SyntheticPassword123!'
+    })
+    .expect(200);
   return {
     agent,
     id: Number(row.id),

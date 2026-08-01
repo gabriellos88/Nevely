@@ -26,6 +26,19 @@ function registrationPayload(username, email) {
   };
 }
 
+async function verifyAndRefreshSession(db, agent, userId, email) {
+  await db.query(
+    'UPDATE users SET email_verified_at = NOW() WHERE id = $1',
+    [userId]
+  );
+  await agent.post('/logout').set('Accept', 'application/json').expect(204);
+  await agent
+    .post('/login')
+    .set('Accept', 'application/json')
+    .send({ email, password: 'SyntheticPassword123!' })
+    .expect(200);
+}
+
 async function internalId(db, publicId) {
   return Number((await db.query(
     'SELECT id FROM users WHERE public_id = $1',
@@ -77,6 +90,7 @@ test('migrations, authentication, profile validation and authorization contracts
   assert.equal(Object.hasOwn(registration.body.user, 'id'), false);
   assert.equal(Object.hasOwn(registration.body.user, 'password'), false);
   assert.equal(Object.hasOwn(registration.body.user, 'password_hash'), false);
+  await verifyAndRefreshSession(db, primary, primaryId, 'primary-user@example.test');
 
   await primary
     .patch('/api/account')
@@ -115,13 +129,16 @@ test('migrations, authentication, profile validation and authorization contracts
     .expect(201);
   const memberPublicId = memberRegistration.body.user.publicId;
   const memberId = await internalId(db, memberPublicId);
+  await verifyAndRefreshSession(db, member, memberId, 'ordinary-member@example.test');
 
   const outsider = request.agent(runtime.app);
-  await outsider
+  const outsiderRegistration = await outsider
     .post('/register')
     .set('Accept', 'application/json')
     .send(registrationPayload('outside_member', 'outside-member@example.test'))
     .expect(201);
+  const outsiderId = await internalId(db, outsiderRegistration.body.user.publicId);
+  await verifyAndRefreshSession(db, outsider, outsiderId, 'outside-member@example.test');
 
   const adminRoutes = [
     { method: 'get', path: '/admin' },
@@ -272,6 +289,7 @@ test('migrations, authentication, profile validation and authorization contracts
     .send(registrationPayload('self_delete_member', 'self-delete-member@example.test'))
     .expect(201);
   const selfDeleteId = await internalId(db, selfDeleteRegistration.body.user.publicId);
+  await verifyAndRefreshSession(db, selfDelete, selfDeleteId, 'self-delete-member@example.test');
   await selfDelete.delete('/api/account').send({ confirmation: 'wrong value' }).expect(400);
   await selfDelete.delete('/api/account').send({ confirmation: 'DELETE' }).expect(204);
   const deletedSelf = (await db.query(
