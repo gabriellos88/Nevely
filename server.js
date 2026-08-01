@@ -11,10 +11,10 @@ const { createAuthLimiter, publicSessionUser, registerAuthRoutes } = require('./
 const { createOutboxWorker } = require('./lib/account-email');
 const { registerApiRoutes } = require('./lib/api');
 const { registerChat } = require('./lib/chat');
-const { createPrivatePreview } = require('./lib/private-preview');
 const { createPresence } = require('./lib/presence');
 const { createRetentionWorker } = require('./lib/retention');
 const { csrfProtection, secureHeaders } = require('./lib/security');
+const { createPrivatePreview } = require('./lib/private-preview');
 const safeLog = require('./lib/safe-log');
 const uiCopy = require('./public/i18n/en.json');
 
