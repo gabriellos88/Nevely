@@ -58,7 +58,10 @@ This file is the product and engineering source of truth for unfinished work. It
   - Send the raw token only in the email link from `Verify <noreply@notifications.nevely.app>`.
   - Use an outbox/worker with retries and idempotency instead of an untracked background promise.
   - Add verify, resend and expired/used-token flows with rate limits that do not reveal whether an email exists.
-  - Decide which registered features remain restricted until verification.
+  - Block all registered product access until verification: an unverified
+    password account may use only the verification waiting/resend flow and
+    logout. Google-created accounts remain verified through the validated
+    provider assertion.
 - [x] **N1.5 — Implement Sign in with Google using Google Identity Services.**
   - Create separate production and staging OAuth web clients in a Google Cloud project owned by the private admin account; configure only exact authorized origins/redirects and keep credentials in environment secrets.
   - Replace the disabled placeholder with the official Google Identity Services button and request only authentication scopes (`openid`, `email`, `profile`).
@@ -85,7 +88,8 @@ This file is the product and engineering source of truth for unfinished work. It
 
 Implementation and operations evidence for N1 is collected in [`docs/admin/identity-and-access.md`](docs/admin/identity-and-access.md). Database-backed identity contracts live in `test/integration/identity-auth.test.js`; unit, Socket.IO and guest-browser checks remain part of the release baseline.
 
-**N1 status:** complete as of 2026-07-30.
+**N1 status:** N1.1–N1.8 are complete; N1.9–N1.12 remain explicitly deferred
+until the N3 staging email-verification flow is accepted manually.
 
 ### N2. Database retention, query bounds and capacity
 
@@ -120,7 +124,9 @@ Implementation and operations evidence for N1 is collected in [`docs/admin/ident
   - Confirm plans with representative `EXPLAIN (ANALYZE, BUFFERS)` data.
   - Indexes and the read-only `db:explain:n2` command are implemented; representative staging output is recorded in the operations runbook.
 
-**N2 status:** complete in staging as of 2026-07-30; continue observation before production rollout.
+**N2 status:** merged into `main` on 2026-08-01 after the staging observation
+window recorded 12 `retention.completed` events, no `retention.failed`, HTTP
+200 readiness and approximately 0.45 MB of volume growth over 48 hours.
 
 ### N3. Persistent guest identity and account claim
 
@@ -134,16 +140,25 @@ Implementation and operations evidence for N1 is collected in [`docs/admin/ident
   - Implement recent chat and saved chat ownership for guests with explicit limits.
   - Preserve current server-authoritative immutable passport fields, one allowed name change and preset-avatar updates.
   - Migration, authorization, limits, retention and tests are documented in [`docs/admin/guest-product-ownership.md`](docs/admin/guest-product-ownership.md).
-- [ ] **N3.3 — Implement transactional claim on account creation.**
+- [x] **N3.3 — Implement transactional claim on account creation.**
   - Verify the email before finalizing ownership.
   - Attach eligible recent/saved conversations and profile data to the new user.
   - Mark the guest principal as claimed, regenerate the session and prevent replay/double claim.
-- [ ] **N3.4 — Implement explicit merge on login to an existing account.**
-  - Ask for confirmation before attaching current guest data.
-  - Define conflict, duplicate and saved-chat-limit behavior.
-  - Do not merge a guest identity that the current server session cannot prove it owns.
-- [ ] **N3.5 — Define post-claim behavior.** Remove or tombstone the guest passport, clear/synchronize its browser copy and document recovery after cleared storage or an expired session.
-- [ ] **N3.6 — Persist the guest create-account reminder as a system notification** so read state survives browser resets and can migrate during claim.
+- [x] **N3.4 — Keep login to an existing account separate from guest claim.**
+  - Never merge, transfer or convert guest data when a guest logs in to an
+    existing password or Google account.
+  - Preserve a server-validated return reference so logout can restore the
+    still-active guest as a distinct identity that may be claimed later.
+  - Never authorize either return or claim from a browser-supplied UUID,
+    username or avatar.
+- [x] **N3.5 — Define post-claim behavior.** Tombstone the claimed guest for 30
+  days, clear its browser/session copy after the verified transactional claim,
+  and document recovery limits for cleared storage and expired sessions.
+- [x] **N3.6 — Persist the guest create-account reminder as a system notification** so read state survives browser resets and migrates during claim.
+
+**N3 status:** implementation and automated coverage are complete; staging
+acceptance remains open until the email waiting/verification flow is confirmed
+manually. Do not start N1.9–N1.12 before that confirmation.
 
 ### N4. Safety, bans and the admin workspace
 

@@ -23,7 +23,7 @@ identity and security records.
 | Security/audit events | 24 months | Hard-delete in batches. This policy is independent of chat deletion. |
 | Active accounts and anonymized account tombstones | Not deleted by the retention worker | Account lifecycle remains an explicit identity operation. |
 | Friendships and blocks | Until a user removes them or an account lifecycle action applies | They are not aged out as chat content. |
-| Guest passport | Stored in the server session today, so it follows session expiry | The persistent guest table and its own cursor/retention metadata belong to N3.1. |
+| Guest principals | Active principals expire after 30 days of inactivity; claimed tombstones are retained for 30 days | N3 keeps the authorization binding in the server session and persists the guest reminder notification until claim or expiry. |
 | Capacity samples | 400 days | Old aggregate samples are deleted in batches. |
 | Retention run records | 90 days | Old aggregate run records are deleted in batches. |
 
@@ -174,8 +174,9 @@ maximum of 100.
 
 The cursor is an opaque API value. Invalid values return HTTP 400. Saved chats
 remain inherently bounded to 2 for free accounts and 10 for premium accounts.
-There is no persistent guest collection until N3.1; the in-session guest
-passport therefore cannot be paginated yet.
+N3.1 adds the persistent guest collection with a bounded admin cursor and its
+own retention metadata; product authorization still depends exclusively on the
+guest principal bound to the server session.
 
 The first page remains backward-compatible with the existing UI. Count fields
 such as `unreadCount` and `pendingCount` are computed across the complete
