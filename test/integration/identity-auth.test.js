@@ -383,7 +383,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
       .set('X-Forwarded-For', '198.51.100.46')
       .send({})
       .expect(202);
-    assert.match(setup.body.message, /verified email/);
+    assert.match(setup.body.message, /Check your inbox/);
   }
   const googleSetupOutbox = await db.query(
     `SELECT text_body FROM email_outbox
