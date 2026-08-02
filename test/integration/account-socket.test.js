@@ -83,6 +83,7 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
   const baseUrl = `http://127.0.0.1:${address.port}`;
   let firstAccount = await register(baseUrl, 'socket_first', 'socket-first@example.test');
   let secondAccount = await register(baseUrl, 'socket_second', 'socket-second@example.test');
+  let revokedAccount = await register(baseUrl, 'socket_revoked', 'socket-revoked@example.test');
   let adminAccount = await register(baseUrl, 'socket_admin', 'socket-admin@example.test');
 
   const unverified = await connectAccount(baseUrl, firstAccount.cookie);
@@ -98,7 +99,7 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
   await db.query(
     `UPDATE users SET email_verified_at = NOW()
      WHERE email = ANY($1::text[])`,
-    [['socket-first@example.test', 'socket-second@example.test']]
+    [['socket-first@example.test', 'socket-second@example.test', 'socket-revoked@example.test']]
   );
   const firstLogin = await request(baseUrl)
     .post('/login')
@@ -112,6 +113,12 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
     .send({ email: 'socket-second@example.test', password: 'SyntheticPassword123!' })
     .expect(200);
   secondAccount = { ...secondAccount, cookie: cookieFrom(secondLogin) };
+  const revokedLogin = await request(baseUrl)
+    .post('/login')
+    .set('Accept', 'application/json')
+    .send({ email: 'socket-revoked@example.test', password: 'SyntheticPassword123!' })
+    .expect(200);
+  revokedAccount = { ...revokedAccount, cookie: cookieFrom(revokedLogin) };
 
   const adminId = Number((await db.query(
     'SELECT id FROM users WHERE public_id = $1',
@@ -151,11 +158,25 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
 
   const first = await connectAccount(baseUrl, firstAccount.cookie);
   const second = await connectAccount(baseUrl, secondAccount.cookie);
+  const revoked = await connectAccount(baseUrl, revokedAccount.cookie);
   t.after(async () => {
     first.disconnect();
     second.disconnect();
+    revoked.disconnect();
     await runtime.shutdown();
   });
+
+  await db.query(
+    `UPDATE users SET session_version = session_version + 1
+     WHERE email = 'socket-revoked@example.test'`
+  );
+  const authRequired = eventFrom(revoked, 'auth-required');
+  revoked.emit('find-partner', {
+    interests: ['astronomy'],
+    profile: { username: 'Revoked', age: 30, gender: 'non-binary', country: 'Switzerland' },
+    waitingTimeSeconds: null
+  });
+  await authRequired;
 
   const waiting = eventFrom(first, 'waiting');
   first.emit('find-partner', {

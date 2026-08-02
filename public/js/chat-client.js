@@ -1487,6 +1487,9 @@ socket.on('server-shutdown', () => {
   if (releaseNoticeBody) releaseNoticeBody.textContent = uiCopy.release.complete;
   setChatComposerState('error', uiCopy.release.complete);
 });
+socket.on('auth-required', () => {
+  window.location.replace('/login');
+});
 socket.on('disconnect', () => {
   if (releaseDraining) return;
   setChatComposerState('error', chatCopy.composer.reconnecting);
@@ -1557,6 +1560,12 @@ async function api(url, options = {}) {
       ...(options.headers || {})
     }
   });
+  if (response.status === 401) {
+    window.location.replace('/login');
+    const unauthorized = new Error(uiCopy.errors.accountRequired || uiCopy.errors.unexpected);
+    unauthorized.code = 'AUTH_REQUIRED';
+    throw unauthorized;
+  }
   if (response.status === 204) return null;
   const data = await response.json().catch(() => ({}));
   if (!response.ok) throw new Error(data.error || uiCopy.errors.unexpected);
@@ -2220,15 +2229,12 @@ googleIdentityUnlinkForm?.addEventListener('submit', async (event) => {
   accountSecurityFeedback.textContent = '';
   try {
     const values = Object.fromEntries(new FormData(event.currentTarget));
-    await api('/api/account/identities/google', {
+    const data = await api('/api/account/identities/google', {
       method: 'DELETE',
       body: JSON.stringify(values)
     });
     event.currentTarget.reset();
-    renderAccountSecurity({
-      ...accountSecurityState,
-      hasGoogle: false
-    });
+    renderAccountSecurity(data.user);
     accountSecurityFeedback.textContent = uiCopy.account.googleUnlinkedFeedback;
   } catch (error) {
     accountSecurityFeedback.textContent = error.message;

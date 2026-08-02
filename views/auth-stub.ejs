@@ -1,6 +1,6 @@
 <%- include('partials/header', { hideSiteHeader: true }) %>
 
-<main class="auth-page auth-page--<%= mode %>">
+<main class="auth-page auth-page--<%= mode %><%= googleProfileRequired ? ' auth-page--google-profile' : '' %>">
   <section class="auth-shell" aria-labelledby="auth-title">
     <aside class="auth-context">
       <div class="auth-context__intro">
@@ -51,6 +51,13 @@
         <div class="auth-error" id="auth-error" role="alert">
           <i data-lucide="circle-alert" aria-hidden="true"></i>
           <span><%= error %></span>
+        </div>
+      <% } %>
+
+      <% if (notice) { %>
+        <div class="auth-notice" role="status">
+          <i data-lucide="circle-check" aria-hidden="true"></i>
+          <span><%= notice %></span>
         </div>
       <% } %>
 
@@ -196,7 +203,8 @@
     mode,
     csrfToken,
     googleEnabled: Boolean(googleClientId),
-    claimMode: Boolean(claimMode)
+    claimMode: Boolean(claimMode),
+    googleProfileRequired: Boolean(googleProfileRequired)
   }).replace(/</g, '\\u003c') %>;
 </script>
 <script src="/js/auth-client.js"></script>

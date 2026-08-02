@@ -46,6 +46,27 @@ test('N1 email tokens, session revocation and Google identity contracts', {
       picture: '',
       expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     }],
+    ['google-delete-original', {
+      subject: 'google-subject-delete-reuse',
+      email: 'google-delete-reuse@example.test',
+      name: 'Google Delete Reuse',
+      picture: '',
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+    }],
+    ['google-delete-reuse', {
+      subject: 'google-subject-delete-reuse',
+      email: 'google-delete-reuse@example.test',
+      name: 'Google Delete Reuse',
+      picture: '',
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+    }],
+    ['google-legacy-deleted', {
+      subject: 'google-subject-legacy-deleted',
+      email: 'google-legacy-reuse@example.test',
+      name: 'Google Legacy Reuse',
+      picture: '',
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+    }],
     ['google-profile-required', {
       subject: 'google-subject-profile-required',
       email: 'google-profile-required@example.test',
@@ -277,11 +298,12 @@ test('N1 email tokens, session revocation and Google identity contracts', {
     ['email-member-new@example.test']
   )).rows[0];
   const emailChangeToken = tokenFromBody(emailChangeOutbox.text_body);
-  await request(runtime.app)
+  const emailChangeConfirmation = await request(runtime.app)
     .post('/confirm-email-change')
     .set('Accept', 'application/json')
     .send({ token: emailChangeToken })
     .expect(200);
+  assert.equal(emailChangeConfirmation.body.redirect, '/login?email-changed=1');
   assert.equal((await changedAccount.get('/api/auth/me').expect(200)).body.user, null);
   await request(runtime.app)
     .post('/login')
@@ -329,10 +351,15 @@ test('N1 email tokens, session revocation and Google identity contracts', {
     .delete('/api/account/identities/google')
     .send({ password: 'wrong-password' })
     .expect(401);
-  await linkedAccount
+  const unlinkedGoogle = await linkedAccount
     .delete('/api/account/identities/google')
     .send({ password: 'ChangedPassword123!' })
-    .expect(204);
+    .expect(200);
+  assert.deepEqual(unlinkedGoogle.body.user, {
+    email: 'email-member-new@example.test',
+    hasGoogle: false,
+    hasPassword: true
+  });
   linkedMethods = (await linkedAccount.get('/api/account').expect(200)).body.user;
   assert.equal(linkedMethods.hasPassword, true);
   assert.equal(linkedMethods.hasGoogle, false);
@@ -387,14 +414,16 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   }
   const googleSetupOutbox = await db.query(
     `SELECT text_body FROM email_outbox
-     WHERE purpose = 'password_reset' AND recipient = $1
+     WHERE purpose = 'password_setup' AND recipient = $1
      ORDER BY created_at DESC`,
     ['google-new@example.test']
   );
   assert.equal(googleSetupOutbox.rowCount, 3);
+  assert.match(googleSetupOutbox.rows[0].text_body, /Add a Nevely password/);
+  assert.match(googleSetupOutbox.rows[0].text_body, /Google will remain connected/);
   const googleSetupToken = tokenFromBody(googleSetupOutbox.rows[0].text_body);
   await request(runtime.app)
-    .post('/reset-password')
+    .post('/add-password')
     .set('Accept', 'application/json')
     .set('X-Forwarded-For', '198.51.100.47')
     .send({ token: googleSetupToken, password: 'GooglePassword123!' })
@@ -415,6 +444,68 @@ test('N1 email tokens, session revocation and Google identity contracts', {
     .set('X-Forwarded-For', '198.51.100.49')
     .send({})
     .expect(409);
+
+  const deletedGoogle = request.agent(runtime.app);
+  await deletedGoogle
+    .post('/auth/google')
+    .set('Accept', 'application/json')
+    .set('X-Forwarded-For', '198.51.100.50')
+    .send({
+      credential: 'google-delete-original',
+      username: 'google_delete_reuse',
+      birthDate: '1990-06-15',
+      gender: 'non-binary',
+      countryCode: 'ch'
+    })
+    .expect(201);
+  const deletedGoogleUser = (await db.query(
+    `SELECT id FROM users WHERE email = 'google-delete-reuse@example.test' AND deleted_at IS NULL`
+  )).rows[0];
+  await deletedGoogle
+    .delete('/api/account')
+    .send({ confirmation: 'DELETE' })
+    .expect(204);
+  assert.equal(Number((await db.query(
+    'SELECT COUNT(*) AS count FROM account_identities WHERE user_id = $1',
+    [deletedGoogleUser.id]
+  )).rows[0].count), 0);
+  const reusedGoogle = await request(runtime.app)
+    .post('/auth/google')
+    .set('Accept', 'application/json')
+    .set('X-Forwarded-For', '198.51.100.51')
+    .send({
+      credential: 'google-delete-reuse',
+      username: 'google_delete_reuse',
+      birthDate: '1990-06-15',
+      gender: 'non-binary',
+      countryCode: 'ch'
+    })
+    .expect(201);
+  assert.equal(reusedGoogle.body.user.email, 'google-delete-reuse@example.test');
+  const legacyDeleted = await db.query(
+    `INSERT INTO users
+       (username, email, password_hash, public_id, display_name, deleted_at)
+     VALUES ('deleted_legacy_google', 'deleted-legacy@deleted.nevely.invalid', NULL,
+             'nvy_cccccccccccccccccccc', 'Deleted user', NOW())
+     RETURNING id`
+  );
+  await db.query(
+    `INSERT INTO account_identities (user_id, provider, provider_subject, provider_email)
+     VALUES ($1, 'google', 'google-subject-legacy-deleted', 'google-legacy-reuse@example.test')`,
+    [legacyDeleted.rows[0].id]
+  );
+  await request(runtime.app)
+    .post('/auth/google')
+    .set('Accept', 'application/json')
+    .set('X-Forwarded-For', '198.51.100.52')
+    .send({
+      credential: 'google-legacy-deleted',
+      username: 'google_legacy_reuse',
+      birthDate: '1990-06-15',
+      gender: 'non-binary',
+      countryCode: 'ch'
+    })
+    .expect(201);
   await request(runtime.app)
     .post('/auth/google')
     .set('Accept', 'application/json')

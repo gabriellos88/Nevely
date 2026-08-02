@@ -11,15 +11,18 @@ const clientSource = fs.readFileSync(
 
 function createClient({ mode = 'login', status = 200, body = {} } = {}) {
   const destinations = [];
-  const feedback = {
-    id: 'auth-error',
-    textContent: '',
-    setAttribute() {}
-  };
+  let feedback = null;
+  let createdFeedbackCount = 0;
   const window = {
-    __AUTH_CONFIG__: { mode, csrfToken: 'synthetic-csrf-token' },
+    __AUTH_CONFIG__: {
+      mode,
+      csrfToken: 'synthetic-csrf-token',
+      googleProfileRequired: mode === 'register'
+    },
+    history: {},
+    scrollTo() {},
     location: {
-      assign(destination) {
+      replace(destination) {
         destinations.push(destination);
       }
     },
@@ -36,6 +39,14 @@ function createClient({ mode = 'login', status = 200, body = {} } = {}) {
         return feedback;
       },
       createElement() {
+        createdFeedbackCount += 1;
+        feedback = {
+          id: '',
+          className: '',
+          hidden: false,
+          textContent: '',
+          setAttribute() {}
+        };
         return feedback;
       }
     },
@@ -49,7 +60,8 @@ function createClient({ mode = 'login', status = 200, body = {} } = {}) {
   vm.runInContext(clientSource, context, { filename: 'auth-client.js' });
   return {
     destinations,
-    feedback,
+    createdFeedbackCount: () => createdFeedbackCount,
+    feedbackText: () => feedback?.textContent || '',
     handle: window.handleGoogleCredential
   };
 }
@@ -82,7 +94,8 @@ test('Google auth client routes profile, admin and successful login outcomes', a
     const client = createClient(testCase.response);
     await client.handle({ credential: 'synthetic-google-credential' });
     assert.deepEqual(client.destinations, [testCase.destination]);
-    assert.equal(client.feedback.textContent, '');
+    assert.equal(client.feedbackText(), '');
+    assert.equal(client.createdFeedbackCount(), 0);
   }
 });
 
@@ -97,5 +110,17 @@ test('Google profile validation stays inline on the registration page', async ()
   });
   await client.handle({ credential: 'synthetic-google-credential' });
   assert.deepEqual(client.destinations, []);
-  assert.equal(client.feedback.textContent, 'Complete the required profile.');
+  assert.equal(client.feedbackText(), '');
+  assert.equal(client.createdFeedbackCount(), 0);
+});
+
+test('Google auth creates an alert only for a real error with non-empty copy', async () => {
+  const client = createClient({
+    mode: 'login',
+    status: 401,
+    body: { error: 'Google could not verify this sign-in.' }
+  });
+  await client.handle({ credential: 'synthetic-google-credential' });
+  assert.equal(client.createdFeedbackCount(), 1);
+  assert.equal(client.feedbackText(), 'Google could not verify this sign-in.');
 });

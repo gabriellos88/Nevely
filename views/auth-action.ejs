@@ -25,8 +25,8 @@
           </label>
           <button class="auth-submit" type="submit"><%= copy.auth.sendResetAction %></button>
         </form>
-      <% } else if (mode === 'reset-password') { %>
-        <form class="auth-form" method="post" action="/reset-password">
+      <% } else if (mode === 'reset-password' || mode === 'add-password') { %>
+        <form class="auth-form" method="post" action="<%= mode === 'add-password' ? '/add-password' : '/reset-password' %>">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
           <input type="hidden" name="token" value="<%= token %>">
           <label class="auth-field">
@@ -37,7 +37,7 @@
                      autocomplete="new-password" required>
             </span>
           </label>
-          <button class="auth-submit" type="submit"><%= copy.auth.resetPasswordAction %></button>
+          <button class="auth-submit" type="submit"><%= mode === 'add-password' ? copy.auth.passwordSetupAction : copy.auth.resetPasswordAction %></button>
         </form>
       <% } else if (mode === 'confirm-email') { %>
         <form class="auth-form" method="post" action="/confirm-email-change">

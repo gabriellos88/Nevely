@@ -532,11 +532,14 @@
             <span><strong><%= copy.account.profilePicture %></strong><small><%= copy.account.photoUploadUnavailable %></small></span>
           </div>
           <label><%= copy.common.displayName %><input name="displayName" maxlength="40" required></label>
-          <button class="account-email-action" id="accountEmailAction" type="button">
-            <span><%= copy.common.email %></span>
-            <strong id="accountEmailValue"></strong>
-            <i data-lucide="arrow-right" aria-hidden="true"></i>
-          </button>
+          <div class="account-email-field">
+            <span id="accountEmailLabel"><%= copy.common.email %></span>
+            <button class="account-email-action" id="accountEmailAction" type="button"
+                    aria-labelledby="accountEmailLabel accountEmailValue">
+              <strong id="accountEmailValue"></strong>
+              <i data-lucide="arrow-right" aria-hidden="true"></i>
+            </button>
+          </div>
           <label><%= copy.account.nevelyId %><input name="publicId" readonly></label>
           <label><%= copy.auth.birthDate %><input name="birthDate" type="date" readonly></label>
           <label>

@@ -44,8 +44,9 @@ I token sono casuali, monouso, legati a uno scopo e salvati solo come hash in
 `account_tokens`. Il valore grezzo esiste temporaneamente soltanto nel link
 dell'email accodata. Un nuovo invio revoca il precedente.
 
-- verifica email: scadenza 24 ore;
+- verifica email: scadenza 1 ora;
 - reset password: scadenza 1 ora;
+- aggiunta password a un account Google-only: scadenza 1 ora;
 - cambio email: scadenza 1 ora e notifica al vecchio indirizzo;
 - reset password e cambio email revocano tutte le sessioni.
 
@@ -54,10 +55,16 @@ Tre richieste per scopo e account in un'ora sono il limite applicativo, oltre
 al rate limit HTTP.
 
 Un account creato solo con Google può aggiungere una password Nevely dal tab
-Privacy. Il server accoda un link `password_reset` soltanto all'indirizzo già
+Privacy. Il server accoda un link `password_setup` soltanto all'indirizzo già
 verificato dell'account, con lo stesso limite di tre richieste l'ora. Il link
 monouso costituisce la verifica richiesta; il completamento revoca tutte le
 sessioni, ma conserva l'identità Google. Non cambia l'email attestata da Google.
+
+Una registrazione email/password non verificata è marcata esplicitamente come
+pendente. Ogni reinvio revoca il link precedente; quando non rimane alcun token
+di verifica valido, il worker di retention elimina in un'unica transazione
+account pendente, sessioni e token correlati. Email e username tornano quindi
+disponibili senza coinvolgere account legacy non verificati privi del marcatore.
 
 Un account password non verificato non può usare il prodotto. Le pagine chat e
 account lo rimandano a `/verify-email/pending`; le API di prodotto rispondono
@@ -91,6 +98,11 @@ browser non deve richiedere email o password Nevely. Il collegamento a un
 account password esistente richiede una nuova assertion Google con la stessa
 email verificata; la rimozione di Google richiede la password corrente e viene
 rifiutata se lascerebbe l'account senza alcun metodo di accesso.
+
+La cancellazione dell'account rimuove nella stessa transazione le identità
+OAuth e revoca i token attivi prima del soft-delete. Una registrazione
+successiva con lo stesso account Google crea un'identità nuova e distinta: non
+riattiva né trasferisce dati dal record eliminato.
 
 ## Avatar predefiniti registrati
 
