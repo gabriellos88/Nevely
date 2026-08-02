@@ -446,12 +446,11 @@
                   <span class="guest-country-search">
                     <i class="guest-country-search-icon" data-lucide="search" aria-hidden="true"></i>
                     <span class="guest-country-selected-flag hidden" id="guestCountrySelectedFlag" aria-hidden="true"></span>
-                    <input id="guestCountrySearch" type="search" maxlength="80" autocomplete="off" placeholder="<%= copy.chat.guestPassport.countryPlaceholder %>" role="combobox" aria-autocomplete="list" aria-controls="guestCountrySuggestions" aria-expanded="false" aria-describedby="guestCountryStatus">
+                    <input id="guestCountrySearch" type="search" maxlength="80" autocomplete="off" placeholder="<%= copy.chat.guestPassport.countryPlaceholder %>" role="combobox" aria-autocomplete="list" aria-controls="guestCountrySuggestions" aria-expanded="false">
                     <input id="countryInput" name="country" type="hidden">
                   </span>
                   <span class="guest-country-suggestions hidden" id="guestCountrySuggestions" role="listbox" aria-label="<%= copy.chat.match.countryResultsAria %>"></span>
                 </span>
-                <small class="guest-country-status" id="guestCountryStatus" aria-live="polite"><%= copy.chat.guestPassport.countryHint %></small>
               </label>
             </div>
 
@@ -544,15 +543,34 @@
           <label><%= copy.auth.birthDate %><input name="birthDate" type="date" readonly></label>
           <label>
             <%= copy.common.gender %>
-            <select name="gender" required>
+            <span class="account-choice-group" data-gender-choices>
+              <select name="gender" class="profile-native-control" aria-hidden="true" tabindex="-1">
               <option value="female"><%= copy.common.female %></option>
               <option value="male"><%= copy.common.male %></option>
               <option value="non-binary"><%= copy.common.nonBinary %></option>
               <option value="other"><%= copy.common.other %></option>
               <option value="prefer-not-to-say"><%= copy.auth.preferNotToSay %></option>
-            </select>
+              </select>
+              <span class="account-choice-list" role="group" aria-label="<%= copy.common.gender %>" aria-required="true">
+                <button class="account-choice" type="button" data-choice-value="female"><%= copy.common.female %></button>
+                <button class="account-choice" type="button" data-choice-value="male"><%= copy.common.male %></button>
+                <button class="account-choice" type="button" data-choice-value="non-binary"><%= copy.common.nonBinary %></button>
+                <button class="account-choice" type="button" data-choice-value="other"><%= copy.common.other %></button>
+                <button class="account-choice" type="button" data-choice-value="prefer-not-to-say"><%= copy.auth.preferNotToSay %></button>
+              </span>
+            </span>
           </label>
-          <label><%= copy.common.country %><select name="countryCode" required></select></label>
+          <label for="account-country-search">
+            <%= copy.common.country %>
+            <span class="account-country-combobox auth-country-combobox" data-country-combobox>
+              <span class="auth-field-shell">
+                <i data-lucide="map-pin" aria-hidden="true"></i>
+                <input id="account-country-search" type="search" autocomplete="off" placeholder="<%= copy.chat.guestPassport.countryPlaceholder %>" role="combobox" aria-autocomplete="list" aria-controls="account-country-suggestions" aria-expanded="false" aria-required="true">
+              </span>
+              <select name="countryCode" class="profile-native-control" aria-hidden="true" tabindex="-1"></select>
+              <span class="auth-country-suggestions hidden" id="account-country-suggestions" role="listbox" aria-label="<%= copy.chat.match.countryResultsAria %>"></span>
+            </span>
+          </label>
           <input name="profileImageUrl" type="hidden">
           <div class="account-form-actions">
             <button class="btn btn-primary" type="submit"><%= copy.account.saveProfile %></button>
@@ -707,6 +725,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="/vendor/lucide-1.24.0.min.js"></script>
     <script src="/js/guest-profile-store.js"></script>
+    <script src="/js/profile-fields.js"></script>
     <script src="/js/chat-client.js"></script>
     <% if (googleClientId) { %>
       <script src="https://accounts.google.com/gsi/client" async defer></script>

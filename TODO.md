@@ -92,6 +92,11 @@ Implementation and operations evidence for N1 is collected in [`docs/admin/ident
 **N1 status:** N1.1–N1.11 are complete. N1.9–N1.11 are isolated in their
 own post-N3 branch and pull request; transactional-email visual polish was
 reclassified as N9.6 because it is not an authentication correctness blocker.
+Manual staging acceptance completed on 2026-08-03; pending-link expiry remains
+covered by the disposable-Postgres integration suite rather than a one-hour
+manual wait. The final acceptance pass also covers immediate Google unlink UI,
+registered-profile Astra gender chips, two-letter country search and the dark
+Support FAQ surface.
 
 ### N2. Database retention, query bounds and capacity
 

@@ -128,9 +128,8 @@
 
           <label class="auth-field" for="auth-gender">
             <span><%= copy.common.gender %></span>
-            <span class="auth-field-shell">
-              <i data-lucide="contact" aria-hidden="true"></i>
-              <select id="auth-gender" name="gender" required>
+            <span class="auth-choice-group" data-gender-choices>
+              <select id="auth-gender" name="gender" class="profile-native-control" aria-hidden="true" tabindex="-1">
                 <option value=""><%= copy.auth.selectGender %></option>
                 <option value="female" <%= values?.gender === 'female' ? 'selected' : '' %>><%= copy.common.female %></option>
                 <option value="male" <%= values?.gender === 'male' ? 'selected' : '' %>><%= copy.common.male %></option>
@@ -138,19 +137,30 @@
                 <option value="other" <%= values?.gender === 'other' ? 'selected' : '' %>><%= copy.common.other %></option>
                 <option value="prefer-not-to-say" <%= values?.gender === 'prefer-not-to-say' ? 'selected' : '' %>><%= copy.auth.preferNotToSay %></option>
               </select>
+              <span class="auth-choice-list" role="group" aria-label="<%= copy.common.gender %>" aria-required="true">
+                <button class="auth-choice" type="button" data-choice-value="female"><%= copy.common.female %></button>
+                <button class="auth-choice" type="button" data-choice-value="male"><%= copy.common.male %></button>
+                <button class="auth-choice" type="button" data-choice-value="non-binary"><%= copy.common.nonBinary %></button>
+                <button class="auth-choice" type="button" data-choice-value="other"><%= copy.common.other %></button>
+                <button class="auth-choice" type="button" data-choice-value="prefer-not-to-say"><%= copy.auth.preferNotToSay %></button>
+              </span>
             </span>
           </label>
 
-          <label class="auth-field" for="auth-country">
+          <label class="auth-field" for="auth-country-search">
             <span><%= copy.common.country %></span>
-            <span class="auth-field-shell">
-              <i data-lucide="map-pin" aria-hidden="true"></i>
-              <select id="auth-country" name="countryCode" required>
+            <span class="auth-country-combobox" data-country-combobox>
+              <span class="auth-field-shell">
+                <i data-lucide="map-pin" aria-hidden="true"></i>
+                <input id="auth-country-search" type="search" autocomplete="off" placeholder="<%= copy.chat.guestPassport.countryPlaceholder %>" role="combobox" aria-autocomplete="list" aria-controls="auth-country-suggestions" aria-expanded="false" aria-required="true">
+              </span>
+              <select id="auth-country" name="countryCode" class="profile-native-control" aria-hidden="true" tabindex="-1">
                 <option value=""><%= copy.auth.selectCountry %></option>
                 <% countries.forEach((country) => { %>
                   <option value="<%= country.code %>" <%= values?.countryCode === country.code ? 'selected' : '' %>><%= country.name %></option>
                 <% }) %>
               </select>
+              <span class="auth-country-suggestions hidden" id="auth-country-suggestions" role="listbox" aria-label="<%= copy.chat.match.countryResultsAria %>"></span>
             </span>
           </label>
           <% } %>
@@ -208,6 +218,7 @@
   }).replace(/</g, '\\u003c') %>;
 </script>
 <script src="/js/auth-client.js"></script>
+<script src="/js/profile-fields.js"></script>
 <% if (googleClientId) { %>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 <% } %>

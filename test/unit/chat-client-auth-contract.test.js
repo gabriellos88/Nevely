@@ -19,6 +19,10 @@ test('chat client redirects revoked sessions and renders authoritative Google un
   );
   assert.match(
     source,
-    /const data = await api\('\/api\/account\/identities\/google',[\s\S]*renderAccountSecurity\(data\.user\)/
+    /const data = await api\('\/api\/account\/identities\/google',[\s\S]*renderAccountSecurity\(data\?\.user \|\| \{[\s\S]*hasGoogle: false/
+  );
+  assert.match(
+    source,
+    /api\('\/api\/account'\)[\s\S]*renderAccountSecurity\(account\.user\)/
   );
 });

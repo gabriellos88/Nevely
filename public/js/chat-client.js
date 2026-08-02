@@ -33,7 +33,6 @@ const countryInput = document.getElementById('countryInput');
 const guestCountrySearch = document.getElementById('guestCountrySearch');
 const guestCountrySuggestions = document.getElementById('guestCountrySuggestions');
 const guestCountrySelectedFlag = document.getElementById('guestCountrySelectedFlag');
-const guestCountryStatus = document.getElementById('guestCountryStatus');
 const guestPassportModal = document.getElementById('guestPassportModal');
 const guestPassportForm = document.getElementById('guestPassportForm');
 const guestGenderInput = document.getElementById('guestGenderInput');
@@ -231,7 +230,6 @@ function renderGuestCountrySelection(country) {
 function selectGuestCountry(country) {
   renderGuestCountrySelection(country);
   hideGuestCountrySuggestions();
-  if (guestCountryStatus) guestCountryStatus.textContent = formatCopy(chatCopy.dynamic.countrySelected, { country: country.name });
   guestCountrySearch?.focus();
 }
 
@@ -250,7 +248,6 @@ function updateGuestCountrySuggestions() {
 
   if (query.length < 2) {
     hideGuestCountrySuggestions();
-    if (guestCountryStatus) guestCountryStatus.textContent = chatCopy.guestPassport.countryHint;
     return;
   }
 
@@ -260,11 +257,6 @@ function updateGuestCountrySuggestions() {
   matches.forEach((country) => guestCountrySuggestions.appendChild(createCountryOption(country, selectGuestCountry)));
   guestCountrySuggestions.classList.toggle('hidden', matches.length === 0);
   guestCountrySearch.setAttribute('aria-expanded', String(matches.length > 0));
-  if (guestCountryStatus) {
-    guestCountryStatus.textContent = matches.length
-      ? formatCopy(chatCopy.dynamic.countryResults, { count: matches.length })
-      : chatCopy.dynamic.countryNotFound;
-  }
 }
 
 function handleGuestCountryKeydown(event) {
@@ -774,7 +766,6 @@ function resetGuestPassportForm() {
   setGuestGender('any');
   renderGuestCountrySelection(null);
   hideGuestCountrySuggestions();
-  if (guestCountryStatus) guestCountryStatus.textContent = chatCopy.guestPassport.countryHint;
   clearQuickStartError();
 }
 
@@ -2102,7 +2093,12 @@ async function openAccountSettings(initialTab = 'account', { focusTab = false } 
     accountForm.elements.publicId.value = user.public_id || '';
     accountForm.elements.birthDate.value = user.birth_date || '';
     accountForm.elements.gender.value = user.gender || '';
+    window.setGenderChoiceValue?.(
+      accountForm.querySelector('[data-gender-choices]'),
+      user.gender || ''
+    );
     accountForm.elements.countryCode.value = user.country_code || '';
+    window.refreshCountryCombobox?.(accountForm.querySelector('[data-country-combobox]'));
     accountForm.elements.profileImageUrl.value = user.profile_image_url || '';
     renderAccountSecurity(user);
     accountPlan.textContent = user.plan === 'premium' ? uiCopy.account.premiumPlan : uiCopy.account.freePlan;
@@ -2234,8 +2230,15 @@ googleIdentityUnlinkForm?.addEventListener('submit', async (event) => {
       body: JSON.stringify(values)
     });
     event.currentTarget.reset();
-    renderAccountSecurity(data.user);
+    renderAccountSecurity(data?.user || {
+      ...accountSecurityState,
+      hasGoogle: false,
+      hasPassword: true
+    });
     accountSecurityFeedback.textContent = uiCopy.account.googleUnlinkedFeedback;
+    api('/api/account')
+      .then((account) => renderAccountSecurity(account.user))
+      .catch(() => {});
   } catch (error) {
     accountSecurityFeedback.textContent = error.message;
   } finally {

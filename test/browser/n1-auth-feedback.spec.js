@@ -23,7 +23,44 @@ test('Google onboarding keeps expected information contextual and controls stabl
   await expect(page.locator('.auth-error')).toHaveCount(0);
   await expect(page.locator('.auth-notice')).toContainText('Complete your profile');
   await expectInsideViewport(page, '.auth-provider-stack');
-  await expectInsideViewport(page, '#auth-country');
+  await expectInsideViewport(page, '#auth-country-search');
+});
+
+test('registered profile fields use Astra choices and a keyboard-searchable country combobox', async ({ page }) => {
+  await page.goto('/register?google=profile-required', { waitUntil: 'domcontentloaded' });
+
+  const gender = page.getByRole('button', { name: 'Non-binary', exact: true });
+  await gender.click();
+  await expect(gender).toHaveAttribute('aria-pressed', 'true');
+  await expect(page.locator('#auth-gender')).toHaveValue('non-binary');
+
+  const country = page.locator('#auth-country-search');
+  await country.fill('s');
+  await expect(page.locator('#auth-country-suggestions')).toBeHidden();
+  await country.fill('sw');
+  await expect(page.getByRole('option', { name: 'Switzerland', exact: true })).toBeVisible();
+  await country.fill('swit');
+  await country.press('ArrowDown');
+  await expect(country).toHaveAttribute('aria-activedescendant', /auth-country-search-option-0/);
+  await country.press('Enter');
+  await expect(country).toHaveValue('Switzerland');
+  await expect(page.locator('#auth-country')).toHaveValue('ch');
+  await expect(country).toHaveAttribute('aria-expanded', 'false');
+});
+
+test('support FAQ renders on a dark grouped Astra panel', async ({ page }) => {
+  await page.goto('/support', { waitUntil: 'domcontentloaded' });
+  const styles = await page.locator('.support-faq__list').evaluate((element) => {
+    const computed = getComputedStyle(element);
+    return {
+      background: computed.backgroundColor,
+      radius: computed.borderRadius,
+      overflow: computed.overflow
+    };
+  });
+  expect(styles.background).toBe('rgb(15, 7, 32)');
+  expect(styles.radius).toBe('24px');
+  expect(styles.overflow).toBe('hidden');
 });
 
 test('narrow authentication layout compacts context and visually subordinates the guest CTA', async ({ page }) => {
