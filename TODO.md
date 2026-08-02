@@ -156,9 +156,10 @@ window recorded 12 `retention.completed` events, no `retention.failed`, HTTP
   and document recovery limits for cleared storage and expired sessions.
 - [x] **N3.6 — Persist the guest create-account reminder as a system notification** so read state survives browser resets and migrates during claim.
 
-**N3 status:** implementation and automated coverage are complete; staging
-acceptance remains open until the email waiting/verification flow is confirmed
-manually. Do not start N1.9–N1.12 before that confirmation.
+**N3 status:** complete. Implementation and automated coverage are green, and
+the email waiting/verification flow was accepted manually in staging on
+2026-08-02. N1.9–N1.11 may now proceed in a separate branch and pull request;
+N1.12 remains deferred to a later phase.
 
 ### N4. Safety, bans and the admin workspace
 
