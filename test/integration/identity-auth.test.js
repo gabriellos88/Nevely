@@ -148,6 +148,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   const missingGoogleProfile = await account
     .post('/auth/google')
     .set('Accept', 'application/json')
+    .set('X-Forwarded-For', '198.51.100.40')
     .send({ credential: 'google-profile-required' })
     .expect(422);
   assert.equal(missingGoogleProfile.body.code, 'GOOGLE_PROFILE_REQUIRED');
