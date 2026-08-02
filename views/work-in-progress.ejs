@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="csrf-token" content="<%= csrfToken %>" />
+    <title><%= pageTitle %> · <%= copy.common.brand %></title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body class="private-preview-body">
+    <main class="private-preview-page">
+      <section class="private-preview-card" aria-labelledby="private-preview-title">
+        <div class="private-preview-card__topline">
+          <span class="private-preview-brand"><%= copy.common.brand %></span>
+          <span class="private-preview-status">
+            <span aria-hidden="true"></span>
+            <%= copy.privatePreview.status %>
+          </span>
+        </div>
+
+        <header class="private-preview-header">
+          <p class="private-preview-kicker"><%= copy.privatePreview.eyebrow %></p>
+          <h1 id="private-preview-title"><%= copy.privatePreview.title %></h1>
+          <p><%= copy.privatePreview.body %></p>
+        </header>
+
+        <% if (error) { %>
+          <div class="private-preview-error" id="private-preview-error" role="alert">
+            <%= error %>
+          </div>
+        <% } %>
+
+        <form class="private-preview-form" method="post" action="/preview-access">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <input type="hidden" name="returnTo" value="<%= returnTo %>">
+
+          <label class="private-preview-field" for="private-preview-password">
+            <span><%= copy.privatePreview.passwordLabel %></span>
+            <span class="private-preview-field__shell">
+              <input
+                id="private-preview-password"
+                name="password"
+                type="password"
+                maxlength="72"
+                autocomplete="current-password"
+                placeholder="<%= copy.privatePreview.passwordPlaceholder %>"
+                aria-describedby="private-preview-helper<%= error ? ' private-preview-error' : '' %>"
+                autofocus
+                required>
+            </span>
+          </label>
+
+          <button class="private-preview-submit" type="submit">
+            <span><%= copy.privatePreview.action %></span>
+          </button>
+        </form>
+
+        <p class="private-preview-helper" id="private-preview-helper">
+          <%= copy.privatePreview.sessionHint %>
+        </p>
+      </section>
+    </main>
+  </body>
+</html>

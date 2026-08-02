@@ -1,6 +1,7 @@
 {
   "pageTitles": {
     "home": "Home",
+    "privatePreview": "Private preview",
     "about": "About Us",
     "blog": "Blog",
     "support": "Support",
@@ -274,6 +275,19 @@
       "title": "Your next conversation starts here.",
       "body": "Choose a topic and see who you meet."
     }
+  },
+  "privatePreview": {
+    "status": "Work in progress",
+    "eyebrow": "Private preview",
+    "title": "Something thoughtful is taking shape.",
+    "body": "Nevely is still being refined. Enter the preview password to continue.",
+    "passwordLabel": "Preview password",
+    "passwordPlaceholder": "Enter the password",
+    "action": "Enter preview",
+    "sessionHint": "Access stays open for this browser session.",
+    "invalidPassword": "That password isn’t right. Try again.",
+    "tooManyAttempts": "Too many attempts. Try again in 15 minutes.",
+    "accessRequired": "Private preview access is required."
   },
   "auth": {
     "loginContextKicker": "Your space",
