@@ -1,6 +1,30 @@
 ALTER TABLE users
   ADD COLUMN IF NOT EXISTS registration_pending_at TIMESTAMPTZ;
 
+WITH ranked_verification_tokens AS (
+  SELECT id,
+         ROW_NUMBER() OVER (
+           PARTITION BY user_id
+           ORDER BY created_at DESC, id DESC
+         ) AS token_rank
+  FROM account_tokens
+  WHERE purpose = 'verify_email'
+    AND used_at IS NULL
+    AND revoked_at IS NULL
+)
+UPDATE account_tokens token
+SET revoked_at = NOW()
+FROM ranked_verification_tokens ranked
+WHERE token.id = ranked.id
+  AND ranked.token_rank > 1;
+
+UPDATE account_tokens
+SET expires_at = LEAST(expires_at, created_at + INTERVAL '1 hour')
+WHERE purpose = 'verify_email'
+  AND used_at IS NULL
+  AND revoked_at IS NULL
+  AND expires_at > created_at + INTERVAL '1 hour';
+
 UPDATE users u
 SET registration_pending_at = COALESCE(u.registration_pending_at, u.created_at, u.updated_at, NOW())
 WHERE u.deleted_at IS NULL
