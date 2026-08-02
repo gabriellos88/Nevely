@@ -10,6 +10,7 @@ This file is the product and engineering source of truth for unfinished work. It
 - Use additive, backward-compatible database migrations. Remove old schema only in a later deploy after the new code is live.
 - A checkbox is complete only when acceptance tests, authorization checks, observability and user-facing error states are included.
 - Keep application UI consistent with the local Astra specification. Dashboard tables and widgets use application styling, not marketing gradients or card-hover effects.
+- Write UI copy for the person using the product: lead with the action or outcome, use plain language, and keep API codes, session/database mechanics and other implementation details in developer documentation and logs.
 - Never log or send passwords, raw verification tokens, emails, guest/account identifiers, chat content, topics, report details or other user-provided sensitive data to analytics.
 
 ---

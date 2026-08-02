@@ -72,7 +72,7 @@ test('guest account claims are session-authorized, verified, transactional and n
   assert.match(loginPage.text, /Claimable Guest/);
   assert.match(loginPage.text, /\/register\?claim=1/);
   const registerPage = await guest.get('/register?claim=1').expect(200);
-  assert.match(registerPage.text, /guest data will move only after the required verification/i);
+  assert.match(registerPage.text, /chats and profile will move to your new account once it’s verified/i);
   assert.doesNotMatch(registerPage.text, /name="username"/);
   assert.doesNotMatch(registerPage.text, /name="birthDate"/);
   assert.doesNotMatch(registerPage.text, /name="gender"/);

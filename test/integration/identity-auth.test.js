@@ -143,7 +143,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   assert.match(googleProfilePage.text, /name="birthDate"/);
   assert.doesNotMatch(googleProfilePage.text, /name="email"/);
   assert.doesNotMatch(googleProfilePage.text, /name="password"/);
-  assert.match(googleProfilePage.text, /Google supplies your verified email and sign-in/);
+  assert.match(googleProfilePage.text, /Just a few details left/);
 
   const missingGoogleProfile = await account
     .post('/auth/google')
@@ -152,7 +152,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
     .send({ credential: 'google-profile-required' })
     .expect(422);
   assert.equal(missingGoogleProfile.body.code, 'GOOGLE_PROFILE_REQUIRED');
-  assert.match(missingGoogleProfile.body.error, /no Nevely password is required/);
+  assert.match(missingGoogleProfile.body.error, /then continue with Google/);
   assert.doesNotMatch(missingGoogleProfile.body.error, /enter.*email/i);
 
   const registration = await account
@@ -172,7 +172,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   await account.get('/api/account').expect(403);
   await account.get('/api/conversations').expect(403);
   const pendingVerification = await account.get('/verify-email/pending').expect(200);
-  assert.match(pendingVerification.text, /Verify it before using your account/);
+  assert.match(pendingVerification.text, /finish setting up your account/);
 
   const verificationOutbox = (await db.query(
     `SELECT eo.text_body, at.token_hash
