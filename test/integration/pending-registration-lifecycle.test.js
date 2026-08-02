@@ -124,7 +124,8 @@ test('pending registrations rotate one-hour links, clean up atomically and relea
 
   await db.query(
     `UPDATE account_tokens
-     SET expires_at = NOW() - INTERVAL '1 second'
+     SET created_at = NOW() - INTERVAL '2 hours',
+         expires_at = NOW() - INTERVAL '1 hour'
      WHERE user_id = $1 AND purpose = 'verify_email' AND revoked_at IS NULL`,
     [stored.id]
   );
@@ -152,7 +153,8 @@ test('pending registrations rotate one-hour links, clean up atomically and relea
   )).rows[0].id);
   await db.query(
     `UPDATE account_tokens
-     SET expires_at = NOW() - INTERVAL '1 second'
+     SET created_at = NOW() - INTERVAL '2 hours',
+         expires_at = NOW() - INTERVAL '1 hour'
      WHERE user_id = $1 AND purpose = 'verify_email' AND revoked_at IS NULL`,
     [replacementId]
   );
