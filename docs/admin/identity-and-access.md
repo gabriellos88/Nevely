@@ -53,9 +53,11 @@ Le risposte di richiesta sono uguali per indirizzi esistenti e inesistenti.
 Tre richieste per scopo e account in un'ora sono il limite applicativo, oltre
 al rate limit HTTP.
 
-Un account non verificato può usare il matching casuale e i controlli di
-sicurezza, ma non può salvare nuove chat, inviare richieste di amicizia o chat
-dirette, né accedere a funzioni amministrative. Gli account Google nascono già
+Un account password non verificato non può usare il prodotto. Le pagine chat e
+account lo rimandano a `/verify-email/pending`; le API di prodotto rispondono
+HTTP 403 con `EMAIL_VERIFICATION_REQUIRED` e Socket.IO rifiuta matching, chat
+dirette e richieste. Restano disponibili soltanto la pagina di attesa, il
+reinvio limitato della verifica e il logout. Gli account Google nascono già
 verificati perché il server accetta solo ID token con `email_verified=true`.
 
 ## Attivare Google in sicurezza

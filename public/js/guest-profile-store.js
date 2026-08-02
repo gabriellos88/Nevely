@@ -26,6 +26,7 @@
   const genderValues = new Set(GENDERS.map(({ value }) => value));
   const avatarIds = new Set(AVATAR_PRESETS.map(({ id }) => id));
   const GUEST_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+  const GUEST_ALIAS_PATTERN = /^gst_[0-9a-f]{10}$/i;
 
   function normalizeName(value) {
     return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ').slice(0, 24) : '';
@@ -39,6 +40,9 @@
     const avatarId = avatarIds.has(value.avatarId) ? value.avatarId : '';
     const guestId = typeof value.guestId === 'string' && GUEST_ID_PATTERN.test(value.guestId)
       ? value.guestId
+      : null;
+    const displayAlias = typeof value.displayAlias === 'string' && GUEST_ALIAS_PATTERN.test(value.displayAlias)
+      ? value.displayAlias
       : null;
     const nameChanges = Number(value.nameChanges) >= 1 ? 1 : 0;
     const accountNotificationRead = value.accountNotificationRead === true;
@@ -65,6 +69,7 @@
       country,
       avatarId,
       guestId,
+      displayAlias,
       nameChanges,
       accountNotificationRead
     };

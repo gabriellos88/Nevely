@@ -30,9 +30,21 @@
         <p class="auth-kicker"><%= mode === 'login' ? copy.auth.loginEyebrow : copy.auth.registerEyebrow %></p>
         <h1 id="auth-title"><%= mode === 'login' ? copy.auth.loginTitle : copy.auth.registerTitle %></h1>
         <p><%= mode === 'login' ? copy.auth.loginBody : copy.auth.registerBody %></p>
-        <a href="/<%= mode === 'login' ? 'register' : 'login' %>" class="auth-switch-link">
-          <%= mode === 'login' ? copy.auth.newHere : copy.auth.alreadyMember %>
-        </a>
+        <% if (mode === 'login' && claimGuest) { %>
+          <div class="auth-claim-links" aria-label="<%= copy.auth.claimGuestLinksLabel %>">
+            <a href="/register" class="auth-switch-link"><%= copy.auth.newHere %></a>
+            <span aria-hidden="true"><%= copy.auth.or %></span>
+            <a href="/register?claim=1" class="auth-claim-link">
+              <span><%= copy.auth.claimCurrentGuest %></span>
+              <img src="<%= claimGuest.avatarUrl %>" alt="<%= copy.auth.claimGuestAvatarAlt %>">
+              <strong><%= claimGuest.name %></strong>
+            </a>
+          </div>
+        <% } else { %>
+          <a href="/<%= mode === 'login' ? 'register' : 'login' %>" class="auth-switch-link">
+            <%= mode === 'login' ? copy.auth.newHere : copy.auth.alreadyMember %>
+          </a>
+        <% } %>
       </header>
 
       <% if (error) { %>
@@ -46,6 +58,13 @@
         <div class="auth-notice" role="status">
           <i data-lucide="info" aria-hidden="true"></i>
           <span><%= copy.auth.googleProfileHint %></span>
+        </div>
+      <% } %>
+
+      <% if (mode === 'register' && claimMode && claimGuest) { %>
+        <div class="auth-notice auth-claim-notice" role="status">
+          <img src="<%= claimGuest.avatarUrl %>" alt="<%= copy.auth.claimGuestAvatarAlt %>">
+          <span><strong><%= claimGuest.name %></strong> — <%= copy.auth.claimGuestNotice %></span>
         </div>
       <% } %>
 
@@ -77,6 +96,8 @@
       <form class="auth-form" method="post" action="/<%= mode %>">
         <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <% if (mode === 'register') { %>
+          <% if (claimMode) { %><input type="hidden" name="claim" value="1"><% } %>
+          <% if (!claimMode) { %>
           <label class="auth-field" for="auth-username">
             <span><%= copy.auth.username %></span>
             <span class="auth-field-shell">
@@ -123,6 +144,7 @@
               </select>
             </span>
           </label>
+          <% } %>
         <% } %>
 
         <label class="auth-field" for="auth-email">
@@ -169,7 +191,8 @@
   window.__AUTH_CONFIG__ = <%- JSON.stringify({
     mode,
     csrfToken,
-    googleEnabled: Boolean(googleClientId)
+    googleEnabled: Boolean(googleClientId),
+    claimMode: Boolean(claimMode)
   }).replace(/</g, '\\u003c') %>;
 </script>
 <script src="/js/auth-client.js"></script>

@@ -26,6 +26,22 @@ function registrationPayload(username, email) {
   };
 }
 
+async function verifyAccountEmail(db, agent, email) {
+  const outbox = (await db.query(
+    `SELECT text_body FROM email_outbox
+     WHERE purpose = 'verify_email' AND recipient = $1
+     ORDER BY created_at DESC LIMIT 1`,
+    [email]
+  )).rows[0];
+  const match = /[?&]token=([A-Za-z0-9_-]+)/.exec(outbox?.text_body || '');
+  assert.ok(match, 'verification outbox body contains a single-use token');
+  await agent
+    .post('/verify-email')
+    .set('Accept', 'application/json')
+    .send({ token: match[1] })
+    .expect(200);
+}
+
 async function internalId(db, publicId) {
   return Number((await db.query(
     'SELECT id FROM users WHERE public_id = $1',
@@ -77,6 +93,7 @@ test('migrations, authentication, profile validation and authorization contracts
   assert.equal(Object.hasOwn(registration.body.user, 'id'), false);
   assert.equal(Object.hasOwn(registration.body.user, 'password'), false);
   assert.equal(Object.hasOwn(registration.body.user, 'password_hash'), false);
+  await verifyAccountEmail(db, primary, 'primary-user@example.test');
 
   await primary
     .patch('/api/account')
@@ -115,6 +132,7 @@ test('migrations, authentication, profile validation and authorization contracts
     .expect(201);
   const memberPublicId = memberRegistration.body.user.publicId;
   const memberId = await internalId(db, memberPublicId);
+  await verifyAccountEmail(db, member, 'ordinary-member@example.test');
 
   const outsider = request.agent(runtime.app);
   await outsider
@@ -122,9 +140,11 @@ test('migrations, authentication, profile validation and authorization contracts
     .set('Accept', 'application/json')
     .send(registrationPayload('outside_member', 'outside-member@example.test'))
     .expect(201);
+  await verifyAccountEmail(db, outsider, 'outside-member@example.test');
 
   const adminRoutes = [
     { method: 'get', path: '/admin' },
+    { method: 'get', path: '/api/admin/guests' },
     { method: 'get', path: '/api/admin/users' },
     { method: 'get', path: '/api/admin/reports' },
     { method: 'get', path: '/api/admin/bans' },
@@ -271,6 +291,7 @@ test('migrations, authentication, profile validation and authorization contracts
     .send(registrationPayload('self_delete_member', 'self-delete-member@example.test'))
     .expect(201);
   const selfDeleteId = await internalId(db, selfDeleteRegistration.body.user.publicId);
+  await verifyAccountEmail(db, selfDelete, 'self-delete-member@example.test');
   await selfDelete.delete('/api/account').send({ confirmation: 'wrong value' }).expect(400);
   await selfDelete.delete('/api/account').send({ confirmation: 'DELETE' }).expect(204);
   const deletedSelf = (await db.query(

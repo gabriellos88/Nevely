@@ -10,6 +10,8 @@ token, URL di connessione o dati reali: questi restano nei provider.
 | --- | --- |
 | capire architettura e servizi | [Panoramica](overview.md) |
 | gestire accessi, email, Google o 2FA | [Identità e accessi](identity-and-access.md) |
+| capire identità e scadenza degli ospiti | [Identità guest](guest-identity.md) |
+| verificare ownership e limiti dei dati guest | [Dati guest](guest-product-ownership.md) |
 | rilasciare una funzionalità | [Rilasci e ambienti](releases-and-environments.md) |
 | distribuire, verificare o ripristinare lo staging | [Runbook staging](staging-release-runbook.md) |
 | controllare/ripristinare/cambiare i backup | [Backup e recovery](backup-and-recovery.md) |

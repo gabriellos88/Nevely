@@ -58,7 +58,10 @@ This file is the product and engineering source of truth for unfinished work. It
   - Send the raw token only in the email link from `Verify <noreply@notifications.nevely.app>`.
   - Use an outbox/worker with retries and idempotency instead of an untracked background promise.
   - Add verify, resend and expired/used-token flows with rate limits that do not reveal whether an email exists.
-  - Decide which registered features remain restricted until verification.
+  - Block all registered product access until verification: an unverified
+    password account may use only the verification waiting/resend flow and
+    logout. Google-created accounts remain verified through the validated
+    provider assertion.
 - [x] **N1.5 — Implement Sign in with Google using Google Identity Services.**
   - Create separate production and staging OAuth web clients in a Google Cloud project owned by the private admin account; configure only exact authorized origins/redirects and keep credentials in environment secrets.
   - Replace the disabled placeholder with the official Google Identity Services button and request only authentication scopes (`openid`, `email`, `profile`).
@@ -72,10 +75,21 @@ This file is the product and engineering source of truth for unfinished work. It
 - [x] **N1.6 — Add password-reset and verified email-change flows.** Reuse the token/outbox foundation, revoke active sessions after success and notify the previous address after an email change.
 - [x] **N1.7 — Protect administrators.** Add re-authentication for high-risk actions, 2FA for admin accounts and server-side role checks that do not trust stale session role data.
 - [x] **N1.8 — Correct the support address everywhere.** Replace `support@nevely.com` with the configured and verified `support@nevely.app`.
+- [ ] **N1.9 — Fix the Google onboarding form state.**
+  - When Google is used from `/register` without a guest claim, the Google path must not require the email and password fields; Google supplies the verified email and authentication.
+  - When Google is used from `/login` for an email that has no Nevely account, the profile-completion redirect must likewise request only the fields needed to create the profile before retrying Google.
+  - Keep the normal email/password registration path explicit and unaffected, with provider-specific validation and accessible error copy.
+  - Add acceptance coverage for both red and purple messages, including the absence of false email/password requirements.
+- [ ] **N1.10 — Make account authentication settings symmetrical and discoverable.**
+  - For password/email accounts, make the email row actionable and open the Privacy tab with the existing verified change-email action focused or clearly exposed.
+  - For Google-only accounts, allow an authenticated user to set a Nevely password through a verified, rate-limited flow; do not confuse this with changing the already verified Google email.
+  - Preserve at least one usable sign-in method, require re-authentication for adding/removing methods, and keep email-account Google linking takeover-safe.
+- [ ] **N1.11 — Give registered profiles the same default-avatar baseline as guests.** Assign a preset from the existing local avatar set at account creation/claim and expose it consistently in Account settings; keep uploaded profile pictures as a separate storage feature.
 
 Implementation and operations evidence for N1 is collected in [`docs/admin/identity-and-access.md`](docs/admin/identity-and-access.md). Database-backed identity contracts live in `test/integration/identity-auth.test.js`; unit, Socket.IO and guest-browser checks remain part of the release baseline.
 
-**N1 status:** complete as of 2026-07-30.
+**N1 status:** N1.1–N1.8 are complete; N1.9–N1.12 remain explicitly deferred
+until the N3 staging email-verification flow is accepted manually.
 
 ### N2. Database retention, query bounds and capacity
 
@@ -110,28 +124,42 @@ Implementation and operations evidence for N1 is collected in [`docs/admin/ident
   - Confirm plans with representative `EXPLAIN (ANALYZE, BUFFERS)` data.
   - Indexes and the read-only `db:explain:n2` command are implemented; representative staging output is recorded in the operations runbook.
 
-**N2 status:** complete in staging as of 2026-07-30; continue observation before production rollout.
+**N2 status:** merged into `main` on 2026-08-01 after the staging observation
+window recorded 12 `retention.completed` events, no `retention.failed`, HTTP
+200 readiness and approximately 0.45 MB of volume growth over 48 hours.
 
 ### N3. Persistent guest identity and account claim
 
-- [ ] **N3.1 — Add a minimal persistent guest principal without creating anonymous `users` rows.**
+- [x] **N3.1 — Add a minimal persistent guest principal without creating anonymous `users` rows.**
   - Store UUID, canonical passport fields, avatar preset, creation/last-seen timestamps, status and retention metadata.
   - Bind access to the server session; never authorize ownership from a browser-supplied UUID alone.
   - Preserve the full UUID internally and display a separate compact alias where needed.
-- [ ] **N3.2 — Attach guest ownership to product data.**
+  - Migration, API/session contract, 30-day expiry, admin cursor and tests are documented in [`docs/admin/guest-identity.md`](docs/admin/guest-identity.md).
+- [x] **N3.2 — Attach guest ownership to product data.**
   - Add `guest_id` to conversation participants, reports and other guest-owned records.
   - Implement recent chat and saved chat ownership for guests with explicit limits.
   - Preserve current server-authoritative immutable passport fields, one allowed name change and preset-avatar updates.
-- [ ] **N3.3 — Implement transactional claim on account creation.**
+  - Migration, authorization, limits, retention and tests are documented in [`docs/admin/guest-product-ownership.md`](docs/admin/guest-product-ownership.md).
+- [x] **N3.3 — Implement transactional claim on account creation.**
   - Verify the email before finalizing ownership.
   - Attach eligible recent/saved conversations and profile data to the new user.
   - Mark the guest principal as claimed, regenerate the session and prevent replay/double claim.
-- [ ] **N3.4 — Implement explicit merge on login to an existing account.**
-  - Ask for confirmation before attaching current guest data.
-  - Define conflict, duplicate and saved-chat-limit behavior.
-  - Do not merge a guest identity that the current server session cannot prove it owns.
-- [ ] **N3.5 — Define post-claim behavior.** Remove or tombstone the guest passport, clear/synchronize its browser copy and document recovery after cleared storage or an expired session.
-- [ ] **N3.6 — Persist the guest create-account reminder as a system notification** so read state survives browser resets and can migrate during claim.
+- [x] **N3.4 — Keep login to an existing account separate from guest claim.**
+  - Never merge, transfer or convert guest data when a guest logs in to an
+    existing password or Google account.
+  - Preserve a server-validated return reference so logout can restore the
+    still-active guest as a distinct identity that may be claimed later.
+  - Never authorize either return or claim from a browser-supplied UUID,
+    username or avatar.
+- [x] **N3.5 — Define post-claim behavior.** Tombstone the claimed guest for 30
+  days, clear its browser/session copy after the verified transactional claim,
+  and document recovery limits for cleared storage and expired sessions.
+- [x] **N3.6 — Persist the guest create-account reminder as a system notification** so read state survives browser resets and migrates during claim.
+
+**N3 status:** complete. Implementation and automated coverage are green, and
+the email waiting/verification flow was accepted manually in staging on
+2026-08-02. N1.9–N1.11 may now proceed in a separate branch and pull request;
+N1.12 remains deferred to a later phase.
 
 ### N4. Safety, bans and the admin workspace
 
@@ -206,6 +234,10 @@ Implementation and operations evidence for N1 is collected in [`docs/admin/ident
 - [ ] **N7.1 — Prepare the public site for indexing.**
   - Define the canonical production origin `https://nevely.app` and redirect alternate hosts/protocols.
   - Add canonical URLs and appropriate titles/descriptions to public pages.
+  - Add a stable, crawlable square Nevely favicon to the shared page head and `Organization` structured data on the homepage with the canonical logo URL.
+  - Mark Nevely clearly as a beta on public and registration surfaces, explaining that features may change, remain limited or be temporarily unavailable and that registered users participate as beta testers.
+  - Offer a feedback link that opens an email to `admin@nevely.app` with a prefilled questionnaire in the message body instead of storing a feedback form in the application.
+  - Tell users that every feedback email is read and, when a response is needed, answered within one day.
   - Add `robots.txt` and a generated `sitemap.xml` containing only canonical public/indexable routes.
   - Add `noindex` to login, registration, chat, account, admin and other private/application surfaces; do not treat `robots.txt` as access control.
   - Validate status codes, 404 behavior and canonical consistency.
@@ -265,7 +297,7 @@ Implementation and operations evidence for N1 is collected in [`docs/admin/ident
 - [ ] **N9.2 — Add structured logs, request correlation IDs and error monitoring** with redaction for credentials, tokens, session cookies, profile data and chat content.
 - [ ] **N9.3 — Add service alerts and runbooks** for database saturation, cleanup failure, email-outbox backlog, elevated authentication failures and Socket.IO disconnect rates.
 - [ ] **N9.4 — Self-host the approved production font** if CSP, performance or privacy requirements prohibit the current Google Fonts request.
-- [ ] **N9.5 — Complete production avatar storage** with upload validation, resizing, quotas, abuse scanning, deletion and lifecycle retention; then remove the temporary profile-image URL field and the `501` API response.
+- [ ] **N9.5 — Complete production avatar storage** with upload validation, resizing to a constrained square target (for example 150×150), quotas, abuse scanning, deletion and lifecycle retention; then remove the temporary profile-image URL field and the `501` API response. This is the upload portion of N1.11, not a replacement for the preset default avatar.
 
 ---
 

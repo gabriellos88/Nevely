@@ -81,9 +81,37 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
   });
   const address = await runtime.start({ port: 0, host: '127.0.0.1' });
   const baseUrl = `http://127.0.0.1:${address.port}`;
-  const firstAccount = await register(baseUrl, 'socket_first', 'socket-first@example.test');
-  const secondAccount = await register(baseUrl, 'socket_second', 'socket-second@example.test');
+  let firstAccount = await register(baseUrl, 'socket_first', 'socket-first@example.test');
+  let secondAccount = await register(baseUrl, 'socket_second', 'socket-second@example.test');
   let adminAccount = await register(baseUrl, 'socket_admin', 'socket-admin@example.test');
+
+  const unverified = await connectAccount(baseUrl, firstAccount.cookie);
+  const unverifiedError = eventFrom(unverified, 'chat-error');
+  unverified.emit('find-partner', {
+    interests: ['astronomy'],
+    profile: { username: 'Unverified', age: 28, gender: 'non-binary', country: 'Switzerland' },
+    waitingTimeSeconds: null
+  });
+  assert.equal((await unverifiedError).message, 'Verify your email before continuing.');
+  unverified.disconnect();
+
+  await db.query(
+    `UPDATE users SET email_verified_at = NOW()
+     WHERE email = ANY($1::text[])`,
+    [['socket-first@example.test', 'socket-second@example.test']]
+  );
+  const firstLogin = await request(baseUrl)
+    .post('/login')
+    .set('Accept', 'application/json')
+    .send({ email: 'socket-first@example.test', password: 'SyntheticPassword123!' })
+    .expect(200);
+  firstAccount = { ...firstAccount, cookie: cookieFrom(firstLogin) };
+  const secondLogin = await request(baseUrl)
+    .post('/login')
+    .set('Accept', 'application/json')
+    .send({ email: 'socket-second@example.test', password: 'SyntheticPassword123!' })
+    .expect(200);
+  secondAccount = { ...secondAccount, cookie: cookieFrom(secondLogin) };
 
   const adminId = Number((await db.query(
     'SELECT id FROM users WHERE public_id = $1',

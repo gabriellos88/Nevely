@@ -51,6 +51,11 @@
           <input type="hidden" name="token" value="<%= token %>">
           <button class="auth-submit" type="submit"><%= copy.auth.verifyEmailAction %></button>
         </form>
+      <% } else if (mode === 'verification-pending') { %>
+        <form class="auth-form" method="post" action="/verify-email/resend">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <button class="auth-submit" type="submit"><%= copy.auth.resendVerificationAction %></button>
+        </form>
       <% } else if (mode === 'two-factor') { %>
         <form class="auth-form" method="post" action="/login/2fa">
           <input type="hidden" name="_csrf" value="<%= csrfToken %>">
@@ -70,5 +75,11 @@
     </div>
   </section>
 </main>
+
+<% if (typeof clearGuestProfile !== 'undefined' && clearGuestProfile) { %>
+  <script nonce="<%= cspNonce %>">
+    window.localStorage?.removeItem('nevely.guestPassport.v1');
+  </script>
+<% } %>
 
 <%- include('partials/footer') %>

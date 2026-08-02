@@ -183,6 +183,7 @@ test('shutdown waits for active conversation persistence before closing resource
 
   const runtime = createRuntime({
     db,
+    enforcePersistentGuestOwnership: false,
     env: {
       NODE_ENV: 'test',
       SESSION_SECRET: 'socket-test-session-secret',

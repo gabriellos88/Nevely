@@ -66,6 +66,7 @@ const drawerCloseButtons = document.querySelectorAll('[data-drawer-close]');
 const messagesBadge = document.getElementById('messagesBadge');
 const friendsBadge = document.getElementById('friendsBadge');
 const notificationsBadge = document.getElementById('notificationsBadge');
+const guestClaimAccountButton = document.getElementById('guestClaimAccountButton');
 const partnerAvatar = document.getElementById('partnerAvatar');
 const partnerName = document.getElementById('partnerName');
 const settingsBtn = document.getElementById('settingsBtn');
@@ -532,6 +533,7 @@ function setGuestGender(value) {
 
 function persistServerGuest(serverGuest, localProfile = guestProfile) {
   if (!GuestProfileStore || !serverGuest) return localProfile;
+  guestClaimAccountButton?.classList.remove('hidden');
   return GuestProfileStore.save(localStorage, {
     name: serverGuest.name,
     gender: serverGuest.gender,
@@ -539,6 +541,7 @@ function persistServerGuest(serverGuest, localProfile = guestProfile) {
     country: serverGuest.country,
     avatarId: serverGuest.avatarId,
     guestId: serverGuest.id,
+    displayAlias: serverGuest.displayAlias,
     nameChanges: serverGuest.nameChanges,
     accountNotificationRead: localProfile?.accountNotificationRead === true
   }, countryCatalog);
@@ -579,7 +582,11 @@ function renderGuestIdentity() {
       ? chatCopy.feedback.nameChangeUsed
       : chatCopy.feedback.nameChangeAvailable;
   }
-  if (guestSettingsUserId) guestSettingsUserId.textContent = guestProfile?.guestId || uiCopy.account.settingUp;
+  if (guestSettingsUserId) {
+    guestSettingsUserId.textContent = guestProfile?.displayAlias
+      || guestProfile?.guestId
+      || uiCopy.account.settingUp;
+  }
   if (guestSettingsAge) guestSettingsAge.textContent = guestProfile?.age ? String(guestProfile.age) : '—';
   if (guestSettingsGender) {
     guestSettingsGender.textContent = GuestProfileStore?.GENDERS.find((item) => item.value === guestProfile?.gender)?.label || '—';
@@ -827,9 +834,9 @@ async function initializeGuestExperience() {
     if (serverData.guest) {
       guestProfile = persistServerGuest(serverData.guest, guestProfile);
     } else if (guestProfile) {
-      const created = await api('/api/guest-profile', { method: 'POST', body: JSON.stringify(guestProfile) });
-      guestProfile = persistServerGuest(created.guest, guestProfile);
-      await refreshGuestSocketSession();
+      GuestProfileStore.remove(localStorage);
+      guestProfile = null;
+      guestClaimAccountButton?.classList.add('hidden');
     }
 
     if (guestProfile) {
@@ -1087,7 +1094,7 @@ function updateTopbarBadge(name, count) {
   const badges = { messages: messagesBadge, friends: friendsBadge, notifications: notificationsBadge };
   const badge = badges[name];
   if (!config?.trigger || !badge) return;
-  const canShowCount = Boolean(currentUser) || name === 'notifications';
+  const canShowCount = Boolean(currentUser || guestProfile) || name === 'notifications';
   const safeCount = canShowCount ? Math.max(0, Number(count) || 0) : 0;
   topbarCounts[name] = safeCount;
   badge.textContent = safeCount > 99 ? '99+' : String(safeCount);
@@ -1109,9 +1116,29 @@ function updateTopbarBadge(name, count) {
 
 async function refreshTopbarBadges() {
   if (!currentUser) {
-    updateTopbarBadge('messages', 0);
-    updateTopbarBadge('friends', 0);
-    updateTopbarBadge('notifications', guestProfile?.accountNotificationRead ? 0 : 1);
+    try {
+      const [conversations, notifications] = guestProfile
+        ? await Promise.all([api('/api/conversations'), api('/api/notifications')])
+        : [{ conversations: [], unreadCount: 0 }, { notifications: [], unreadCount: 0 }];
+      const unreadMessages = conversations.unreadCount == null
+        ? conversations.conversations?.reduce(
+          (total, item) => total + (Number(item.unread_count) || 0),
+          0
+        ) || 0
+        : Number(conversations.unreadCount);
+      updateTopbarBadge('messages', unreadMessages);
+      updateTopbarBadge('friends', 0);
+      updateTopbarBadge(
+        'notifications',
+        notifications.unreadCount == null
+          ? notifications.notifications?.filter((item) => !item.read_at).length || 0
+          : Number(notifications.unreadCount)
+      );
+    } catch (error) {
+      updateTopbarBadge('messages', 0);
+      updateTopbarBadge('friends', 0);
+      updateTopbarBadge('notifications', 0);
+    }
     return;
   }
   try {
@@ -1258,7 +1285,8 @@ function sendMessage() {
 function queueReadReceipt(conversationId, messageId) {
   const safeConversationId = Number(conversationId);
   const safeMessageId = Number(messageId);
-  if (!currentUser || !Number.isSafeInteger(safeConversationId) || safeConversationId <= 0
+  if ((!currentUser && !guestProfile)
+      || !Number.isSafeInteger(safeConversationId) || safeConversationId <= 0
       || !Number.isSafeInteger(safeMessageId) || safeMessageId <= 0) return;
   pendingReadReceipt = { conversationId: safeConversationId, upToMessageId: safeMessageId };
   flushPendingReadReceipt();
@@ -1379,7 +1407,7 @@ socket.on('matched', (data) => {
 socket.on('receive-message', (message) => {
   const messageId = typeof message === 'object' ? Number(message.id) : null;
   addMessage(typeof message === 'string' ? message : message.text, 'them', messageId);
-  if (currentUser && document.visibilityState !== 'visible') refreshTopbarBadges();
+  if ((currentUser || guestProfile) && document.visibilityState !== 'visible') refreshTopbarBadges();
   queueReadReceipt(currentConversationId, messageId);
 });
 
@@ -1555,7 +1583,7 @@ function renderAccountRequired(name) {
   const link = document.createElement('a');
   heading.textContent = chatCopy.feedback.accountRequiredTitle;
   body.textContent = chatCopy.feedback.accountRequiredBody;
-  link.href = '/register';
+  link.href = '/login';
   link.textContent = uiCopy.common.createAccount;
   block.append(heading, body, link);
   list.appendChild(block);
@@ -1588,7 +1616,7 @@ function makeListItem(title, meta, onClick, badge) {
 }
 
 async function loadPanel(name) {
-  if (!currentUser && ['messages', 'history', 'friends', 'saved'].includes(name)) {
+  if (!currentUser && name === 'friends') {
     renderAccountRequired(name);
     return;
   }
@@ -1604,7 +1632,6 @@ async function loadPanel(name) {
 }
 
 async function loadMessagesPanel() {
-  if (!currentUser) return renderAccountRequired('messages');
   const { list } = listElements('messages');
   list.innerHTML = '';
   const data = await api('/api/conversations');
@@ -1751,41 +1778,6 @@ function actionButton(label, handler, icon = null) {
 async function loadNotificationsPanel() {
   const { list } = listElements('notifications');
   list.innerHTML = '';
-  if (!currentUser) {
-    const isUnread = guestProfile?.accountNotificationRead !== true;
-    updateTopbarBadge('notifications', isUnread ? 1 : 0);
-    const reminder = document.createElement('a');
-    const icon = document.createElement('span');
-    const copy = document.createElement('span');
-    const title = document.createElement('strong');
-    const body = document.createElement('small');
-    const status = document.createElement('span');
-    reminder.className = 'panel-data-item guest-system-notification';
-    reminder.href = '/register';
-    icon.className = 'panel-item-avatar';
-    icon.innerHTML = '<i data-lucide="user-plus" aria-hidden="true"></i>';
-    copy.className = 'panel-item-copy';
-    title.textContent = chatCopy.feedback.guestNotificationTitle;
-    body.textContent = chatCopy.feedback.guestNotificationBody;
-    status.className = 'panel-item-status';
-    status.textContent = isUnread ? uiCopy.common.new : '';
-    copy.append(title, body);
-    reminder.append(icon, copy);
-    if (isUnread) reminder.appendChild(status);
-    reminder.addEventListener('click', () => {
-      if (guestProfile && GuestProfileStore) {
-        guestProfile = GuestProfileStore.save(localStorage, {
-          ...guestProfile,
-          accountNotificationRead: true
-        }, countryCatalog);
-      }
-      updateTopbarBadge('notifications', 0);
-    });
-    list.appendChild(reminder);
-    showListState('notifications', true);
-    window.lucide?.createIcons();
-    return;
-  }
   const data = await api('/api/notifications');
   updateTopbarBadge(
     'notifications',
@@ -1798,6 +1790,10 @@ async function loadNotificationsPanel() {
     `${item.body || ''} ${new Date(item.created_at).toLocaleString()}`,
     async () => {
       await api(`/api/notifications/${item.id}/read`, { method: 'PATCH', body: '{}' });
+      if (item.type === 'guest_account_claim') {
+        window.location.assign('/login');
+        return;
+      }
       loadNotificationsPanel();
     },
     item.read_at ? '' : uiCopy.common.new
@@ -1837,13 +1833,15 @@ async function openStoredConversation(item) {
     partnerName.textContent = item.partner_name || chatCopy.drawers.messages.conversations;
     partnerAvatar.textContent = (item.partner_name || '?').charAt(0).toUpperCase();
     data.messages.forEach((message) => {
-      const mine = message.sender_public_id === currentUser.publicId;
+      const mine = Boolean(message.sender_is_owner)
+        || Boolean(currentUser && message.sender_public_id === currentUser.publicId);
       const element = addMessage(message.body, mine ? 'me' : 'them', Number(message.id));
       if (mine && message.delivered_at) element.dataset.delivered = 'true';
       if (mine && message.read_at) element.dataset.read = 'true';
     });
     const lastIncomingMessage = [...data.messages].reverse()
-      .find((message) => message.sender_public_id !== currentUser.publicId);
+      .find((message) => !message.sender_is_owner
+        && (!currentUser || message.sender_public_id !== currentUser.publicId));
     if (lastIncomingMessage) {
       await api(`/api/conversations/${item.id}/read`, {
         method: 'PATCH',
@@ -1861,7 +1859,7 @@ async function openStoredConversation(item) {
 
 async function saveCurrentConversation() {
   conversationMenu.classList.add('hidden');
-  if (!currentUser) return openAccountSettings();
+  if (!currentUser && !guestProfile) return openAccountSettings();
   if (!currentConversationId) return alert(chatCopy.feedback.nothingToSave);
   try {
     if (currentConversationSaved) {
@@ -2150,8 +2148,8 @@ async function saveAccount(event) {
 }
 
 async function logout() {
-  await api('/logout', { method: 'POST', body: '{}' });
-  window.location.href = '/';
+  const result = await api('/logout', { method: 'POST', body: '{}' });
+  window.location.href = result?.guestRestored ? '/chat?guest=1' : '/';
 }
 
 passwordChangeForm?.addEventListener('submit', async (event) => {

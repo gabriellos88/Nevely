@@ -5729,6 +5729,39 @@ body:has(> main.auth-page) {
   text-decoration: underline;
 }
 
+.auth-claim-links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: var(--spacing-2);
+  color: var(--color-body-subtle);
+  font-size: var(--font-size-sm);
+}
+
+.auth-claim-link {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--spacing-2);
+  color: var(--color-fg-brand);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  text-decoration: none;
+}
+
+.auth-claim-link:hover {
+  color: var(--color-fg-brand-strong);
+  text-decoration: underline;
+}
+
+.auth-claim-link img,
+.auth-claim-notice img {
+  width: var(--spacing-6);
+  height: var(--spacing-6);
+  flex: none;
+  border-radius: var(--radius-full);
+  object-fit: cover;
+}
+
 .auth-provider-stack {
   display: grid;
   gap: var(--spacing-4);
@@ -7814,6 +7847,24 @@ body.guest-passport-open .chat-layout {
   background: var(--color-neutral-tertiary);
 }
 
+.chat-app-page .guest-settings-identity-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: var(--spacing-4);
+}
+
+.chat-app-page .guest-settings-identity-row .guest-settings-identity {
+  min-width: var(--spacing-0);
+  flex: 1;
+}
+
+.chat-app-page .guest-claim-account-button {
+  flex: none;
+  white-space: nowrap;
+  border-radius: var(--radius-full);
+}
+
 .chat-app-page .guest-settings-identity img {
   width: var(--spacing-12);
   height: var(--spacing-12);
@@ -7911,6 +7962,15 @@ body.guest-passport-open .chat-layout {
 }
 
 @media (max-width: 540px) {
+  .chat-app-page .guest-settings-identity-row {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .chat-app-page .guest-claim-account-button {
+    justify-content: center;
+  }
+
   .guest-passport-modal {
     place-items: end center;
     padding: var(--spacing-0);
