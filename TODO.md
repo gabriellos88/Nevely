@@ -75,21 +75,22 @@ This file is the product and engineering source of truth for unfinished work. It
 - [x] **N1.6 — Add password-reset and verified email-change flows.** Reuse the token/outbox foundation, revoke active sessions after success and notify the previous address after an email change.
 - [x] **N1.7 — Protect administrators.** Add re-authentication for high-risk actions, 2FA for admin accounts and server-side role checks that do not trust stale session role data.
 - [x] **N1.8 — Correct the support address everywhere.** Replace `support@nevely.com` with the configured and verified `support@nevely.app`.
-- [ ] **N1.9 — Fix the Google onboarding form state.**
+- [x] **N1.9 — Fix the Google onboarding form state.**
   - When Google is used from `/register` without a guest claim, the Google path must not require the email and password fields; Google supplies the verified email and authentication.
   - When Google is used from `/login` for an email that has no Nevely account, the profile-completion redirect must likewise request only the fields needed to create the profile before retrying Google.
   - Keep the normal email/password registration path explicit and unaffected, with provider-specific validation and accessible error copy.
   - Add acceptance coverage for both red and purple messages, including the absence of false email/password requirements.
-- [ ] **N1.10 — Make account authentication settings symmetrical and discoverable.**
+- [x] **N1.10 — Make account authentication settings symmetrical and discoverable.**
   - For password/email accounts, make the email row actionable and open the Privacy tab with the existing verified change-email action focused or clearly exposed.
   - For Google-only accounts, allow an authenticated user to set a Nevely password through a verified, rate-limited flow; do not confuse this with changing the already verified Google email.
   - Preserve at least one usable sign-in method, require re-authentication for adding/removing methods, and keep email-account Google linking takeover-safe.
-- [ ] **N1.11 — Give registered profiles the same default-avatar baseline as guests.** Assign a preset from the existing local avatar set at account creation/claim and expose it consistently in Account settings; keep uploaded profile pictures as a separate storage feature.
+- [x] **N1.11 — Give registered profiles the same default-avatar baseline as guests.** Assign a preset from the existing local avatar set at account creation/claim and expose it consistently in Account settings; keep uploaded profile pictures as a separate storage feature.
 
 Implementation and operations evidence for N1 is collected in [`docs/admin/identity-and-access.md`](docs/admin/identity-and-access.md). Database-backed identity contracts live in `test/integration/identity-auth.test.js`; unit, Socket.IO and guest-browser checks remain part of the release baseline.
 
-**N1 status:** N1.1–N1.8 are complete; N1.9–N1.12 remain explicitly deferred
-until the N3 staging email-verification flow is accepted manually.
+**N1 status:** N1.1–N1.11 are complete. N1.9–N1.11 are isolated in their
+own post-N3 branch and pull request; transactional-email visual polish was
+reclassified as N9.6 because it is not an authentication correctness blocker.
 
 ### N2. Database retention, query bounds and capacity
 
@@ -158,8 +159,8 @@ window recorded 12 `retention.completed` events, no `retention.failed`, HTTP
 
 **N3 status:** complete. Implementation and automated coverage are green, and
 the email waiting/verification flow was accepted manually in staging on
-2026-08-02. N1.9–N1.11 may now proceed in a separate branch and pull request;
-N1.12 remains deferred to a later phase.
+2026-08-02. N1.9–N1.11 proceeded in a separate branch and pull request; the
+deferred N1.12 transactional-email polish is now tracked unchanged as N9.6.
 
 ### N4. Safety, bans and the admin workspace
 
@@ -298,6 +299,7 @@ N1.12 remains deferred to a later phase.
 - [ ] **N9.3 — Add service alerts and runbooks** for database saturation, cleanup failure, email-outbox backlog, elevated authentication failures and Socket.IO disconnect rates.
 - [ ] **N9.4 — Self-host the approved production font** if CSP, performance or privacy requirements prohibit the current Google Fonts request.
 - [ ] **N9.5 — Complete production avatar storage** with upload validation, resizing to a constrained square target (for example 150×150), quotas, abuse scanning, deletion and lifecycle retention; then remove the temporary profile-image URL field and the `501` API response. This is the upload portion of N1.11, not a replacement for the preset default avatar.
+- [ ] **N9.6 — Polish transactional email templates.** Improve resend/verification/reset email layout, hierarchy and accessibility, and add the Nevely logo once the approved logo asset and hosting URL exist without exposing secrets or user data. This is the deferred N1.12 scope, preserved unchanged and moved after authentication correctness.
 
 ---
 

@@ -175,7 +175,8 @@ function createRuntime(options = {}) {
     '/reset-password',
     '/auth/google',
     '/api/auth/verification/resend',
-    '/verify-email/resend'
+    '/verify-email/resend',
+    '/api/account/password/setup'
   ], authLimiter);
   registerAuthRoutes(app, db, {
     environment,

@@ -90,7 +90,9 @@
             <span class="auth-provider-status"><%= copy.auth.googleUnavailable %></span>
           </button>
         <% } %>
-        <p class="auth-provider-divider"><span><%= copy.auth.emailDivider %></span></p>
+        <% if (!googleProfileRequired) { %>
+          <p class="auth-provider-divider"><span><%= copy.auth.emailDivider %></span></p>
+        <% } %>
       </div>
 
       <form class="auth-form" method="post" action="/<%= mode %>">
@@ -147,6 +149,7 @@
           <% } %>
         <% } %>
 
+        <% if (!googleProfileRequired) { %>
         <label class="auth-field" for="auth-email">
           <span><%= copy.common.email %></span>
           <span class="auth-field-shell">
@@ -170,6 +173,7 @@
         </button>
         <% if (mode === 'login') { %>
           <a class="auth-switch-link" href="/forgot-password"><%= copy.auth.forgotPasswordLink %></a>
+        <% } %>
         <% } %>
       </form>
 

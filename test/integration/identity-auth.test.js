@@ -46,6 +46,13 @@ test('N1 email tokens, session revocation and Google identity contracts', {
       picture: '',
       expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     }],
+    ['google-profile-required', {
+      subject: 'google-subject-profile-required',
+      email: 'google-profile-required@example.test',
+      name: 'Profile Required',
+      picture: '',
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+    }],
     ['google-duplicate-email', {
       subject: 'google-subject-duplicate',
       email: 'email-member@example.test',
@@ -128,6 +135,25 @@ test('N1 email tokens, session revocation and Google identity contracts', {
     .expect(400);
 
   const account = request.agent(runtime.app);
+  const normalRegistrationPage = await account.get('/register').expect(200);
+  assert.match(normalRegistrationPage.text, /name="email"/);
+  assert.match(normalRegistrationPage.text, /name="password"/);
+  const googleProfilePage = await account.get('/register?google=profile-required').expect(200);
+  assert.match(googleProfilePage.text, /name="username"/);
+  assert.match(googleProfilePage.text, /name="birthDate"/);
+  assert.doesNotMatch(googleProfilePage.text, /name="email"/);
+  assert.doesNotMatch(googleProfilePage.text, /name="password"/);
+  assert.match(googleProfilePage.text, /Google supplies your verified email and sign-in/);
+
+  const missingGoogleProfile = await account
+    .post('/auth/google')
+    .set('Accept', 'application/json')
+    .send({ credential: 'google-profile-required' })
+    .expect(422);
+  assert.equal(missingGoogleProfile.body.code, 'GOOGLE_PROFILE_REQUIRED');
+  assert.match(missingGoogleProfile.body.error, /no Nevely password is required/);
+  assert.doesNotMatch(missingGoogleProfile.body.error, /enter.*email/i);
+
   const registration = await account
     .post('/register')
     .set('Accept', 'application/json')
@@ -136,6 +162,10 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   assert.match(registration.body.user.publicId, /^nvy_[a-f0-9]{20}$/);
   assert.equal(Object.hasOwn(registration.body.user, 'internalId'), false);
   assert.equal(Object.hasOwn(registration.body.user, 'id'), false);
+  assert.match(
+    registration.body.user.profileImageUrl,
+    /^\/vendor\/dicebear-presets-10\.2\.0\/(astra|nova|lyra|vega|sol|mira|orion|elara)\.svg$/
+  );
   const pendingChat = await account.get('/chat').expect(302);
   assert.equal(pendingChat.headers.location, '/verify-email/pending');
   await account.get('/api/account').expect(403);
@@ -336,8 +366,52 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   const googleMethods = (await google.get('/api/account').expect(200)).body.user;
   assert.equal(googleMethods.hasPassword, false);
   assert.equal(googleMethods.hasGoogle, true);
+  assert.match(
+    googleMethods.profile_image_url,
+    /^\/vendor\/dicebear-presets-10\.2\.0\/(astra|nova|lyra|vega|sol|mira|orion|elara)\.svg$/
+  );
   await google
     .delete('/api/account/identities/google')
+    .send({})
+    .expect(409);
+
+  for (let attempt = 0; attempt < 4; attempt += 1) {
+    const setup = await google
+      .post('/api/account/password/setup')
+      .set('Accept', 'application/json')
+      .set('X-Forwarded-For', '198.51.100.46')
+      .send({})
+      .expect(202);
+    assert.match(setup.body.message, /verified email/);
+  }
+  const googleSetupOutbox = await db.query(
+    `SELECT text_body FROM email_outbox
+     WHERE purpose = 'password_reset' AND recipient = $1
+     ORDER BY created_at DESC`,
+    ['google-new@example.test']
+  );
+  assert.equal(googleSetupOutbox.rowCount, 3);
+  const googleSetupToken = tokenFromBody(googleSetupOutbox.rows[0].text_body);
+  await request(runtime.app)
+    .post('/reset-password')
+    .set('Accept', 'application/json')
+    .set('X-Forwarded-For', '198.51.100.47')
+    .send({ token: googleSetupToken, password: 'GooglePassword123!' })
+    .expect(200);
+  assert.equal((await google.get('/api/auth/me').expect(200)).body.user, null);
+  const googleWithPassword = request.agent(runtime.app);
+  await googleWithPassword
+    .post('/login')
+    .set('Accept', 'application/json')
+    .set('X-Forwarded-For', '198.51.100.48')
+    .send({ email: 'google-new@example.test', password: 'GooglePassword123!' })
+    .expect(200);
+  const googleWithBothMethods = (await googleWithPassword.get('/api/account').expect(200)).body.user;
+  assert.equal(googleWithBothMethods.hasPassword, true);
+  assert.equal(googleWithBothMethods.hasGoogle, true);
+  await googleWithPassword
+    .post('/api/account/password/setup')
+    .set('X-Forwarded-For', '198.51.100.49')
     .send({})
     .expect(409);
   await request(runtime.app)

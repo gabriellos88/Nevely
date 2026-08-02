@@ -79,6 +79,8 @@ const registeredPrivacySettings = document.getElementById('registeredPrivacySett
 const guestPrivacySettings = document.getElementById('guestPrivacySettings');
 const accountAvatarImage = document.getElementById('accountAvatarImage');
 const accountAvatarFallback = document.getElementById('accountAvatarFallback');
+const accountEmailAction = document.getElementById('accountEmailAction');
+const accountEmailValue = document.getElementById('accountEmailValue');
 const guestAccountPrompt = document.getElementById('guestAccountPrompt');
 const guestSettingsAvatar = document.getElementById('guestSettingsAvatar');
 const guestSettingsName = document.getElementById('guestSettingsName');
@@ -97,6 +99,7 @@ const guestReminderDismiss = document.getElementById('guestReminderDismiss');
 const accountFeedback = document.getElementById('accountFeedback');
 const accountSecurityFeedback = document.getElementById('accountSecurityFeedback');
 const passwordChangeForm = document.getElementById('passwordChangeForm');
+const passwordSetupForm = document.getElementById('passwordSetupForm');
 const emailChangeForm = document.getElementById('emailChangeForm');
 const googleIdentityStatus = document.getElementById('googleIdentityStatus');
 const googleIdentityDescription = document.getElementById('googleIdentityDescription');
@@ -556,7 +559,8 @@ function refreshGuestSocketSession() {
 
 function renderGuestIdentity() {
   const name = currentUser?.displayName || guestProfile?.name || uiCopy.common.guest;
-  const avatarUrl = !currentUser && guestProfile ? GuestProfileStore?.avatarUrl(guestProfile.avatarId) : '';
+  const avatarUrl = currentUser?.profileImageUrl
+    || (!currentUser && guestProfile ? GuestProfileStore?.avatarUrl(guestProfile.avatarId) : '');
   profileName.textContent = name;
   profileInitial.textContent = name.charAt(0).toUpperCase() || 'G';
   profileInitial.classList.toggle('hidden', Boolean(avatarUrl));
@@ -2008,6 +2012,7 @@ function renderAccountSecurity(user) {
     hasPassword: Boolean(user.hasPassword)
   };
   passwordChangeForm?.classList.toggle('hidden', !accountSecurityState.hasPassword);
+  passwordSetupForm?.classList.toggle('hidden', accountSecurityState.hasPassword);
   emailChangeForm?.classList.toggle('hidden', !accountSecurityState.hasPassword);
   if (!googleConfiguration.enabled || !googleIdentityStatus) return;
 
@@ -2084,7 +2089,7 @@ async function openAccountSettings(initialTab = 'account', { focusTab = false } 
       return option;
     }));
     accountForm.elements.displayName.value = user.display_name || '';
-    accountForm.elements.email.value = user.email || '';
+    if (accountEmailValue) accountEmailValue.textContent = user.email || '';
     accountForm.elements.publicId.value = user.public_id || '';
     accountForm.elements.birthDate.value = user.birth_date || '';
     accountForm.elements.gender.value = user.gender || '';
@@ -2164,6 +2169,33 @@ passwordChangeForm?.addEventListener('submit', async (event) => {
   } catch (error) {
     accountSecurityFeedback.textContent = error.message;
   }
+});
+
+passwordSetupForm?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const button = event.currentTarget.querySelector('button[type="submit"]');
+  button.disabled = true;
+  button.setAttribute('aria-busy', 'true');
+  try {
+    const data = await api('/api/account/password/setup', {
+      method: 'POST',
+      body: '{}'
+    });
+    accountSecurityFeedback.textContent = data.message;
+  } catch (error) {
+    accountSecurityFeedback.textContent = error.message;
+  } finally {
+    button.disabled = false;
+    button.removeAttribute('aria-busy');
+  }
+});
+
+accountEmailAction?.addEventListener('click', () => {
+  setAccountTab('privacy', { focus: true });
+  const target = accountSecurityState.hasPassword
+    ? emailChangeForm?.elements.email
+    : passwordSetupForm?.querySelector('button[type="submit"]');
+  window.requestAnimationFrame(() => target?.focus());
 });
 
 emailChangeForm?.addEventListener('submit', async (event) => {

@@ -6923,9 +6923,59 @@ body:has(> main.auth-page) .footer-bottom p {
 }
 
 .chat-app-page .registered-profile-picture,
+.chat-app-page .account-email-action,
 .chat-app-page .account-form-actions,
 .chat-app-page .account-form .account-feedback {
   grid-column: 1 / -1;
+}
+
+.chat-app-page .account-email-action {
+  min-height: var(--spacing-12);
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: var(--spacing-1) var(--spacing-3);
+  padding: var(--spacing-2-5) var(--spacing-3);
+  border: var(--spacing-px) solid var(--color-border-default);
+  border-radius: var(--radius-xxl);
+  background: var(--color-neutral-tertiary);
+  color: var(--color-heading);
+  text-align: left;
+  cursor: pointer;
+}
+
+.chat-app-page .account-email-action > span {
+  color: var(--color-body-subtle);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+}
+
+.chat-app-page .account-email-action > strong {
+  min-width: 0;
+  overflow: hidden;
+  color: var(--color-heading);
+  font-size: var(--font-size-sm);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-app-page .account-email-action > .lucide {
+  grid-column: 2;
+  grid-row: 1 / span 2;
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+  color: var(--color-brand-medium);
+}
+
+.chat-app-page .account-email-action:hover {
+  border-color: var(--color-border-medium);
+  background: var(--color-neutral-primary-medium);
+}
+
+.chat-app-page .account-email-action:focus-visible {
+  outline: var(--spacing-0);
+  border-color: var(--color-brand-medium);
+  box-shadow: var(--focus-ring-brand);
 }
 
 .chat-app-page .registered-profile-picture {
@@ -7126,6 +7176,39 @@ body:has(> main.auth-page) .footer-bottom p {
   min-height: var(--spacing-11);
   padding: var(--spacing-2) var(--spacing-3);
   border-width: calc(var(--spacing-px) * 2);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+}
+
+.chat-app-page .account-password-setup {
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  padding: var(--spacing-4);
+  border: var(--spacing-px) solid var(--color-border-default);
+  border-radius: var(--radius-xxl);
+  background: var(--color-neutral-primary-medium);
+}
+
+.chat-app-page .account-password-setup > div {
+  display: grid;
+  gap: var(--spacing-1);
+}
+
+.chat-app-page .account-password-setup strong {
+  color: var(--color-heading);
+}
+
+.chat-app-page .account-password-setup p {
+  margin: var(--spacing-0);
+  color: var(--color-body-subtle);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-body);
+}
+
+.chat-app-page .account-password-setup .btn {
+  grid-column: auto;
+  min-height: var(--spacing-11);
+  padding: var(--spacing-2) var(--spacing-3);
   border-radius: var(--radius-full);
   font-size: var(--font-size-sm);
 }

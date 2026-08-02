@@ -53,6 +53,12 @@ Le risposte di richiesta sono uguali per indirizzi esistenti e inesistenti.
 Tre richieste per scopo e account in un'ora sono il limite applicativo, oltre
 al rate limit HTTP.
 
+Un account creato solo con Google può aggiungere una password Nevely dal tab
+Privacy. Il server accoda un link `password_reset` soltanto all'indirizzo già
+verificato dell'account, con lo stesso limite di tre richieste l'ora. Il link
+monouso costituisce la verifica richiesta; il completamento revoca tutte le
+sessioni, ma conserva l'identità Google. Non cambia l'email attestata da Google.
+
 Un account password non verificato non può usare il prodotto. Le pagine chat e
 account lo rimandano a `/verify-email/pending`; le API di prodotto rispondono
 HTTP 403 con `EMAIL_VERIFICATION_REQUIRED` e Socket.IO rifiuta matching, chat
@@ -78,10 +84,27 @@ Non vengono richiesti né conservati access token o refresh token. Un'email
 già presente non viene collegata automaticamente: l'utente deve autenticarsi
 prima con il metodo esistente.
 
+Il percorso Google e quello email/password sono separati anche nella UI. Un
+nuovo utente Google inserisce soltanto username, nascita, genere e paese;
+l'assertion Google fornisce email verificata e metodo di accesso, quindi il
+browser non deve richiedere email o password Nevely. Il collegamento a un
+account password esistente richiede una nuova assertion Google con la stessa
+email verificata; la rimozione di Google richiede la password corrente e viene
+rifiutata se lascerebbe l'account senza alcun metodo di accesso.
+
+## Avatar predefiniti registrati
+
+Ogni nuovo account senza immagine esplicita riceve uno degli otto preset locali
+già usati dai guest. La migrazione `009_registered_default_avatars.sql`
+assegna in modo deterministico un preset agli account storici privi di
+immagine, senza sovrascrivere immagini esistenti. Nel claim prevale il preset
+del guest. Il valore viene mostrato nel trigger e nel pannello Account; upload,
+ridimensionamento e lifecycle delle immagini restano separati in N9.5.
+
 L'accettazione OAuth di staging del 28 luglio 2026 è registrata in
-[N1.5 Google staging acceptance](../release/n1-google-staging-acceptance.md).
-N1.5 resta aperta finché non viene creato e configurato il client Web separato
-di produzione.
+[N1.5 Google staging acceptance](../release/n1-google-staging-acceptance.md);
+il client Web separato e il flusso produzione sono stati accettati il
+30 luglio 2026.
 
 ## Abilitare un amministratore
 

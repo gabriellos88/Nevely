@@ -307,7 +307,7 @@
     "registerTitle": "Join Nevely",
     "registerBody": "Create your account to continue.",
     "googleAction": "Continue with Google",
-    "googleProfileHint": "Complete these profile details, then choose Continue with Google again.",
+    "googleProfileHint": "Complete only these profile details, then choose Continue with Google again. Google supplies your verified email and sign-in.",
     "googleUnavailable": "Coming soon",
     "emailDivider": "Or continue with email",
     "username": "Username",
@@ -339,6 +339,7 @@
     "sendResetAction": "Send reset link",
     "emailSentTitle": "Check your inbox",
     "genericEmailResponse": "If that address belongs to an eligible account, an email is on its way.",
+    "passwordSetupQueued": "Check your verified email for a secure link to set a Nevely password. Google sign-in remains connected.",
     "resetPasswordTitle": "Choose a new password",
     "resetPasswordBody": "This link is single-use and expires after one hour.",
     "newPassword": "New password",
@@ -664,6 +665,9 @@
     "googleLoading": "Loading Google sign-in…",
     "currentPassword": "Current password",
     "changePassword": "Change password",
+    "setPassword": "Add a Nevely password",
+    "setPasswordDescription": "We’ll send a single-use link to your verified email. This does not change or disconnect your Google account.",
+    "sendPasswordSetup": "Send secure setup link",
     "newEmail": "New email",
     "changeEmail": "Send verification link"
   },
@@ -844,12 +848,13 @@
     ,"googleUnavailable": "Google sign-in is not configured."
     ,"googleReplay": "That Google sign-in response was already used."
     ,"googleLinkRequired": "Sign in with your password first, then link Google from account security."
-    ,"googleRegistrationProfileRequired": "Complete username, date of birth, gender, and country before continuing with Google."
+    ,"googleRegistrationProfileRequired": "Complete username, date of birth, gender, and country before continuing with Google. Google supplies your email and sign-in; no Nevely password is required."
     ,"googleInvalid": "Google could not verify this sign-in. Try again."
     ,"googleEmailMismatch": "Google must use the same verified email as this account."
     ,"googleIdentityInUse": "That Google account is already linked."
     ,"googleIdentityMissing": "No Google account is linked."
     ,"googleOnlyLogin": "Add a password before unlinking your only sign-in method."
+    ,"passwordAlreadySet": "This account already has a Nevely password. Use Change password instead."
     ,"ownAdminRole": "You can’t remove your own administrator role."
     ,"protectedProfileInvalid": "Provide a valid birth date and support reason."
     ,"profileAlreadyComplete": "This profile is already complete."

@@ -167,7 +167,7 @@ test('guest account claims are session-authorized, verified, transactional and n
     ['claimed-member@example.test']
   )).rows[0].id);
   const claimedUser = (await db.query(
-    `SELECT username, display_name, birth_date, age, gender, country_code
+    `SELECT username, display_name, birth_date, age, gender, country_code, profile_image_url
      FROM users WHERE id = $1`,
     [userId]
   )).rows[0];
@@ -177,6 +177,7 @@ test('guest account claims are session-authorized, verified, transactional and n
   assert.equal(Number(claimedUser.age), 28);
   assert.equal(claimedUser.gender, 'non-binary');
   assert.equal(claimedUser.country_code, 'ch');
+  assert.equal(claimedUser.profile_image_url, '/vendor/dicebear-presets-10.2.0/astra.svg');
   const claimed = (await db.query(
     `SELECT claim.status, claim.claimed_at, guest.status AS guest_status, guest.claimed_by_user_id
      FROM guest_account_claims claim
@@ -233,7 +234,7 @@ test('guest account claims are session-authorized, verified, transactional and n
     .expect(201);
   assert.equal(googleClaim.body.guestClaimed, true);
   const googleClaimedUser = (await db.query(
-    `SELECT username, display_name, birth_date, age, gender, country_code
+    `SELECT username, display_name, birth_date, age, gender, country_code, profile_image_url
      FROM users WHERE email = $1`,
     ['google-claim@example.test']
   )).rows[0];
@@ -243,6 +244,7 @@ test('guest account claims are session-authorized, verified, transactional and n
   assert.equal(Number(googleClaimedUser.age), 28);
   assert.equal(googleClaimedUser.gender, 'non-binary');
   assert.equal(googleClaimedUser.country_code, 'ch');
+  assert.equal(googleClaimedUser.profile_image_url, '/vendor/dicebear-presets-10.2.0/astra.svg');
 
   const existing = request.agent(runtime.app);
   await existing
