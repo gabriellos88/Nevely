@@ -92,9 +92,11 @@ test('pending registrations rotate one-hour links, clean up atomically and relea
   const pendingRedirect = await loginDuringValidity
     .post('/login')
     .set('X-Forwarded-For', '198.51.100.62')
+    .type('form')
     .send({ email: payload().email, password: payload().password })
     .expect(302);
   assert.equal(pendingRedirect.headers.location, '/verify-email/pending');
+  await loginDuringValidity.get('/verify-email/pending').expect(200);
 
   await pending
     .post('/verify-email/resend')
