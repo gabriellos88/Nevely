@@ -18,10 +18,11 @@
                    value="<%= values?.birthDate || '' %>">
           </span>
         </label>
-        <label class="auth-field">
+        <label class="auth-field" for="profile-gender">
           <span><%= copy.common.gender %></span>
-          <span class="auth-choice-group" data-gender-choices>
-            <select name="gender" class="profile-native-control" aria-hidden="true" tabindex="-1">
+          <span class="auth-field-shell">
+            <i data-lucide="contact" aria-hidden="true"></i>
+            <select id="profile-gender" name="gender" required>
               <option value=""><%= copy.auth.selectGender %></option>
               <option value="female" <%= values?.gender === 'female' ? 'selected' : '' %>><%= copy.common.female %></option>
               <option value="male" <%= values?.gender === 'male' ? 'selected' : '' %>><%= copy.common.male %></option>
@@ -29,21 +30,15 @@
               <option value="other" <%= values?.gender === 'other' ? 'selected' : '' %>><%= copy.common.other %></option>
               <option value="prefer-not-to-say" <%= values?.gender === 'prefer-not-to-say' ? 'selected' : '' %>><%= copy.auth.preferNotToSay %></option>
             </select>
-            <span class="auth-choice-list" role="group" aria-label="<%= copy.common.gender %>" aria-required="true">
-              <button class="auth-choice" type="button" data-choice-value="female"><%= copy.common.female %></button>
-              <button class="auth-choice" type="button" data-choice-value="male"><%= copy.common.male %></button>
-              <button class="auth-choice" type="button" data-choice-value="non-binary"><%= copy.common.nonBinary %></button>
-              <button class="auth-choice" type="button" data-choice-value="other"><%= copy.common.other %></button>
-              <button class="auth-choice" type="button" data-choice-value="prefer-not-to-say"><%= copy.auth.preferNotToSay %></button>
-            </span>
           </span>
         </label>
         <label class="auth-field" for="profile-country-search">
           <span><%= copy.common.country %></span>
           <span class="auth-country-combobox" data-country-combobox>
-            <span class="auth-field-shell">
-              <i data-lucide="map-pin" aria-hidden="true"></i>
-              <input id="profile-country-search" type="search" autocomplete="off" placeholder="<%= copy.chat.guestPassport.countryPlaceholder %>" role="combobox" aria-autocomplete="list" aria-controls="profile-country-suggestions" aria-expanded="false" aria-required="true">
+            <span class="auth-field-shell profile-country-search">
+              <i class="profile-country-search-icon" data-lucide="map-pin" aria-hidden="true"></i>
+              <span class="profile-country-selected-flag hidden" aria-hidden="true"></span>
+              <input id="profile-country-search" type="search" autocomplete="off" required data-invalid-message="<%= copy.errors.countryInvalid %>" placeholder="<%= copy.chat.guestPassport.countryPlaceholder %>" role="combobox" aria-autocomplete="list" aria-controls="profile-country-suggestions" aria-expanded="false" aria-required="true">
             </span>
             <select name="countryCode" class="profile-native-control" aria-hidden="true" tabindex="-1">
               <option value=""><%= copy.auth.selectCountry %></option>

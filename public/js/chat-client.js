@@ -106,6 +106,12 @@ const googleIdentityLink = document.getElementById('googleIdentityLink');
 const googleIdentityLinkButton = document.getElementById('googleIdentityLinkButton');
 const googleIdentityOnly = document.getElementById('googleIdentityOnly');
 const googleIdentityUnlinkForm = document.getElementById('googleIdentityUnlinkForm');
+const googleIdentityUnlinkTrigger = document.getElementById('googleIdentityUnlinkTrigger');
+const googleIdentityUnlinkCancel = document.getElementById('googleIdentityUnlinkCancel');
+const passwordChangeTrigger = document.getElementById('passwordChangeTrigger');
+const passwordChangeCancel = document.getElementById('passwordChangeCancel');
+const emailChangeTrigger = document.getElementById('emailChangeTrigger');
+const emailChangeCancel = document.getElementById('emailChangeCancel');
 const accountPlan = document.getElementById('accountPlan');
 const logoutBtn = document.getElementById('logoutBtn');
 const deleteAccountBtn = document.getElementById('deleteAccountBtn');
@@ -154,6 +160,7 @@ let accountSecurityState = {
   hasGoogle: false,
   hasPassword: false
 };
+let expandedSecurityAction = null;
 const pendingSentMessages = [];
 
 const topbarCounts = { messages: 0, friends: 0, notifications: 0 };
@@ -2005,15 +2012,64 @@ function initializeGoogleIdentity(attempt = 0) {
   });
 }
 
+const securityDisclosures = {
+  unlinkGoogle: {
+    trigger: googleIdentityUnlinkTrigger,
+    form: googleIdentityUnlinkForm,
+    cancel: googleIdentityUnlinkCancel,
+    isAvailable: () => accountSecurityState.hasGoogle && accountSecurityState.hasPassword
+  },
+  changePassword: {
+    trigger: passwordChangeTrigger,
+    form: passwordChangeForm,
+    cancel: passwordChangeCancel,
+    isAvailable: () => accountSecurityState.hasPassword
+  },
+  changeEmail: {
+    trigger: emailChangeTrigger,
+    form: emailChangeForm,
+    cancel: emailChangeCancel,
+    isAvailable: () => accountSecurityState.hasPassword
+  }
+};
+
+function syncSecurityDisclosures({ focusAction = false, restoreAction = null } = {}) {
+  Object.entries(securityDisclosures).forEach(([name, disclosure]) => {
+    const available = Boolean(disclosure.trigger && disclosure.form && disclosure.isAvailable());
+    const expanded = available && name === expandedSecurityAction;
+    disclosure.trigger?.classList.toggle('hidden', !available);
+    disclosure.trigger?.setAttribute('aria-expanded', String(expanded));
+    disclosure.form?.classList.toggle('hidden', !expanded);
+    if (!expanded) disclosure.form?.reset();
+  });
+  if (focusAction && expandedSecurityAction) {
+    const firstControl = securityDisclosures[expandedSecurityAction]?.form?.querySelector('input, select, textarea, button');
+    window.requestAnimationFrame(() => firstControl?.focus());
+  } else if (restoreAction) {
+    window.requestAnimationFrame(() => securityDisclosures[restoreAction]?.trigger?.focus());
+  }
+}
+
+function setExpandedSecurityAction(action, { focus = false, restoreFocus = false } = {}) {
+  const previousAction = expandedSecurityAction;
+  expandedSecurityAction = action && securityDisclosures[action]?.isAvailable() ? action : null;
+  syncSecurityDisclosures({
+    focusAction: focus,
+    restoreAction: restoreFocus ? previousAction : null
+  });
+}
+
 function renderAccountSecurity(user) {
   accountSecurityState = {
     email: user.email || '',
     hasGoogle: Boolean(user.hasGoogle),
     hasPassword: Boolean(user.hasPassword)
   };
-  passwordChangeForm?.classList.toggle('hidden', !accountSecurityState.hasPassword);
   passwordSetupForm?.classList.toggle('hidden', accountSecurityState.hasPassword);
-  emailChangeForm?.classList.toggle('hidden', !accountSecurityState.hasPassword);
+  if (expandedSecurityAction && !securityDisclosures[expandedSecurityAction]?.isAvailable()) {
+    expandedSecurityAction = null;
+  }
+  syncSecurityDisclosures();
   if (!googleConfiguration.enabled || !googleIdentityStatus) return;
 
   googleIdentityStatus.textContent = accountSecurityState.hasGoogle
@@ -2028,10 +2084,6 @@ function renderAccountSecurity(user) {
   googleIdentityOnly?.classList.toggle(
     'hidden',
     !accountSecurityState.hasGoogle || accountSecurityState.hasPassword
-  );
-  googleIdentityUnlinkForm?.classList.toggle(
-    'hidden',
-    !accountSecurityState.hasGoogle || !accountSecurityState.hasPassword
   );
   if (!accountSecurityState.hasGoogle) initializeGoogleIdentity();
 }
@@ -2066,6 +2118,7 @@ async function openAccountSettings(initialTab = 'account', { focusTab = false } 
   accountModal?.classList.toggle('guest-account-mode', !currentUser);
   registeredPrivacySettings?.classList.toggle('hidden', !currentUser);
   guestPrivacySettings?.classList.toggle('hidden', Boolean(currentUser));
+  setExpandedSecurityAction(null);
   setAccountTab(initialTab, { focus: focusTab });
   if (!currentUser) {
     guestAccountPrompt.classList.remove('hidden');
@@ -2093,10 +2146,6 @@ async function openAccountSettings(initialTab = 'account', { focusTab = false } 
     accountForm.elements.publicId.value = user.public_id || '';
     accountForm.elements.birthDate.value = user.birth_date || '';
     accountForm.elements.gender.value = user.gender || '';
-    window.setGenderChoiceValue?.(
-      accountForm.querySelector('[data-gender-choices]'),
-      user.gender || ''
-    );
     accountForm.elements.countryCode.value = user.country_code || '';
     window.refreshCountryCombobox?.(accountForm.querySelector('[data-country-combobox]'));
     accountForm.elements.profileImageUrl.value = user.profile_image_url || '';
@@ -2162,6 +2211,15 @@ async function logout() {
   window.location.href = result?.guestRestored ? '/chat?guest=1' : '/';
 }
 
+Object.entries(securityDisclosures).forEach(([action, disclosure]) => {
+  disclosure.trigger?.addEventListener('click', () => {
+    setExpandedSecurityAction(action, { focus: true });
+  });
+  disclosure.cancel?.addEventListener('click', () => {
+    setExpandedSecurityAction(null, { restoreFocus: true });
+  });
+});
+
 passwordChangeForm?.addEventListener('submit', async (event) => {
   event.preventDefault();
   try {
@@ -2197,10 +2255,11 @@ passwordSetupForm?.addEventListener('submit', async (event) => {
 
 accountEmailAction?.addEventListener('click', () => {
   setAccountTab('privacy', { focus: true });
-  const target = accountSecurityState.hasPassword
-    ? emailChangeForm?.elements.email
-    : passwordSetupForm?.querySelector('button[type="submit"]');
-  window.requestAnimationFrame(() => target?.focus());
+  if (accountSecurityState.hasPassword) {
+    setExpandedSecurityAction('changeEmail', { focus: true });
+  } else {
+    window.requestAnimationFrame(() => passwordSetupForm?.querySelector('button[type="submit"]')?.focus());
+  }
 });
 
 emailChangeForm?.addEventListener('submit', async (event) => {

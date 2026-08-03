@@ -5415,6 +5415,59 @@ body:has(> main.editorial-page) {
   text-decoration: none;
 }
 
+.support-page .support-hero {
+  padding-block: var(--spacing-16);
+}
+
+.support-page .support-hero .editorial-hero__inner {
+  gap: var(--spacing-10);
+}
+
+.support-page .support-hero h1 {
+  margin-bottom: var(--spacing-4);
+  font-size: clamp(var(--font-size-7xl), 4vw, var(--font-size-10xl));
+}
+
+.support-page .support-hero .editorial-eyebrow {
+  margin-bottom: var(--spacing-2);
+}
+
+.support-page .support-hero .editorial-hero__copy > p:last-child {
+  font-size: var(--font-size-md);
+}
+
+.support-page .support-hero__symbol {
+  width: min(100%, 10rem);
+}
+
+.support-page .support-hero__symbol .lucide {
+  width: var(--spacing-10);
+  height: var(--spacing-10);
+}
+
+.support-page .support-faq {
+  padding-block: var(--spacing-20) var(--spacing-12);
+}
+
+.support-page .support-contact {
+  padding-block: var(--spacing-8) var(--spacing-20);
+}
+
+.support-page .support-contact__panel {
+  gap: var(--spacing-5);
+  padding: var(--spacing-6);
+}
+
+.support-page .support-contact__icon {
+  width: var(--spacing-12);
+  height: var(--spacing-12);
+}
+
+.support-page .support-contact__copy h2 {
+  margin-bottom: var(--spacing-2);
+  font-size: var(--font-size-4xl);
+}
+
 .editorial-page a:focus-visible,
 .site-footer a:focus-visible {
   outline: var(--spacing-0);
@@ -5454,6 +5507,10 @@ body:has(> main.editorial-page) {
   .support-hero__symbol {
     justify-self: start;
     width: var(--spacing-28);
+  }
+
+  .support-page .support-hero__symbol {
+    width: var(--spacing-20);
   }
 
   .support-faq__layout {
@@ -5528,6 +5585,28 @@ body:has(> main.editorial-page) {
 
   .support-contact__links {
     grid-column: 1;
+  }
+
+  .support-page .support-hero,
+  .support-page .support-faq {
+    padding-block: var(--spacing-12);
+  }
+
+  .support-page .support-contact {
+    padding-block: var(--spacing-6) var(--spacing-12);
+  }
+
+  .support-page .support-hero__symbol {
+    display: none;
+  }
+
+  .support-page .support-faq__layout {
+    gap: var(--spacing-8);
+  }
+
+  .support-page .support-contact__panel {
+    gap: var(--spacing-4);
+    padding: var(--spacing-5);
   }
 }
 
@@ -5951,53 +6030,15 @@ body:has(> main.auth-page) {
   padding: var(--spacing-0);
 }
 
-.auth-choice-group,
-.account-choice-group,
 .auth-country-combobox {
   position: relative;
   display: block;
 }
 
-.auth-choice-list,
-.account-choice-list {
-  display: flex;
-  flex-wrap: wrap;
-  gap: var(--spacing-2);
-}
-
-.auth-choice,
-.account-choice {
-  min-height: var(--spacing-11);
-  padding-inline: var(--spacing-4);
-  border: var(--spacing-px) solid var(--color-border-medium);
-  border-radius: var(--radius-full);
-  background: var(--color-neutral-tertiary);
-  color: var(--color-body);
-  font-family: var(--font-family);
-  font-size: var(--font-size-sm);
-  font-weight: var(--font-weight-medium);
-  cursor: pointer;
-}
-
-.auth-choice:hover,
-.account-choice:hover {
-  border-color: var(--color-brand-medium);
-  color: var(--color-heading);
-}
-
-.auth-choice:focus-visible,
-.account-choice:focus-visible {
-  outline: var(--spacing-0);
-  border-color: var(--color-brand-medium);
-  color: var(--color-heading);
-  box-shadow: var(--focus-ring-brand);
-}
-
-.auth-choice.is-selected,
-.account-choice.is-selected {
-  border-color: var(--color-brand);
-  background: var(--color-brand);
-  color: var(--color-heading);
+.profile-country-selected-flag {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
 }
 
 .auth-country-suggestions {
@@ -6018,7 +6059,9 @@ body:has(> main.auth-page) {
 .auth-country-suggestions button {
   width: 100%;
   min-height: var(--spacing-11);
-  display: block;
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-3);
   padding: var(--spacing-2) var(--spacing-3);
   border: var(--spacing-0);
   border-radius: var(--radius-md);
@@ -6028,6 +6071,18 @@ body:has(> main.auth-page) {
   font-size: var(--font-size-sm);
   text-align: left;
   cursor: pointer;
+}
+
+.country-flag-icon {
+  width: var(--spacing-6);
+  height: var(--font-size-lg);
+  flex: none;
+  border-radius: var(--radius-xs);
+  object-fit: cover;
+}
+
+.auth-country-suggestions strong {
+  font-weight: var(--font-weight-medium);
 }
 
 .auth-country-suggestions button:hover,
@@ -7081,6 +7136,22 @@ body:has(> main.auth-page) .footer-bottom p {
   grid-column: 1 / -1;
 }
 
+.chat-app-page .account-country-combobox .profile-country-search input {
+  min-width: var(--spacing-0);
+  min-height: var(--spacing-0);
+  flex: 1;
+  padding: var(--spacing-0);
+  border: var(--spacing-0);
+  border-radius: var(--radius-none);
+  background: transparent;
+  box-shadow: none;
+}
+
+.chat-app-page .account-country-combobox .profile-country-search input:focus-visible {
+  border-color: transparent;
+  box-shadow: none;
+}
+
 .chat-app-page .account-email-field {
   display: grid;
   gap: var(--spacing-2-5);
@@ -7322,9 +7393,42 @@ body:has(> main.auth-page) .footer-bottom p {
   color: var(--color-fg-brand-strong);
 }
 
+.chat-app-page .account-security-trigger {
+  width: fit-content;
+  min-height: var(--spacing-11);
+  padding: var(--spacing-1-5) var(--spacing-3);
+  border-color: var(--color-border-default);
+  border-radius: var(--radius-full);
+  color: var(--color-body-subtle);
+  font-size: var(--font-size-xs);
+}
+
+.chat-app-page .account-settings-section > .account-security-trigger {
+  margin-top: var(--spacing-4);
+}
+
+.chat-app-page .account-sensitive-actions {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-2);
+}
+
+.chat-app-page .account-sensitive-actions .btn {
+  min-height: var(--spacing-11);
+  padding: var(--spacing-2) var(--spacing-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-sm);
+}
+
+.chat-app-page .account-sensitive-actions .btn-ghost {
+  background: transparent;
+  color: var(--color-body-subtle);
+  border-color: var(--color-border-default);
+}
+
 .chat-app-page .account-google-unlink-form {
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: end;
+  grid-template-columns: minmax(0, 1fr);
 }
 
 .chat-app-page .account-google-unlink-form .btn {

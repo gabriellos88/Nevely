@@ -676,7 +676,8 @@
     "setPasswordDescription": "Create a password so you can also sign in with your email. You’ll still be able to use Google.",
     "sendPasswordSetup": "Send me a link",
     "newEmail": "New email",
-    "changeEmail": "Change email"
+    "changeEmail": "Change email",
+    "cancel": "Cancel"
   },
   "admin": {
     "title": "Admin",
