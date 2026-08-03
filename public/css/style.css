@@ -5395,6 +5395,7 @@ body:has(> main.editorial-page) {
 }
 
 .support-contact__links a {
+  min-height: var(--spacing-11);
   display: inline-flex;
   align-items: center;
   justify-content: space-between;
