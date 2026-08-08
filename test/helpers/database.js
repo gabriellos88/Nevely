@@ -9,6 +9,7 @@ const tables = [
   'network_bans',
   'account_bans',
   'guest_bans',
+  'guest_device_restrictions',
   'audit_log',
   'database_capacity_snapshots',
   'retention_runs',

@@ -24,6 +24,35 @@ veri:
 Finché uno di questi punti manca, **non fare merge in `main`** e non modificare
 la produzione.
 
+## Checklist N4 finale
+
+Prerequisiti: un account admin con 2FA, un account registrato verificato, due
+sessioni guest in browser distinti e dati sintetici. Usare lo staging candidato
+e non copiare cookie o identificativi interni nei ticket.
+
+1. In `/admin`, verificare testata, logout, unlock e stato re-auth; sbloccare
+   un'azione ad alto rischio con il flusso esistente e verificare che dopo logout torni bloccata.
+2. In Users e Guests cercare per ID canonico, aprire Details e confermare solo
+   `nvy_...`/`gst_...`, nome e username pertinenti. Su un guest eliminato
+   confermare `deleted at` e `scheduled deletion`.
+3. Applicare un guest ban temporaneo e confermare che chat, ripristino profilo
+   e Socket.IO vengono rifiutati. Revocarlo e verificare il ripristino.
+4. Applicare un guest ban permanente, poi tentare `POST /api/guest-profile`
+   con la stessa sessione/device: deve ricevere `GUEST_DEVICE_RESTRICTED`.
+   Non creare né verificare un ban IP implicito. Revocare e confermare il nuovo guest.
+5. Bannare un account e autenticarsi con credenziali valide: ricevere
+   `ACCOUNT_SUSPENDED` soltanto dopo la validazione, con motivo, inizio,
+   scadenza e tipo. `/chat` e API applicative restano negate; `/suspension`,
+   appeal e logout restano disponibili. Ripetere l'appeal e verificare un solo record pending/audit.
+6. Verificare Reports e Audit in sola lettura e che nessuna evidenza/audit
+   mostri contenuto integrale di messaggi.
+
+Rollback N4: fermare il deploy candidato, ripristinare il commit applicativo
+precedente e il backup PostgreSQL precedente alle migrazioni 015–016. Non
+tentare `DELETE` di audit, ban o appeal in produzione. Se è necessario un down
+SQL, prima revocare ogni restriction permanente e risolvere gli appeal pending,
+quindi far approvare e provare il down su un clone dello staging.
+
 ## Ruoli di branch
 
 | Branch | Significato |

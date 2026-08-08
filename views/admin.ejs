@@ -1,10 +1,13 @@
-<%- include('partials/header') %>
+<%- include('partials/header', { hideSiteHeader: true }) %>
 <main class="admin-page admin-workspace">
   <div class="admin-wrap">
+    <header class="admin-session-header" aria-label="Admin session controls">
+      <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btn-secondary" type="submit">Log out</button></form>
+      <button class="btn btn-primary" type="button" data-admin-unlock>Unlock high-risk actions</button>
+      <p id="adminReauthState" role="status" data-unlocked="<%= adminReauthActive ? 'true' : 'false' %>"><%= adminReauthActive ? 'High-risk actions unlocked' : 'High-risk actions locked' %></p>
+    </header>
     <header class="admin-workspace-header">
-      <p class="admin-eyebrow">Moderation workspace</p>
-      <h1><%= copy.admin.title %></h1>
-      <p>Review account safety signals without opening unrestricted conversation history.</p>
+      <h1>Moderation workspace</h1>
     </header>
 
     <nav class="admin-tabs" role="tablist" aria-label="Moderation sections">

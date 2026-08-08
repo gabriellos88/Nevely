@@ -153,6 +153,16 @@ function createRuntime(options = {}) {
   app.use(express.static(path.join(__dirname, 'public')));
   app.use(sessionMiddleware);
   app.use(csrfProtection({ publicOrigin: environment.PUBLIC_ORIGIN }));
+  app.use((req, res, next) => {
+    if (!req.session?.suspension) return next();
+    const allowed = (req.method === 'GET' && req.path === '/suspension')
+      || (req.method === 'POST' && (req.path === '/api/suspension/appeals' || req.path === '/logout'));
+    if (allowed) return next();
+    if (req.path.startsWith('/api/')) {
+      return res.status(403).json({ error: uiCopy.errors.accountSuspended, code: 'ACCOUNT_SUSPENDED' });
+    }
+    return res.redirect('/suspension');
+  });
   io.engine.use(sessionMiddleware);
   privatePreview.registerHttp(app);
   privatePreview.registerSocket(io);
@@ -204,7 +214,8 @@ function createRuntime(options = {}) {
     let guestClaimEligible = false;
     if (isGuest && db.isConfigured && req.session.guestPrincipalId) {
       try {
-        if (await moderation.isGuestBlocked(req.session.guestPrincipalId)) {
+        if (await moderation.isGuestBlocked(req.session.guestPrincipalId)
+          || await moderation.isGuestDeviceRestrictedForGuest(req.session.guestPrincipalId)) {
           return res.status(403).send(uiCopy.errors.guestRestricted);
         }
         const guest = await findActiveGuestPrincipal(db, req.session.guestPrincipalId, { touch: false });
@@ -234,6 +245,7 @@ function createRuntime(options = {}) {
     enforcePersistentGuestOwnership: options.enforcePersistentGuestOwnership,
     isNetworkBlocked: (address) => moderation?.isNetworkBlocked(address) || Promise.resolve(false),
     isGuestBlocked: (guestId) => moderation?.isGuestBlocked(guestId) || Promise.resolve(false),
+    isGuestDeviceRestricted: (guestId) => moderation?.isGuestDeviceRestrictedForGuest(guestId) || Promise.resolve(false),
     rateLimiter: options.rateLimiter,
     rateLimitPrincipalResolver: options.rateLimitPrincipalResolver,
     log

@@ -1,6 +1,8 @@
 const assert = require('node:assert/strict');
 const { test } = require('node:test');
+const request = require('supertest');
 const { createModerationService } = require('../../lib/moderation');
+const { createRuntime } = require('../../server');
 const { resetDatabase } = require('../helpers/database');
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
@@ -19,7 +21,6 @@ test('N4 moderation bans are auditable, transactional and network-separated', {
 }, async (t) => {
   const db = require('../../db');
   await resetDatabase(db);
-  t.after(() => db.close());
   const actor = await createUser(db, 'moderator', 'admin');
   const reviewer = await createUser(db, 'reviewer', 'admin');
   const target = await createUser(db, 'target');
@@ -77,7 +78,7 @@ test('N4 moderation bans are auditable, transactional and network-separated', {
     environment: { NETWORK_BAN_HMAC_KEY: 'integration-only-network-fingerprint-secret' }
   });
   const guestBan = await guestModeration.banGuest({
-    actorUserId: Number(actor.id), targetGuestId: guest.id, hours: 12,
+    actorUserId: Number(actor.id), targetGuestId: guest.id, type: 'temporary', hours: 12,
     reason: 'Documented guest moderation decision'
   });
   assert.equal(guestBan.idempotent, false);
@@ -93,6 +94,22 @@ test('N4 moderation bans are auditable, transactional and network-separated', {
     actorUserId: Number(actor.id), banId: Number(guestBan.id), reason: 'Guest restriction review completed'
   });
   assert.equal(await guestModeration.isGuestBlocked(guest.id), false);
+
+  const permanentGuest = (await db.query(
+    `INSERT INTO guest_principals
+       (public_id, display_alias, device_principal_fingerprint, name, gender, age, country, country_code, avatar_id)
+     VALUES ('gst_a4b0c0d00002', 'gst_N4GUEST002', repeat('a', 64), 'N4 Permanent Guest', 'any', 28, 'Switzerland', 'ch', 'astra')
+     RETURNING id`
+  )).rows[0];
+  const permanentBan = await guestModeration.banGuest({
+    actorUserId: Number(actor.id), targetGuestId: permanentGuest.id, type: 'permanent',
+    reason: 'Documented permanent guest moderation decision'
+  });
+  assert.equal(await guestModeration.isGuestDeviceRestricted('a'.repeat(64)), true);
+  await guestModeration.revokeGuestBan({
+    actorUserId: Number(actor.id), banId: Number(permanentBan.id), reason: 'Device restriction review completed'
+  });
+  assert.equal(await guestModeration.isGuestDeviceRestricted('a'.repeat(64)), false);
 
   const revoked = await moderation.revokeAccountBan({
     actorUserId: Number(actor.id), banId: Number(ban.id), reason: 'Appeal accepted'
@@ -139,4 +156,42 @@ test('N4 moderation bans are auditable, transactional and network-separated', {
     }),
     (error) => error.code === 'PRIVACY_REVIEW_REQUIRED'
   );
+});
+
+test('a valid login receives only the limited suspension mode and an idempotent appeal path', {
+  skip: hasDatabase ? false : 'DATABASE_URL is unavailable outside the disposable CI database'
+}, async (t) => {
+  const db = require('../../db');
+  await resetDatabase(db);
+  const runtime = createRuntime({
+    db, closeDatabaseOnShutdown: false,
+    env: { ...process.env, NODE_ENV: 'test', SESSION_SECRET: 'n4-suspension-integration-secret' },
+    log: { info() {}, warn() {}, error() {} }
+  });
+  t.after(async () => { await runtime.shutdown(); await db.close(); });
+  const account = request.agent(runtime.app);
+  await account.post('/register').set('Accept', 'application/json').send({
+    username: 'suspended_member', email: 'suspended-member@example.test', password: 'SyntheticPassword123!',
+    birthDate: '1990-06-15', gender: 'non-binary', countryCode: 'ch'
+  }).expect(201);
+  const user = (await db.query('SELECT id FROM users WHERE email = $1', ['suspended-member@example.test'])).rows[0];
+  const ban = (await db.query(
+    `INSERT INTO account_bans (user_id, type, reason, ends_at, created_by)
+     VALUES ($1, 'temporary', 'Documented suspension reason', NOW() + INTERVAL '4 hours', $1) RETURNING id`,
+    [user.id]
+  )).rows[0];
+  const suspended = await account.post('/login').set('Accept', 'application/json').send({
+    email: 'suspended-member@example.test', password: 'SyntheticPassword123!'
+  }).expect(403);
+  assert.equal(suspended.body.code, 'ACCOUNT_SUSPENDED');
+  assert.equal(suspended.body.suspension.reason, 'Documented suspension reason');
+  assert.equal(suspended.body.suspension.type, 'temporary');
+  await account.get('/api/account').expect(403);
+  const appeal = await account.post('/api/suspension/appeals').send({ reason: 'Please review this documented decision.' }).expect(201);
+  const repeat = await account.post('/api/suspension/appeals').send({ reason: 'Please review this documented decision.' }).expect(200);
+  assert.equal(repeat.body.appealId, appeal.body.appealId);
+  assert.equal(repeat.body.idempotent, true);
+  const audit = (await db.query('SELECT after_state FROM audit_log WHERE action = $1', ['account_ban_appeal_created'])).rows[0];
+  assert.equal(Object.hasOwn(audit.after_state, 'message'), false);
+  assert.equal(Number((await db.query('SELECT count(*) AS count FROM moderation_appeals WHERE account_ban_id = $1', [ban.id])).rows[0].count), 1);
 });

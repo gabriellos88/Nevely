@@ -78,15 +78,9 @@ function appendUsers(users) {
     const row = document.createElement('tr');
     const account = cell(row, '', { header: true, fallback: '' });
     const name = document.createElement('strong');
-    const displayName = user.display_name || user.display_alias || user.username;
+    const displayName = user.display_name || user.username;
     name.textContent = text(displayName);
     account.append(name);
-    if (user.username && user.username !== displayName) {
-      const username = document.createElement('span');
-      username.className = 'admin-subtle';
-      username.textContent = user.username;
-      account.append(document.createElement('br'), username);
-    }
     const idCell = cell(row, '', { fallback: '' });
     idCell.append(publicIdButton(user.public_id));
     cell(row, user.plan);
@@ -276,10 +270,10 @@ function openActionDialog(kind, values = {}) {
     submit.textContent = 'Create ban';
   } else if (kind === 'guest-ban') {
     title.textContent = 'Restrict guest';
-    description.textContent = 'Temporarily restrict this guest principal and provide a specific moderation reason.';
+    description.textContent = 'Choose a temporary or permanent guest restriction and provide a specific moderation reason.';
     type.value = 'temporary';
-    type.hidden = true;
-    typeLabel.hidden = true;
+    type.hidden = false;
+    typeLabel.hidden = false;
     hours.hidden = false;
     hoursLabel.hidden = false;
     submit.textContent = 'Restrict guest';
@@ -292,9 +286,21 @@ function openActionDialog(kind, values = {}) {
     hoursLabel.hidden = true;
     submit.textContent = 'Revoke ban';
   }
+  const needsDuration = (kind === 'ban' || kind === 'guest-ban') && type.value === 'temporary';
+  hours.hidden = !needsDuration;
+  hoursLabel.hidden = !needsDuration;
+  hours.required = needsDuration;
   dialog.showModal();
   document.getElementById('adminActionReason').focus();
 }
+
+document.getElementById('adminActionType')?.addEventListener('change', (event) => {
+  const visible = event.currentTarget.value === 'temporary';
+  const hours = document.getElementById('adminActionHours');
+  const label = document.getElementById('adminActionHoursLabel');
+  if (hours) { hours.hidden = !visible; hours.required = visible; }
+  if (label) label.hidden = !visible;
+});
 
 async function openAccountDetail(publicId) {
   const dialog = document.getElementById('adminDetailDialog');
@@ -352,7 +358,8 @@ async function openGuestDetail(guestId) {
       ['Guest ID', guest.publicId], ['Name', guest.name], ['State', guest.status],
       ['Country', guest.country], ['Created', dateTime(guest.createdAt)], ['Recent chats', guest.recentChatCount],
       ['Last seen', dateTime(guest.lastSeenAt)],
-      ['Restriction', guest.activeBan ? `Until ${dateTime(guest.activeBan.endsAt)}: ${guest.activeBan.reason}` : 'None']
+      ['Restriction', guest.activeBan ? `${guest.activeBan.type} ${guest.activeBan.endsAt ? `until ${dateTime(guest.activeBan.endsAt)}` : '(no scheduled end)'}: ${guest.activeBan.reason}` : 'None'],
+      ...(guest.status === 'deleted' && guest.deletedAt ? [['Deleted at', dateTime(guest.deletedAt)], ['Scheduled deletion', dateTime(guest.retentionUntil)]] : [])
     ].forEach(([label, value]) => {
       const term = document.createElement('dt'); term.textContent = label;
       const definition = document.createElement('dd'); definition.textContent = text(value);
@@ -389,6 +396,11 @@ document.querySelectorAll('[data-admin-more]').forEach((control) => {
 });
 
 document.addEventListener('click', (event) => {
+  if (event.target.closest('[data-admin-unlock]')) {
+    selectTab('controls');
+    document.getElementById('admin-password')?.focus() || document.getElementById('admin-reauth-code')?.focus();
+    return;
+  }
   const copyId = event.target.closest('[data-admin-copy-id]');
   if (copyId) {
     navigator.clipboard?.writeText(copyId.dataset.adminCopyId || '')
@@ -427,7 +439,11 @@ document.getElementById('adminActionForm')?.addEventListener('submit', async (ev
       await loadSection('bans', { reset: true });
     } else if (pendingAction === 'guest-ban') {
       await adminApi(`/api/admin/guests/${encodeURIComponent(values.target)}/ban`, {
-        method: 'POST', body: JSON.stringify({ hours: Number(values.hours), reason: values.reason })
+        method: 'POST', body: JSON.stringify({
+          type: values.type,
+          ...(values.type === 'temporary' ? { hours: Number(values.hours) } : {}),
+          reason: values.reason
+        })
       });
       await loadSection('guests', { reset: true });
       await loadSection('bans', { reset: true });
@@ -465,6 +481,8 @@ document.getElementById('adminReauthForm')?.addEventListener('submit', async (ev
   try {
     await adminApi('/api/admin/reauth', { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))) });
     feedback.textContent = uiCopy.admin?.reauthenticationComplete || 'Re-authentication complete.';
+    const state = document.getElementById('adminReauthState');
+    if (state) { state.textContent = 'High-risk actions unlocked'; state.dataset.unlocked = 'true'; }
   } catch (error) {
     feedback.textContent = error.message;
   }
@@ -479,6 +497,8 @@ window.handleAdminGoogleReauth = async ({ credential } = {}) => {
     const values = Object.fromEntries(new FormData(form));
     await adminApi('/api/admin/reauth', { method: 'POST', body: JSON.stringify({ ...values, credential }) });
     feedback.textContent = uiCopy.admin?.reauthenticationComplete || 'Re-authentication complete.';
+    const state = document.getElementById('adminReauthState');
+    if (state) { state.textContent = 'High-risk actions unlocked'; state.dataset.unlocked = 'true'; }
   } catch (error) {
     feedback.textContent = error.message;
   }

@@ -1,0 +1,37 @@
+<%- include('partials/header', { hideSiteHeader: true }) %>
+  <main class="auth-page auth-page--action" aria-labelledby="suspension-title">
+    <section class="auth-shell auth-shell--action">
+      <div class="auth-entry">
+      <p class="eyebrow">Account status</p>
+      <h1 id="suspension-title">Account suspended</h1>
+      <p>Your credentials were accepted, but this account cannot use Nevely while its suspension is active.</p>
+      <dl class="suspension-details">
+        <div><dt>Type</dt><dd><%= suspension.type %></dd></div>
+        <div><dt>Started</dt><dd><time datetime="<%= suspension.startsAt %>"><%= new Date(suspension.startsAt).toLocaleString() %></time></dd></div>
+        <div><dt>Ends</dt><dd><%= suspension.endsAt ? new Date(suspension.endsAt).toLocaleString() : 'No scheduled end' %></dd></div>
+        <div><dt>Reason</dt><dd><%= suspension.reason %></dd></div>
+      </dl>
+      <% if (canAppeal) { %>
+        <form id="suspension-appeal" class="auth-form" method="post" action="/api/suspension/appeals">
+          <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+          <label class="auth-field" for="appeal-reason"><span>Appeal reason</span><textarea id="appeal-reason" name="reason" minlength="3" maxlength="500" required></textarea></label>
+          <button class="auth-submit" type="submit">Submit appeal</button>
+          <p id="appeal-status" class="auth-notice" role="status" aria-live="polite" hidden></p>
+        </form>
+        <script nonce="<%= cspNonce %>">
+          document.getElementById('suspension-appeal')?.addEventListener('submit', async (event) => {
+            event.preventDefault();
+            const form = event.currentTarget; const status = document.getElementById('appeal-status');
+            const response = await fetch(form.action, { method: 'POST', headers: { 'X-CSRF-Token': form._csrf.value, 'Content-Type': 'application/json' }, body: JSON.stringify({ reason: form.reason.value }) });
+            const data = await response.json().catch(() => ({}));
+            status.textContent = response.ok ? 'Your appeal has been submitted.' : (data.error || 'Unable to submit the appeal.');
+            status.hidden = false;
+            if (response.ok) form.querySelector('button').disabled = true;
+          });
+        </script>
+      <% } %>
+      <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btn-secondary" type="submit">Log out</button></form>
+      </div>
+    </section>
+  </main>
+<%- include('partials/footer') %>

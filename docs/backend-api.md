@@ -85,8 +85,14 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
   temporary server-side legacy resolver); UUIDs are never emitted.
 - `GET /api/admin/database-capacity`: last 30 aggregate capacity samples and retention runs.
 - `POST /api/admin/users/:id/ban`: temporary or permanent ban.
-- `POST /api/admin/guests/:id/ban`: temporary guest-principal restriction.
+- `POST /api/admin/guests/:id/ban`: a `temporary` restriction requires `hours`; a
+  `permanent` restriction creates a separate server-side, HMAC-pseudonymous device
+  restriction linked to the guest ban. It never creates an IP/network ban.
 - `PATCH /api/admin/guest-bans/:id/revoke`: revokes a guest restriction.
+- `GET /suspension`, `POST /api/suspension/appeals`: after valid credentials for a
+  suspended account, the only available mode is suspension detail, one idempotent
+  pending appeal per account ban, and logout. The login JSON response uses
+  `ACCOUNT_SUSPENDED` with reason, start, expiry and type only after credential validation.
 - `DELETE /api/admin/users/:id`: permanent ban, IP ban when available and account anonymization.
 - `PATCH /api/admin/reports/:id`: resolve or dismiss a report.
 - `POST /api/admin/prices`: record a new premium price.
@@ -121,4 +127,4 @@ The server enforces text length and a per-socket rate limit. `BANNED_WORDS` can 
 
 ## Database migrations
 
-Run `npm run db:migrate` with `DATABASE_URL` configured. The runner records applied SQL files in `schema_migrations`, removes an accidental UTF-8 BOM and applies each new migration in its own transaction. N2 operations, rollback and verification are documented in [`docs/operations/database-retention-and-capacity.md`](operations/database-retention-and-capacity.md). Persistent guest identity, product ownership and the verified account-claim contract are documented in [`docs/admin/guest-identity.md`](admin/guest-identity.md), [`docs/admin/guest-product-ownership.md`](admin/guest-product-ownership.md) and [`docs/admin/guest-account-claims.md`](admin/guest-account-claims.md).
+Run `npm run db:migrate` with `DATABASE_URL` configured. The runner records applied SQL files in `schema_migrations`, removes an accidental UTF-8 BOM and applies each new migration in its own transaction. Migrations 015–016 can be rolled back safely only by restoring the pre-migration schema/database backup or by a reviewed, explicit down migration after all permanent guest restrictions and pending suspension appeals have been resolved; do not delete audit records. N2 operations, rollback and verification are documented in [`docs/operations/database-retention-and-capacity.md`](operations/database-retention-and-capacity.md). Persistent guest identity, product ownership and the verified account-claim contract are documented in [`docs/admin/guest-identity.md`](admin/guest-identity.md), [`docs/admin/guest-product-ownership.md`](admin/guest-product-ownership.md) and [`docs/admin/guest-account-claims.md`](admin/guest-account-claims.md).

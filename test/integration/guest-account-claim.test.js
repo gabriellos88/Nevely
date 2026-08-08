@@ -74,7 +74,7 @@ test('guest account claims are session-authorized, verified, transactional and n
   assert.match(loginPage.text, /\/register\?claim=1/);
   const registerPage = await guest.get('/register?claim=1').expect(200);
   assert.match(registerPage.text, /chats and profile will move to your new account once it’s verified/i);
-  assert.doesNotMatch(registerPage.text, /name="username"/);
+  assert.match(registerPage.text, /name="username"/);
   assert.doesNotMatch(registerPage.text, /name="birthDate"/);
   assert.doesNotMatch(registerPage.text, /name="gender"/);
   assert.doesNotMatch(registerPage.text, /name="countryCode"/);
@@ -127,6 +127,7 @@ test('guest account claims are session-authorized, verified, transactional and n
     .send({
       email: 'claimed-member@example.test',
       password: 'SyntheticPassword123!',
+      username: 'claimed_member',
       claim: '1'
     })
     .expect(201);
@@ -172,7 +173,7 @@ test('guest account claims are session-authorized, verified, transactional and n
      FROM users WHERE id = $1`,
     [userId]
   )).rows[0];
-  assert.match(claimedUser.username, /^g_[0-9a-f]{28}$/);
+  assert.equal(claimedUser.username, 'claimed_member');
   assert.equal(claimedUser.display_name, 'Claimable Guest');
   assert.equal(claimedUser.birth_date, null);
   assert.equal(Number(claimedUser.age), 28);
@@ -231,7 +232,7 @@ test('guest account claims are session-authorized, verified, transactional and n
   const googleClaim = await googleGuest
     .post('/auth/google')
     .set('Accept', 'application/json')
-    .send({ credential: 'google-claim', claim: '1' })
+    .send({ credential: 'google-claim', claim: '1', username: 'google_claim_member' })
     .expect(201);
   assert.equal(googleClaim.body.guestClaimed, true);
   const googleClaimedUser = (await db.query(
@@ -239,7 +240,7 @@ test('guest account claims are session-authorized, verified, transactional and n
      FROM users WHERE email = $1`,
     ['google-claim@example.test']
   )).rows[0];
-  assert.match(googleClaimedUser.username, /^g_[0-9a-f]{28}$/);
+  assert.equal(googleClaimedUser.username, 'google_claim_member');
   assert.equal(googleClaimedUser.display_name, 'Google Claim Guest');
   assert.equal(googleClaimedUser.birth_date, null);
   assert.equal(Number(googleClaimedUser.age), 28);
