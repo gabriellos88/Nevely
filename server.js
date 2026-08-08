@@ -14,6 +14,7 @@ const { registerChat } = require('./lib/chat');
 const { findActiveGuestPrincipal, guestPassportComplete } = require('./lib/guest-principals');
 const { createPresence } = require('./lib/presence');
 const { createModerationService } = require('./lib/moderation');
+const { createModerationControlChannel } = require('./lib/moderation-control');
 const { createRetentionWorker } = require('./lib/retention');
 const { csrfProtection, secureHeaders } = require('./lib/security');
 const { createPrivatePreview } = require('./lib/private-preview');
@@ -233,7 +234,8 @@ function createRuntime(options = {}) {
     rateLimitPrincipalResolver: options.rateLimitPrincipalResolver,
     log
   });
-  moderation = createModerationService({ db, presence, chat, environment });
+  const moderationControl = createModerationControlChannel({ db, chat, log });
+  moderation = createModerationService({ db, presence, chat, controlChannel: moderationControl, environment });
   registerApiRoutes(app, db, presence, { environment, moderation });
   const outboxWorker = createOutboxWorker({
     db,
@@ -270,6 +272,8 @@ function createRuntime(options = {}) {
   async function start({ port = Number(environment.PORT) || 3000, host = '0.0.0.0' } = {}) {
     if (server.listening) return server.address();
     lifecycle.phase = 'starting';
+    const controlStarted = await moderationControl.start();
+    if (isProduction && !controlStarted) throw new Error('PostgreSQL moderation control channel must be available in production.');
     await new Promise((resolve, reject) => {
       const handleError = (error) => {
         server.off('listening', handleListening);
@@ -319,6 +323,7 @@ function createRuntime(options = {}) {
 
       await waitForIdleOrDeadline();
       await chat.stop();
+      await moderationControl.stop();
       await retentionWorker.stop();
       await outboxWorker.stop();
       server.closeIdleConnections?.();
@@ -363,6 +368,7 @@ function createRuntime(options = {}) {
     server,
     io,
     chat,
+    moderationControl,
     outboxWorker,
     retentionWorker,
     privatePreview,
