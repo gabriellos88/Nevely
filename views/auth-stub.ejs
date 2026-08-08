@@ -1,6 +1,6 @@
 <%- include('partials/header', { hideSiteHeader: true }) %>
 
-<main class="auth-page auth-page--<%= mode %>">
+<main class="auth-page auth-page--<%= mode %><%= googleProfileRequired ? ' auth-page--google-profile' : '' %>">
   <section class="auth-shell" aria-labelledby="auth-title">
     <aside class="auth-context">
       <div class="auth-context__intro">
@@ -54,6 +54,13 @@
         </div>
       <% } %>
 
+      <% if (notice) { %>
+        <div class="auth-notice" role="status">
+          <i data-lucide="circle-check" aria-hidden="true"></i>
+          <span><%= notice %></span>
+        </div>
+      <% } %>
+
       <% if (googleProfileRequired) { %>
         <div class="auth-notice" role="status">
           <i data-lucide="info" aria-hidden="true"></i>
@@ -90,7 +97,9 @@
             <span class="auth-provider-status"><%= copy.auth.googleUnavailable %></span>
           </button>
         <% } %>
-        <p class="auth-provider-divider"><span><%= copy.auth.emailDivider %></span></p>
+        <% if (!googleProfileRequired) { %>
+          <p class="auth-provider-divider"><span><%= copy.auth.emailDivider %></span></p>
+        <% } %>
       </div>
 
       <form class="auth-form" method="post" action="/<%= mode %>">
@@ -132,21 +141,27 @@
             </span>
           </label>
 
-          <label class="auth-field" for="auth-country">
+          <label class="auth-field" for="auth-country-search">
             <span><%= copy.common.country %></span>
-            <span class="auth-field-shell">
-              <i data-lucide="map-pin" aria-hidden="true"></i>
-              <select id="auth-country" name="countryCode" required>
+            <span class="auth-country-combobox" data-country-combobox>
+              <span class="auth-field-shell profile-country-search">
+                <i class="profile-country-search-icon" data-lucide="map-pin" aria-hidden="true"></i>
+                <span class="profile-country-selected-flag hidden" aria-hidden="true"></span>
+                <input id="auth-country-search" type="search" autocomplete="off" required data-invalid-message="<%= copy.errors.countryInvalid %>" placeholder="<%= copy.chat.guestPassport.countryPlaceholder %>" role="combobox" aria-autocomplete="list" aria-controls="auth-country-suggestions" aria-expanded="false" aria-required="true">
+              </span>
+              <select id="auth-country" name="countryCode" class="profile-native-control" aria-hidden="true" tabindex="-1">
                 <option value=""><%= copy.auth.selectCountry %></option>
                 <% countries.forEach((country) => { %>
                   <option value="<%= country.code %>" <%= values?.countryCode === country.code ? 'selected' : '' %>><%= country.name %></option>
                 <% }) %>
               </select>
+              <span class="auth-country-suggestions hidden" id="auth-country-suggestions" role="listbox" aria-label="<%= copy.chat.match.countryResultsAria %>"></span>
             </span>
           </label>
           <% } %>
         <% } %>
 
+        <% if (!googleProfileRequired) { %>
         <label class="auth-field" for="auth-email">
           <span><%= copy.common.email %></span>
           <span class="auth-field-shell">
@@ -171,6 +186,7 @@
         <% if (mode === 'login') { %>
           <a class="auth-switch-link" href="/forgot-password"><%= copy.auth.forgotPasswordLink %></a>
         <% } %>
+        <% } %>
       </form>
 
       <div class="auth-guest-option">
@@ -192,10 +208,12 @@
     mode,
     csrfToken,
     googleEnabled: Boolean(googleClientId),
-    claimMode: Boolean(claimMode)
+    claimMode: Boolean(claimMode),
+    googleProfileRequired: Boolean(googleProfileRequired)
   }).replace(/</g, '\\u003c') %>;
 </script>
 <script src="/js/auth-client.js"></script>
+<script src="/js/profile-fields.js"></script>
 <% if (googleClientId) { %>
   <script src="https://accounts.google.com/gsi/client" async defer></script>
 <% } %>

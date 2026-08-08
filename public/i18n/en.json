@@ -307,7 +307,7 @@
     "registerTitle": "Join Nevely",
     "registerBody": "Create your account to continue.",
     "googleAction": "Continue with Google",
-    "googleProfileHint": "Complete these profile details, then choose Continue with Google again.",
+    "googleProfileHint": "Just a few details left. Complete your profile, then continue with Google to create your account.",
     "googleUnavailable": "Coming soon",
     "emailDivider": "Or continue with email",
     "username": "Username",
@@ -318,7 +318,7 @@
     "registerPasswordPlaceholder": "Create a password",
     "passwordHint": "Use at least 8 characters.",
     "birthDate": "Date of birth",
-    "birthDateHint": "You must be 18 or older. Support controls later corrections.",
+    "birthDateHint": "You must be 18 or older. Contact Support if you need to correct this later.",
     "selectGender": "Choose a gender",
     "selectCountry": "Choose a country or territory",
     "preferNotToSay": "Prefer not to say",
@@ -330,34 +330,42 @@
     "claimCurrentGuest": "Claim your current guest account",
     "claimGuestLinksLabel": "Account creation choices",
     "claimGuestAvatarAlt": "Current guest avatar",
-    "claimGuestNotice": "your guest data will move only after the required verification is complete.",
+    "claimGuestNotice": "your chats and profile will move to your new account once it’s verified.",
     "guestTitle": "Just looking around?",
     "guestBody": "Meet someone without creating an account.",
     "forgotPasswordLink": "Forgot your password?",
     "forgotPasswordTitle": "Reset your password",
-    "forgotPasswordBody": "Enter your email and we’ll send a single-use reset link if an account exists.",
+    "forgotPasswordBody": "Enter your email and we’ll send a reset link if there’s an account for it.",
     "sendResetAction": "Send reset link",
     "emailSentTitle": "Check your inbox",
-    "genericEmailResponse": "If that address belongs to an eligible account, an email is on its way.",
+    "genericEmailResponse": "If there’s an account for that email, a link is on its way.",
+    "passwordSetupQueued": "Check your inbox for a link to create your password. You can still sign in with Google.",
     "resetPasswordTitle": "Choose a new password",
-    "resetPasswordBody": "This link is single-use and expires after one hour.",
+    "resetPasswordBody": "For your security, this link expires after one hour.",
     "newPassword": "New password",
     "resetPasswordAction": "Reset password",
     "passwordResetCompleteTitle": "Password changed",
-    "passwordResetCompleteBody": "Your password is updated and every previous session has been signed out.",
+    "passwordResetCompleteBody": "Your password has been updated. Sign in again to continue.",
+    "passwordSetupTitle": "Add a Nevely password",
+    "passwordSetupBody": "Create a Nevely password. Google will remain connected, and this single-use link expires after one hour.",
+    "passwordSetupAction": "Add password",
+    "passwordSetupCompleteTitle": "Password added",
+    "passwordSetupCompleteBody": "Your Nevely password is ready. Google remains connected, and you can use either sign-in method.",
     "confirmEmailTitle": "Confirm your new email",
-    "confirmEmailBody": "Confirming signs you out everywhere and makes this your verified address.",
+    "confirmEmailBody": "Confirm your new email to finish the change. You’ll need to sign in again afterward.",
     "confirmEmailAction": "Confirm email change",
     "emailChangeCompleteTitle": "Email changed",
-    "emailChangeCompleteBody": "Your new email is verified and every previous session has been signed out.",
+    "emailChangeCompleteBody": "Your email has been updated and verified. Sign in again to continue.",
+    "emailChangeQueued": "We sent a verification link to your new email address.",
+    "emailChangeLoginNotice": "Your email was changed and verified. Sign in with your new email address.",
     "verificationFailedTitle": "We couldn’t verify that link",
     "verificationCompleteTitle": "Email verified",
     "verificationCompleteBody": "Your email is verified. You can return to Nevely.",
     "verificationPendingTitle": "Check your inbox",
-    "verificationPendingBody": "We sent a verification link to your email. Verify it before using your account.",
-    "verificationResentBody": "If the account is still awaiting verification, we sent a fresh verification link. Check your inbox.",
+    "verificationPendingBody": "We sent you a verification link. Open it to finish setting up your account.",
+    "verificationResentBody": "If your account still needs verification, a new link is on its way. Check your inbox.",
     "verifyEmailTitle": "Verify your email",
-    "verifyEmailBody": "Confirm this single-use link to verify your Nevely email.",
+    "verifyEmailBody": "Select the button below to verify your email and finish setting up your account.",
     "verifyEmailAction": "Verify email",
     "resendVerificationAction": "Resend verification email",
     "tokenState": {
@@ -371,9 +379,9 @@
     "twoFactorCode": "Authenticator code",
     "twoFactorAction": "Verify and continue",
     "backToLogin": "Back to sign in"
-    ,"completeProfileEyebrow": "One-time profile repair"
-    ,"completeProfileTitle": "Complete your matching profile"
-    ,"completeProfileBody": "We need canonical birth, gender, and country data before this existing account can match again."
+    ,"completeProfileEyebrow": "A few details left"
+    ,"completeProfileTitle": "Complete your profile"
+    ,"completeProfileBody": "Add your date of birth, gender and country before you start matching again."
     ,"completeProfileAction": "Complete profile"
   },
   "chat": {
@@ -649,7 +657,7 @@
     "confirmDeleteAccount": "Delete permanently",
     "confirmDeleteGuest": "Delete guest profile",
     "securityTitle": "Account security",
-    "securityDescription": "Password and email changes use verified, single-use flows and sign out active sessions.",
+    "securityDescription": "Manage how you sign in and keep your account email up to date.",
     "googleProvider": "Google",
     "googleConnected": "Connected",
     "googleNotConnected": "Not connected",
@@ -664,8 +672,12 @@
     "googleLoading": "Loading Google sign-in…",
     "currentPassword": "Current password",
     "changePassword": "Change password",
+    "setPassword": "Add a Nevely password",
+    "setPasswordDescription": "Create a password so you can also sign in with your email. You’ll still be able to use Google.",
+    "sendPasswordSetup": "Send me a link",
     "newEmail": "New email",
-    "changeEmail": "Send verification link"
+    "changeEmail": "Change email",
+    "cancel": "Cancel"
   },
   "admin": {
     "title": "Admin",
@@ -786,6 +798,7 @@
     "passwordLength": "Use a password between 8 and 72 characters.",
     "birthDateInvalid": "Enter a valid date of birth. You must be at least 18.",
     "identityTaken": "That username or email is already taken.",
+    "registrationPending": "This registration is waiting for email verification. Check your inbox, or sign in to request a new link.",
     "credentialsIncorrect": "That email and password don’t match.",
     "accountSuspended": "This account is suspended.",
     "enterName": "Enter your name to continue.",
@@ -812,7 +825,7 @@
     "userInvalid": "Choose a valid person.",
     "requestUnavailable": "This request is no longer available.",
     "matchingUnavailable": "Matching isn’t available right now. Try again in a moment.",
-    "guestSessionRefresh": "We couldn’t refresh your guest session. Reload the page and try again.",
+    "guestSessionRefresh": "We couldn’t restore your guest profile. Reload the page and try again.",
     "messagesTooFast": "You’re sending messages too quickly. Give it a moment.",
     "safetyBlocked": "That message was blocked by our safety filter.",
     "messageSend": "We couldn’t send that message. Try again.",
@@ -830,7 +843,7 @@
     "networkBlocked": "Nevely isn’t available from this network.",
     "browserStorage": "We can’t save your guest profile in this browser.",
     "guestProfileIncomplete": "Finish your guest profile before continuing."
-    ,"csrfRejected": "Your security token expired. Refresh the page and try again."
+    ,"csrfRejected": "This page has expired. Refresh it and try again."
     ,"profileChangeCooldown": "Gender or country can be changed once every 30 days. Contact support for a correction."
     ,"emailVerificationRequired": "Verify your email before continuing."
     ,"adminTwoFactorRequired": "Set up two-factor authentication before using the admin console."
@@ -841,15 +854,16 @@
     ,"twoFactorInvalid": "Enter a valid current six-digit authenticator code."
     ,"twoFactorAlreadyEnabled": "Two-factor authentication is already enabled."
     ,"twoFactorSetupMissing": "Start two-factor setup again."
-    ,"googleUnavailable": "Google sign-in is not configured."
+    ,"googleUnavailable": "Google sign-in isn’t available right now. Try another sign-in option."
     ,"googleReplay": "That Google sign-in response was already used."
     ,"googleLinkRequired": "Sign in with your password first, then link Google from account security."
-    ,"googleRegistrationProfileRequired": "Complete username, date of birth, gender, and country before continuing with Google."
+    ,"googleRegistrationProfileRequired": "Complete your username, date of birth, gender and country, then continue with Google."
     ,"googleInvalid": "Google could not verify this sign-in. Try again."
     ,"googleEmailMismatch": "Google must use the same verified email as this account."
     ,"googleIdentityInUse": "That Google account is already linked."
     ,"googleIdentityMissing": "No Google account is linked."
     ,"googleOnlyLogin": "Add a password before unlinking your only sign-in method."
+    ,"passwordAlreadySet": "You already have a Nevely password. Use the Change password option instead."
     ,"ownAdminRole": "You can’t remove your own administrator role."
     ,"protectedProfileInvalid": "Provide a valid birth date and support reason."
     ,"profileAlreadyComplete": "This profile is already complete."

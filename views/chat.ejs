@@ -446,12 +446,11 @@
                   <span class="guest-country-search">
                     <i class="guest-country-search-icon" data-lucide="search" aria-hidden="true"></i>
                     <span class="guest-country-selected-flag hidden" id="guestCountrySelectedFlag" aria-hidden="true"></span>
-                    <input id="guestCountrySearch" type="search" maxlength="80" autocomplete="off" placeholder="<%= copy.chat.guestPassport.countryPlaceholder %>" role="combobox" aria-autocomplete="list" aria-controls="guestCountrySuggestions" aria-expanded="false" aria-describedby="guestCountryStatus">
+                    <input id="guestCountrySearch" type="search" maxlength="80" autocomplete="off" placeholder="<%= copy.chat.guestPassport.countryPlaceholder %>" role="combobox" aria-autocomplete="list" aria-controls="guestCountrySuggestions" aria-expanded="false">
                     <input id="countryInput" name="country" type="hidden">
                   </span>
                   <span class="guest-country-suggestions hidden" id="guestCountrySuggestions" role="listbox" aria-label="<%= copy.chat.match.countryResultsAria %>"></span>
                 </span>
-                <small class="guest-country-status" id="guestCountryStatus" aria-live="polite"><%= copy.chat.guestPassport.countryHint %></small>
               </label>
             </div>
 
@@ -532,7 +531,14 @@
             <span><strong><%= copy.account.profilePicture %></strong><small><%= copy.account.photoUploadUnavailable %></small></span>
           </div>
           <label><%= copy.common.displayName %><input name="displayName" maxlength="40" required></label>
-          <label><%= copy.common.email %><input name="email" type="email" readonly></label>
+          <div class="account-email-field">
+            <span id="accountEmailLabel"><%= copy.common.email %></span>
+            <button class="account-email-action" id="accountEmailAction" type="button"
+                    aria-labelledby="accountEmailLabel accountEmailValue">
+              <strong id="accountEmailValue"></strong>
+              <i data-lucide="arrow-right" aria-hidden="true"></i>
+            </button>
+          </div>
           <label><%= copy.account.nevelyId %><input name="publicId" readonly></label>
           <label><%= copy.auth.birthDate %><input name="birthDate" type="date" readonly></label>
           <label>
@@ -543,9 +549,20 @@
               <option value="non-binary"><%= copy.common.nonBinary %></option>
               <option value="other"><%= copy.common.other %></option>
               <option value="prefer-not-to-say"><%= copy.auth.preferNotToSay %></option>
-            </select>
+              </select>
           </label>
-          <label><%= copy.common.country %><select name="countryCode" required></select></label>
+          <label for="account-country-search">
+            <%= copy.common.country %>
+            <span class="account-country-combobox auth-country-combobox" data-country-combobox>
+              <span class="auth-field-shell profile-country-search">
+                <i class="profile-country-search-icon" data-lucide="map-pin" aria-hidden="true"></i>
+                <span class="profile-country-selected-flag hidden" aria-hidden="true"></span>
+                <input id="account-country-search" type="search" autocomplete="off" required data-invalid-message="<%= copy.errors.countryInvalid %>" placeholder="<%= copy.chat.guestPassport.countryPlaceholder %>" role="combobox" aria-autocomplete="list" aria-controls="account-country-suggestions" aria-expanded="false" aria-required="true">
+              </span>
+              <select name="countryCode" class="profile-native-control" aria-hidden="true" tabindex="-1"></select>
+              <span class="auth-country-suggestions hidden" id="account-country-suggestions" role="listbox" aria-label="<%= copy.chat.match.countryResultsAria %>"></span>
+            </span>
+          </label>
           <input name="profileImageUrl" type="hidden">
           <div class="account-form-actions">
             <button class="btn btn-primary" type="submit"><%= copy.account.saveProfile %></button>
@@ -581,24 +598,52 @@
                   <p class="account-google-only hidden" id="googleIdentityOnly" role="status">
                     <%= copy.account.googleOnlyDescription %>
                   </p>
+                  <button class="btn btn-outline account-security-trigger hidden" id="googleIdentityUnlinkTrigger" type="button"
+                          aria-expanded="false" aria-controls="googleIdentityUnlinkForm">
+                    <%= copy.account.unlinkGoogle %>
+                  </button>
                   <form class="account-form account-google-unlink-form hidden" id="googleIdentityUnlinkForm">
                     <label>
                       <%= copy.account.unlinkPassword %>
                       <input name="password" type="password" autocomplete="current-password" required>
                     </label>
-                    <button class="btn btn-outline" type="submit"><%= copy.account.unlinkGoogle %></button>
+                    <div class="account-sensitive-actions">
+                      <button class="btn btn-primary" type="submit"><%= copy.account.unlinkGoogle %></button>
+                      <button class="btn btn-ghost" id="googleIdentityUnlinkCancel" type="button"><%= copy.account.cancel %></button>
+                    </div>
                   </form>
                 </div>
               <% } %>
-              <form class="account-form" id="passwordChangeForm">
+              <button class="btn btn-outline account-security-trigger hidden" id="passwordChangeTrigger" type="button"
+                      aria-expanded="false" aria-controls="passwordChangeForm">
+                <%= copy.account.changePassword %>
+              </button>
+              <form class="account-form hidden" id="passwordChangeForm">
                 <label><%= copy.account.currentPassword %><input name="currentPassword" type="password" autocomplete="current-password" required></label>
                 <label><%= copy.auth.newPassword %><input name="newPassword" type="password" minlength="8" maxlength="72" autocomplete="new-password" required></label>
-                <button class="btn btn-primary" type="submit"><%= copy.account.changePassword %></button>
+                <div class="account-sensitive-actions">
+                  <button class="btn btn-primary" type="submit"><%= copy.account.changePassword %></button>
+                  <button class="btn btn-ghost" id="passwordChangeCancel" type="button"><%= copy.account.cancel %></button>
+                </div>
               </form>
-              <form class="account-form" id="emailChangeForm">
+              <form class="account-form account-password-setup hidden" id="passwordSetupForm">
+                <div>
+                  <strong><%= copy.account.setPassword %></strong>
+                  <p><%= copy.account.setPasswordDescription %></p>
+                </div>
+                <button class="btn btn-primary" type="submit"><%= copy.account.sendPasswordSetup %></button>
+              </form>
+              <button class="btn btn-outline account-security-trigger hidden" id="emailChangeTrigger" type="button"
+                      aria-expanded="false" aria-controls="emailChangeForm">
+                <%= copy.account.changeEmail %>
+              </button>
+              <form class="account-form hidden" id="emailChangeForm">
                 <label><%= copy.account.newEmail %><input name="email" type="email" autocomplete="email" required></label>
                 <label><%= copy.common.password %><input name="password" type="password" autocomplete="current-password" required></label>
-                <button class="btn btn-primary" type="submit"><%= copy.account.changeEmail %></button>
+                <div class="account-sensitive-actions">
+                  <button class="btn btn-primary" type="submit"><%= copy.account.changeEmail %></button>
+                  <button class="btn btn-ghost" id="emailChangeCancel" type="button"><%= copy.account.cancel %></button>
+                </div>
               </form>
               <p class="account-feedback" id="accountSecurityFeedback" role="status" aria-live="polite"></p>
             </section>
@@ -693,6 +738,7 @@
     <script src="/socket.io/socket.io.js"></script>
     <script src="/vendor/lucide-1.24.0.min.js"></script>
     <script src="/js/guest-profile-store.js"></script>
+    <script src="/js/profile-fields.js"></script>
     <script src="/js/chat-client.js"></script>
     <% if (googleClientId) { %>
       <script src="https://accounts.google.com/gsi/client" async defer></script>

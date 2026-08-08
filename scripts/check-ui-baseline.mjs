@@ -139,4 +139,37 @@ for (const section of ['common', 'pageTitles', 'errors', 'chat', 'account', 'adm
   assert.ok(copy[section], `Browser copy is missing top-level section "${section}"`);
 }
 
+function copyStrings(value, copyPath = []) {
+  if (typeof value === 'string') return [{ path: copyPath.join('.'), value }];
+  if (Array.isArray(value)) {
+    return value.flatMap((item, index) => copyStrings(item, [...copyPath, String(index)]));
+  }
+  if (!value || typeof value !== 'object') return [];
+  return Object.entries(value).flatMap(([key, item]) => copyStrings(item, [...copyPath, key]));
+}
+
+const developerCopyPatterns = [
+  { pattern: /\/(?:api)(?:\/|\b)/i, label: 'API endpoint' },
+  { pattern: /\b(?:GET|POST|PUT|PATCH|DELETE)\s+\//, label: 'HTTP method and route' },
+  { pattern: /\bHTTP(?:\s+status)?\s*\d{3}\b/i, label: 'HTTP status' },
+  { pattern: /\bUUIDs?\b/, label: 'UUID' },
+  { pattern: /\b[A-Z][A-Z0-9]+(?:_[A-Z0-9]+)+\b/, label: 'internal error code' },
+  { pattern: /\b[a-z][a-z0-9]*(?:_[a-z0-9]+)+\b/, label: 'internal identifier' },
+  {
+    pattern: /\b(?:server[- ]session|provider assertion|database record|transactional|idempotent)\b/i,
+    label: 'implementation terminology'
+  },
+  { pattern: /`[^`]+`/, label: 'code-formatted implementation detail' }
+];
+
+for (const entry of copyStrings(copy)) {
+  for (const rule of developerCopyPatterns) {
+    assert.doesNotMatch(
+      entry.value,
+      rule.pattern,
+      `Browser copy "${entry.path}" contains ${rule.label}; describe the user action or outcome instead.`
+    );
+  }
+}
+
 console.log(`UI baseline passed: ${viewFiles.length} views and ${requiredFiles.length} required files checked.`);
