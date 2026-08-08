@@ -157,6 +157,9 @@ test('migrations, authentication, profile validation and authorization contracts
     { method: 'delete', path: `/api/admin/users/${memberPublicId}`, body: { confirmation: 'BAN AND DELETE' } },
     { method: 'patch', path: '/api/admin/reports/1', body: { action: 'dismiss' } },
     { method: 'post', path: '/api/admin/reports/1/evidence', body: { reason: 'Synthetic authorization test' } },
+    { method: 'post', path: '/api/admin/network-ban-privacy-approvals', body: { cidr: '203.0.113.0/24', reason: 'Synthetic privacy review request' } },
+    { method: 'post', path: '/api/admin/network-ban-privacy-approvals/00000000-0000-4000-8000-000000000000/approve', body: { reason: 'Synthetic approval', reviewReference: 'synthetic-review' } },
+    { method: 'post', path: '/api/admin/network-bans', body: { cidr: '203.0.113.0/24', reason: 'Synthetic network ban', privacyApprovalId: '00000000-0000-4000-8000-000000000000' } },
     { method: 'post', path: '/api/admin/prices', body: { price: 0, currency: 'USD' } }
   ];
 

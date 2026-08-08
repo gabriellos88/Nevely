@@ -70,10 +70,24 @@ test('N4 moderation bans are auditable, transactional and network-separated', {
   assert.equal(revoked.idempotent, false);
   assert.notEqual(revoked.revoked_at, null);
 
+  const privacyApproval = await moderation.requestNetworkBanPrivacyApproval({
+    actorUserId: Number(actor.id), cidr: '203.0.113.0/24',
+    reason: 'Request an independent privacy review'
+  });
+  await assert.rejects(
+    moderation.approveNetworkBanPrivacyApproval({
+      reviewerUserId: Number(actor.id), approvalId: privacyApproval.id,
+      reason: 'Self review is prohibited', reviewReference: 'privacy-review-N4-self'
+    }),
+    (error) => error.code === 'PRIVACY_REVIEW_REQUIRED'
+  );
+  await moderation.approveNetworkBanPrivacyApproval({
+    reviewerUserId: Number(reviewer.id), approvalId: privacyApproval.id,
+    reason: 'Scope and expiry are proportionate', reviewReference: 'privacy-review-N4-001'
+  });
   const networkBan = await moderation.createNetworkBan({
     actorUserId: Number(actor.id), cidr: '203.0.113.0/24', hours: 12,
-    reason: 'Reviewed network abuse pattern', privacyReviewedByUserId: Number(reviewer.id),
-    privacyReviewReference: 'privacy-review-N4-001'
+    reason: 'Reviewed network abuse pattern', privacyApprovalId: privacyApproval.id
   });
   assert.equal(networkBan.idempotent, false);
   assert.equal(await moderation.isNetworkBlocked('203.0.113.99'), true);
@@ -81,4 +95,18 @@ test('N4 moderation bans are auditable, transactional and network-separated', {
   const storedNetwork = (await db.query('SELECT network_fingerprint, reason FROM network_bans WHERE id = $1', [networkBan.id])).rows[0];
   assert.match(storedNetwork.network_fingerprint, /^[a-f0-9]{64}$/);
   assert.equal(storedNetwork.network_fingerprint.includes('203.0.113'), false);
+  const consumedApproval = (await db.query(
+    `SELECT approved_by, consumed_by, review_reference FROM network_ban_privacy_approvals WHERE id = $1`,
+    [privacyApproval.id]
+  )).rows[0];
+  assert.equal(Number(consumedApproval.approved_by), Number(reviewer.id));
+  assert.equal(Number(consumedApproval.consumed_by), Number(actor.id));
+  assert.equal(consumedApproval.review_reference, 'privacy-review-N4-001');
+  await assert.rejects(
+    moderation.createNetworkBan({
+      actorUserId: Number(actor.id), cidr: '203.0.113.0/24', hours: 12,
+      reason: 'A consumed approval cannot be reused', privacyApprovalId: privacyApproval.id
+    }),
+    (error) => error.code === 'PRIVACY_REVIEW_REQUIRED'
+  );
 });
