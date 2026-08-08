@@ -24,6 +24,7 @@ test('N4 moderation bans are auditable, transactional and network-separated', {
   const reviewer = await createUser(db, 'reviewer', 'admin');
   const target = await createUser(db, 'target');
   const disconnected = [];
+  const restrictedGuests = [];
   const moderation = createModerationService({
     db,
     chat: { async terminateUser(userId, payload) { disconnected.push({ userId, payload }); } },
@@ -63,6 +64,35 @@ test('N4 moderation bans are auditable, transactional and network-separated', {
   });
   assert.equal(repeat.idempotent, true);
   assert.equal(disconnected.length, 1);
+
+  const guest = (await db.query(
+    `INSERT INTO guest_principals
+       (display_alias, name, gender, age, country, country_code, avatar_id)
+     VALUES ('gst_N4GUEST001', 'N4 Guest', 'any', 28, 'Switzerland', 'ch', 'astra')
+     RETURNING id`
+  )).rows[0];
+  const guestModeration = createModerationService({
+    db,
+    chat: { async terminateGuest(guestId, payload) { restrictedGuests.push({ guestId, payload }); } },
+    environment: { NETWORK_BAN_HMAC_KEY: 'integration-only-network-fingerprint-secret' }
+  });
+  const guestBan = await guestModeration.banGuest({
+    actorUserId: Number(actor.id), targetGuestId: guest.id, hours: 12,
+    reason: 'Documented guest moderation decision'
+  });
+  assert.equal(guestBan.idempotent, false);
+  assert.equal(await guestModeration.isGuestBlocked(guest.id), true);
+  assert.equal(restrictedGuests.length, 1);
+  const guestAudit = (await db.query(
+    `SELECT reason, before_state, after_state FROM audit_log WHERE target_guest_id = $1`, [guest.id]
+  )).rows[0];
+  assert.equal(guestAudit.reason, 'Documented guest moderation decision');
+  assert.equal(Object.hasOwn(guestAudit.after_state, 'message'), false);
+  assert.equal(Object.hasOwn(guestAudit.after_state, 'name'), false);
+  await guestModeration.revokeGuestBan({
+    actorUserId: Number(actor.id), banId: Number(guestBan.id), reason: 'Guest restriction review completed'
+  });
+  assert.equal(await guestModeration.isGuestBlocked(guest.id), false);
 
   const revoked = await moderation.revokeAccountBan({
     actorUserId: Number(actor.id), banId: Number(ban.id), reason: 'Appeal accepted'

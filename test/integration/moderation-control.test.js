@@ -1,9 +1,13 @@
 const assert = require('node:assert/strict');
-const { test } = require('node:test');
+const { after, test } = require('node:test');
 const { createModerationControlChannel } = require('../../lib/moderation-control');
 const { resetDatabase } = require('../helpers/database');
 
 const hasDatabase = Boolean(process.env.DATABASE_URL);
+
+after(async () => {
+  if (hasDatabase) await require('../../db').close();
+});
 
 function waitFor(check, timeoutMs = 3_000) {
   return new Promise((resolve, reject) => {
@@ -45,7 +49,6 @@ test('PostgreSQL moderation control disconnects a user on every listening replic
   t.after(async () => {
     await replicaOne.stop();
     await replicaTwo.stop();
-    await db.close();
   });
   assert.equal(await replicaOne.start(), true);
   assert.equal(await replicaTwo.start(), true);
@@ -56,5 +59,48 @@ test('PostgreSQL moderation control disconnects a user on every listening replic
   assert.equal(delivered.event, 'account-banned');
   assert.equal(delivered.payload.reason, 'Cross replica moderation decision');
   assert.equal(Object.hasOwn(delivered.payload, 'network'), false);
+  assert.equal(Object.hasOwn(delivered.payload, 'body'), false);
+});
+
+test('PostgreSQL moderation control disconnects a guest on every replica without relaying profile or reason', {
+  skip: hasDatabase ? false : 'DATABASE_URL is unavailable outside the disposable CI database'
+}, async (t) => {
+  const db = require('../../db');
+  await resetDatabase(db);
+  const actor = (await db.query(
+    `INSERT INTO users (username, email, password_hash, public_id, display_name, role)
+     VALUES ('guest_control_admin', 'guest-control-admin@example.test', 'synthetic',
+             'nvy_22222222222222222222', 'Guest Control Admin', 'admin') RETURNING id`
+  )).rows[0];
+  const guest = (await db.query(
+    `INSERT INTO guest_principals
+       (display_alias, name, gender, age, country, country_code, avatar_id)
+     VALUES ('gst_CONTROL002', 'Private Guest', 'any', 28, 'Switzerland', 'ch', 'astra') RETURNING id`
+  )).rows[0];
+  await db.query(
+    `INSERT INTO guest_bans (guest_id, reason, ends_at, created_by)
+     VALUES ($1, 'Guest restriction decision', NOW() + INTERVAL '1 hour', $2)`,
+    [guest.id, actor.id]
+  );
+  const replicaTwoEvents = [];
+  const replicaOne = createModerationControlChannel({ db, chat: { async terminateGuest() {} } });
+  const replicaTwo = createModerationControlChannel({
+    db,
+    chat: { async terminateGuest(guestId, payload, event) { replicaTwoEvents.push({ guestId, payload, event }); } }
+  });
+  t.after(async () => {
+    await replicaOne.stop();
+    await replicaTwo.stop();
+  });
+  assert.equal(await replicaOne.start(), true);
+  assert.equal(await replicaTwo.start(), true);
+  await replicaOne.publishGuestTermination(guest.id);
+  await waitFor(() => replicaTwoEvents.length === 1);
+  const delivered = replicaTwoEvents[0];
+  assert.equal(delivered.guestId, guest.id);
+  assert.equal(delivered.event, 'guest-restricted');
+  assert.notEqual(delivered.payload.endsAt, null);
+  assert.equal(Object.hasOwn(delivered.payload, 'reason'), false);
+  assert.equal(Object.hasOwn(delivered.payload, 'name'), false);
   assert.equal(Object.hasOwn(delivered.payload, 'body'), false);
 });

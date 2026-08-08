@@ -1,7 +1,8 @@
 const uiCopy = window.__COPY__ || { admin: { actionFailed: 'Action failed' } };
 const adminConfiguration = window.__ADMIN_CONFIG__ || {};
-const sections = ['users', 'guests', 'reports', 'bans', 'appeals', 'audit'];
-const sectionState = Object.fromEntries(sections.map((section) => [section, {
+const dataSections = ['users', 'guests', 'reports', 'bans', 'appeals', 'audit'];
+const sections = [...dataSections, 'controls'];
+const sectionState = Object.fromEntries(dataSections.map((section) => [section, {
   cursor: null,
   loaded: false,
   loading: false,
@@ -36,10 +37,10 @@ function dateTime(value) {
   return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleString();
 }
 
-function cell(row, value, { header = false } = {}) {
+function cell(row, value, { header = false, fallback = 'â€”' } = {}) {
   const element = document.createElement(header ? 'th' : 'td');
   if (header) element.scope = 'row';
-  element.textContent = text(value);
+  element.textContent = text(value, fallback);
   row.append(element);
   return element;
 }
@@ -75,22 +76,30 @@ function appendUsers(users) {
   const body = document.querySelector('[data-admin-table="users"]');
   users.forEach((user) => {
     const row = document.createElement('tr');
-    const account = cell(row, '', { header: true });
+    const account = cell(row, '', { header: true, fallback: '' });
     const name = document.createElement('strong');
-    name.textContent = text(user.display_name || user.username);
-    account.append(name, document.createElement('br'));
-    const detail = document.createElement('span');
-    detail.className = 'admin-subtle';
-    detail.textContent = `${text(user.username)} · ${text(user.public_id)}`;
-    account.append(detail);
+    const displayName = user.display_name || user.display_alias || user.username;
+    name.textContent = text(displayName);
+    account.append(name);
+    if (user.username && user.username !== displayName) {
+      const username = document.createElement('span');
+      username.className = 'admin-subtle';
+      username.textContent = user.username;
+      account.append(document.createElement('br'), username);
+    }
+    cell(row, abbreviatedId(user.public_id));
+    cell(row, user.plan);
+    cell(row, user.email);
     cell(row, user.email_verified_at ? 'Verified' : 'Not verified');
-    const banCell = cell(row, '');
+    const banCell = cell(row, '', { fallback: '' });
     banCell.replaceChildren(badge(user.active_ban ? 'Active' : 'None', user.active_ban ? 'is-danger' : 'is-success'));
+    cell(row, Number(user.recent_chat_count || 0));
     cell(row, dateTime(user.last_seen_at));
-    const actions = cell(row, '');
+    const actions = cell(row, '', { fallback: '' });
     actions.className = 'admin-actions-cell';
     actions.append(button('Details', { adminDetail: user.public_id }));
-    if (!user.active_ban) actions.append(button('Ban', { adminBan: user.public_id }));
+    if (user.active_ban) actions.append(button('Unban', { adminRevoke: 'account', adminBanId: String(user.active_ban_id) }, 'admin-action admin-action-danger'));
+    else actions.append(button('Ban', { adminBan: user.public_id }));
     body.append(row);
   });
 }
@@ -99,14 +108,26 @@ function appendGuests(guests) {
   const body = document.querySelector('[data-admin-table="guests"]');
   guests.forEach((guest) => {
     const row = document.createElement('tr');
-    cell(row, guest.displayAlias || guest.name, { header: true });
-    const state = cell(row, '');
+    cell(row, guest.name || guest.displayAlias, { header: true });
+    cell(row, abbreviatedId(guest.guestId));
+    const state = cell(row, '', { fallback: '' });
     state.replaceChildren(badge(guest.status));
-    cell(row, dateTime(guest.createdAt));
+    const banCell = cell(row, '', { fallback: '' });
+    banCell.replaceChildren(badge(guest.activeBanId ? 'Active' : 'None', guest.activeBanId ? 'is-danger' : 'is-success'));
+    cell(row, Number(guest.recentChatCount || 0));
     cell(row, dateTime(guest.lastSeenAt));
-    cell(row, dateTime(guest.retentionUntil));
+    const actions = cell(row, '', { fallback: '' });
+    actions.className = 'admin-actions-cell';
+    actions.append(button('Details', { adminGuestDetail: guest.guestId }));
+    if (guest.activeBanId) actions.append(button('Unban', { adminRevoke: 'guest', adminBanId: String(guest.activeBanId) }, 'admin-action admin-action-danger'));
+    else if (guest.status === 'active') actions.append(button('Ban', { adminGuestBan: guest.guestId }));
     body.append(row);
   });
+}
+
+function abbreviatedId(value) {
+  const id = text(value, '');
+  return id.length > 15 ? `${id.slice(0, 12)}…` : id;
 }
 
 function appendReports(reports) {
@@ -129,13 +150,13 @@ function appendBans(bans) {
   bans.forEach((ban) => {
     const row = document.createElement('tr');
     cell(row, ban.scope, { header: true });
-    cell(row, ban.scope === 'account' ? (ban.user_name || ban.user_public_id) : 'Privacy-reviewed network');
+    cell(row, ban.scope === 'network' ? 'Privacy-reviewed network' : (ban.user_name || ban.user_public_id));
     cell(row, ban.type);
     cell(row, ban.reason);
     cell(row, ban.type === 'permanent' ? 'Permanent' : dateTime(ban.ends_at));
     const state = cell(row, '');
     state.replaceChildren(badge(ban.revoked_at ? 'Revoked' : 'Active', ban.revoked_at ? '' : 'is-danger'));
-    const actions = cell(row, '');
+    const actions = cell(row, '', { fallback: '' });
     actions.className = 'admin-actions-cell';
     if (!ban.revoked_at) actions.append(button('Revoke', {
       adminRevoke: ban.scope,
@@ -237,6 +258,15 @@ function openActionDialog(kind, values = {}) {
     hours.hidden = false;
     hoursLabel.hidden = false;
     submit.textContent = 'Create ban';
+  } else if (kind === 'guest-ban') {
+    title.textContent = 'Restrict guest';
+    description.textContent = 'Temporarily restrict this guest principal and provide a specific moderation reason.';
+    type.value = 'temporary';
+    type.hidden = true;
+    typeLabel.hidden = true;
+    hours.hidden = false;
+    hoursLabel.hidden = false;
+    submit.textContent = 'Restrict guest';
   } else {
     title.textContent = 'Revoke ban';
     description.textContent = 'Provide the reason for revoking this moderation action.';
@@ -253,6 +283,7 @@ function openActionDialog(kind, values = {}) {
 async function openAccountDetail(publicId) {
   const dialog = document.getElementById('adminDetailDialog');
   const content = document.getElementById('adminDetailContent');
+  document.getElementById('adminDetailTitle').textContent = 'Account details';
   content.replaceChildren(document.createTextNode('Loading account…'));
   dialog.showModal();
   try {
@@ -264,9 +295,9 @@ async function openAccountDetail(publicId) {
     const summary = document.createElement('dl');
     summary.className = 'admin-detail-list';
     [
-      ['Public ID', user.publicId], ['Username', user.username], ['Email', user.email], ['Role', user.role],
+      ['Public ID', user.publicId], ['Username', user.username], ['Email', user.email], ['Role', user.role], ['Plan', user.plan],
       ['Email verification', user.emailVerifiedAt ? `Verified ${dateTime(user.emailVerifiedAt)}` : 'Not verified'],
-      ['Last seen', dateTime(user.lastSeenAt)],
+      ['Recent chats', user.recentChatCount], ['Last seen', dateTime(user.lastSeenAt)],
       ['Active ban', user.activeBan ? `${user.activeBan.type} · ${user.activeBan.reason}` : 'None']
     ].forEach(([label, value]) => {
       const term = document.createElement('dt'); term.textContent = label;
@@ -286,6 +317,32 @@ async function openAccountDetail(publicId) {
       });
     }
     content.replaceChildren(summary, heading, history);
+  } catch (error) {
+    content.replaceChildren(document.createTextNode(error.message));
+  }
+}
+
+async function openGuestDetail(guestId) {
+  const dialog = document.getElementById('adminDetailDialog');
+  const content = document.getElementById('adminDetailContent');
+  document.getElementById('adminDetailTitle').textContent = 'Guest details';
+  content.replaceChildren(document.createTextNode('Loading guest…'));
+  dialog.showModal();
+  try {
+    const { guest } = await adminApi(`/api/admin/guests/${encodeURIComponent(guestId)}`);
+    const summary = document.createElement('dl');
+    summary.className = 'admin-detail-list';
+    [
+      ['Guest ID', guest.id], ['Alias', guest.displayAlias], ['Name', guest.name], ['State', guest.status],
+      ['Country', guest.country], ['Created', dateTime(guest.createdAt)], ['Recent chats', guest.recentChatCount],
+      ['Last seen', dateTime(guest.lastSeenAt)],
+      ['Restriction', guest.activeBan ? `Until ${dateTime(guest.activeBan.endsAt)}: ${guest.activeBan.reason}` : 'None']
+    ].forEach(([label, value]) => {
+      const term = document.createElement('dt'); term.textContent = label;
+      const definition = document.createElement('dd'); definition.textContent = text(value);
+      summary.append(term, definition);
+    });
+    content.replaceChildren(summary);
   } catch (error) {
     content.replaceChildren(document.createTextNode(error.message));
   }
@@ -318,8 +375,12 @@ document.querySelectorAll('[data-admin-more]').forEach((control) => {
 document.addEventListener('click', (event) => {
   const detail = event.target.closest('[data-admin-detail]');
   if (detail) return openAccountDetail(detail.dataset.adminDetail);
+  const guestDetail = event.target.closest('[data-admin-guest-detail]');
+  if (guestDetail) return openGuestDetail(guestDetail.dataset.adminGuestDetail);
   const ban = event.target.closest('[data-admin-ban]');
   if (ban) return openActionDialog('ban', { target: ban.dataset.adminBan });
+  const guestBan = event.target.closest('[data-admin-guest-ban]');
+  if (guestBan) return openActionDialog('guest-ban', { target: guestBan.dataset.adminGuestBan });
   const revoke = event.target.closest('[data-admin-revoke]');
   if (revoke) return openActionDialog(`revoke-${revoke.dataset.adminRevoke}`, { banId: revoke.dataset.adminBanId });
   if (event.target.closest('[data-admin-dialog-close]')) document.querySelectorAll('.admin-dialog[open]').forEach((dialog) => dialog.close());
@@ -341,13 +402,21 @@ document.getElementById('adminActionForm')?.addEventListener('submit', async (ev
       });
       await loadSection('users', { reset: true });
       await loadSection('bans', { reset: true });
+    } else if (pendingAction === 'guest-ban') {
+      await adminApi(`/api/admin/guests/${encodeURIComponent(values.target)}/ban`, {
+        method: 'POST', body: JSON.stringify({ hours: Number(values.hours), reason: values.reason })
+      });
+      await loadSection('guests', { reset: true });
+      await loadSection('bans', { reset: true });
     } else {
-      const scope = pendingAction === 'revoke-network' ? 'network-bans' : 'account-bans';
+      const scope = pendingAction === 'revoke-network' ? 'network-bans'
+        : (pendingAction === 'revoke-guest' ? 'guest-bans' : 'account-bans');
       await adminApi(`/api/admin/${scope}/${encodeURIComponent(values.banId)}/revoke`, {
         method: 'PATCH', body: JSON.stringify({ reason: values.reason })
       });
       await loadSection('bans', { reset: true });
       await loadSection('users', { reset: true });
+      await loadSection('guests', { reset: true });
     }
     document.getElementById('adminActionDialog').close();
   } catch (error) {

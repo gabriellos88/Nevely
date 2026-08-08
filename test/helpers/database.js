@@ -8,6 +8,7 @@ const tables = [
   'moderation_rate_windows',
   'network_bans',
   'account_bans',
+  'guest_bans',
   'audit_log',
   'database_capacity_snapshots',
   'retention_runs',

@@ -304,6 +304,9 @@
 .admin-tab:focus-visible, .admin-workspace input:focus-visible, .admin-workspace select:focus-visible, .admin-workspace textarea:focus-visible, .admin-workspace button:focus-visible { outline: none; box-shadow: var(--focus-ring-brand); }
 .admin-panel { background: var(--color-neutral-primary); border: 1px solid var(--color-border-default); border-radius: var(--radius-xxl); padding: var(--spacing-6); }
 .admin-panel-heading { align-items: flex-start; display: flex; gap: var(--spacing-6); justify-content: space-between; }
+.admin-panel-heading-compact h2 { margin-bottom: var(--spacing-2); }
+.admin-panel-heading-compact p { margin-bottom: var(--spacing-4); }
+.admin-panel-heading-compact + .admin-toolbar { margin-bottom: var(--spacing-4); }
 .admin-toolbar { align-items: end; display: flex; flex-wrap: wrap; gap: var(--spacing-3); margin-bottom: var(--spacing-6); }
 .admin-field-shell { background: var(--color-neutral-tertiary); border: 1px solid var(--color-border-default); border-radius: var(--radius-xxl); flex: 1 1 var(--spacing-72); }
 .admin-field-shell:focus-within { border-color: var(--color-brand); box-shadow: var(--focus-ring-brand); }
@@ -335,9 +338,8 @@
 .admin-table-state:empty { display: none; }
 .admin-table-state.is-error { color: var(--color-fg-danger); }
 .admin-pagination { display: flex; justify-content: end; margin-top: var(--spacing-4); }
-.admin-security-controls { background: var(--color-neutral-primary); border: 1px solid var(--color-border-default); border-radius: var(--radius-xxl); margin-top: var(--spacing-6); padding: var(--spacing-5); }
-.admin-security-controls > summary { color: var(--color-heading); cursor: pointer; font: var(--font-weight-medium) var(--font-size-sm)/var(--line-height-component) var(--font-family); }
 .admin-workspace .admin-section { border-top: 1px solid var(--color-border-default); margin-top: var(--spacing-6); padding: var(--spacing-6) 0 0; }
+.admin-panel > .admin-section:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
 .admin-workspace .admin-price-form { gap: var(--spacing-3); }
 .admin-dialog { background: var(--color-neutral-primary-soft); border: 1px solid var(--color-border-medium); border-radius: var(--radius-xxl); color: var(--color-body); max-height: calc(100vh - var(--spacing-8)); padding: 0; width: min(calc(100% - var(--spacing-8)), var(--layout-modal-default)); }
 .admin-dialog::backdrop { background: rgba(0, 0, 0, .5); }

@@ -204,6 +204,9 @@ function createRuntime(options = {}) {
     let guestClaimEligible = false;
     if (isGuest && db.isConfigured && req.session.guestPrincipalId) {
       try {
+        if (await moderation.isGuestBlocked(req.session.guestPrincipalId)) {
+          return res.status(403).send(uiCopy.errors.guestRestricted);
+        }
         const guest = await findActiveGuestPrincipal(db, req.session.guestPrincipalId, { touch: false });
         guestClaimEligible = guestPassportComplete(guest);
       } catch (error) {
@@ -230,6 +233,7 @@ function createRuntime(options = {}) {
     guestDurationSeconds: GUEST_CHAT_DURATION_SECONDS,
     enforcePersistentGuestOwnership: options.enforcePersistentGuestOwnership,
     isNetworkBlocked: (address) => moderation?.isNetworkBlocked(address) || Promise.resolve(false),
+    isGuestBlocked: (guestId) => moderation?.isGuestBlocked(guestId) || Promise.resolve(false),
     rateLimiter: options.rateLimiter,
     rateLimitPrincipalResolver: options.rateLimitPrincipalResolver,
     log
