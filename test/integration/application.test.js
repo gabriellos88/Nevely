@@ -156,6 +156,7 @@ test('migrations, authentication, profile validation and authorization contracts
     { method: 'post', path: `/api/admin/users/${memberPublicId}/ban`, body: { type: 'temporary', hours: 24 } },
     { method: 'delete', path: `/api/admin/users/${memberPublicId}`, body: { confirmation: 'BAN AND DELETE' } },
     { method: 'patch', path: '/api/admin/reports/1', body: { action: 'dismiss' } },
+    { method: 'post', path: '/api/admin/reports/1/evidence', body: { reason: 'Synthetic authorization test' } },
     { method: 'post', path: '/api/admin/prices', body: { price: 0, currency: 'USD' } }
   ];
 
@@ -353,6 +354,12 @@ test('migrations, authentication, profile validation and authorization contracts
     [primaryId, memberId]
   );
   const reportId = Number(report.rows[0].id);
+  await db.query(
+    `INSERT INTO report_evidence_snapshots (report_id, expires_at, messages)
+     VALUES ($1, NOW() + INTERVAL '24 hours',
+       '[{"messageId":1,"senderRole":"reporter","body":"synthetic evidence one","createdAt":"2026-01-01T00:00:00Z"},{"messageId":2,"senderRole":"reported","body":"synthetic evidence two","createdAt":"2026-01-01T00:01:00Z"}]'::jsonb)`,
+    [reportId]
+  );
 
   await admin.get('/admin').expect(200);
   const ban = await admin
@@ -402,6 +409,26 @@ test('migrations, authentication, profile validation and authorization contracts
   const auditLog = await admin.get(`/api/admin/audit?target=${encodeURIComponent(memberPublicId)}&limit=20`).expect(200);
   assert.equal(auditLog.body.audit.some((item) => item.action === 'account_ban_created'), true);
   assert.equal(Object.hasOwn(auditLog.body.audit[0], 'after_state'), false);
+
+  const evidenceCorrelationId = '8dcb1d04-9c45-4e4e-8f4f-39c31fa4e5f2';
+  const evidence = await admin
+    .post(`/api/admin/reports/${reportId}/evidence?limit=1`)
+    .set('X-Correlation-Id', evidenceCorrelationId)
+    .send({ reason: 'Review the captured report evidence' })
+    .expect(200);
+  assert.equal(evidence.body.evidence.messages.length, 1);
+  assert.equal(evidence.body.evidence.messages[0].body, 'synthetic evidence one');
+  assert.equal(evidence.body.evidence.page.hasMore, true);
+  await admin.post(`/api/admin/reports/${reportId}/evidence?cursor=invalid`).send({ reason: 'Review the captured report evidence' }).expect(400);
+  const evidenceAccess = (await db.query(
+    'SELECT reason, correlation_id FROM report_evidence_access_log WHERE report_id = $1', [reportId]
+  )).rows[0];
+  assert.equal(evidenceAccess.reason, 'Review the captured report evidence');
+  assert.equal(evidenceAccess.correlation_id, evidenceCorrelationId);
+  const evidenceAudit = (await db.query(
+    `SELECT after_state FROM audit_log WHERE action = 'report_evidence_accessed' ORDER BY id DESC LIMIT 1`
+  )).rows[0];
+  assert.equal(Object.hasOwn(evidenceAudit.after_state, 'body'), false);
 
   const databaseCapacity = await admin.get('/api/admin/database-capacity').expect(200);
   assert.equal(Array.isArray(databaseCapacity.body.capacity), true);
