@@ -251,7 +251,8 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
     .send({ type: 'temporary', hours: 24, reason: 'Synthetic socket ban test' })
     .expect(201);
   const banPayload = await banned;
-  assert.deepEqual(Object.keys(banPayload).sort(), ['hours', 'type']);
+  assert.deepEqual(Object.keys(banPayload).sort(), ['endsAt', 'reason', 'type']);
   assert.equal(banPayload.type, 'temporary');
-  assert.equal(banPayload.hours, 24);
+  assert.equal(banPayload.reason, 'Synthetic socket ban test');
+  assert.notEqual(banPayload.endsAt, null);
 });

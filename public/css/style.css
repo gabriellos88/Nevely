@@ -106,6 +106,7 @@
   /* Astra canonical layout */
   --layout-content-max: 80rem;
   --layout-header-max: 48rem;
+  --layout-modal-default: 32rem;
 
   /* Astra canonical elevation and brand light */
   --elevation-none: none;
@@ -281,6 +282,88 @@
 .admin-action.danger { background: #fff2f4; color: #a92d45; }
 .admin-price-form { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
 .admin-price-form input, .admin-price-form select { min-height: 42px; border: 1px solid var(--border); border-radius: 8px; padding: 8px 10px; }
+
+/* N4 moderation workspace: scoped Astra surfaces so legacy account pages stay untouched. */
+.admin-workspace {
+  background: var(--color-neutral-secondary-soft);
+  color: var(--color-body);
+  padding: var(--spacing-14) var(--spacing-4) var(--spacing-20);
+}
+.admin-workspace .admin-wrap { width: min(100%, var(--layout-content-max)); }
+.admin-workspace-header { margin-bottom: var(--spacing-8); }
+.admin-workspace .admin-eyebrow { color: var(--color-fg-brand); font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); margin: 0 0 var(--spacing-3); }
+.admin-workspace h1, .admin-workspace h2, .admin-workspace h3 { color: var(--color-heading); font-family: var(--font-family); }
+.admin-workspace h1 { font-size: var(--font-size-4xl); line-height: var(--line-height-heading); margin: 0 0 var(--spacing-6); }
+.admin-workspace h2 { font-size: var(--font-size-2xl); line-height: var(--line-height-heading); margin: 0 0 var(--spacing-6); }
+.admin-workspace h3 { font-size: var(--font-size-lg); line-height: var(--line-height-heading); margin: var(--spacing-6) 0; }
+.admin-workspace p { color: var(--color-body); font-size: var(--font-size-sm); line-height: var(--line-height-body); margin: 0 0 var(--spacing-6); }
+.admin-tabs { border-bottom: 1px solid var(--color-border-default); display: flex; gap: var(--spacing-2); margin-bottom: var(--spacing-6); overflow-x: auto; }
+.admin-tab { background: transparent; border: 0; border-bottom: 2px solid transparent; color: var(--color-body); cursor: pointer; font: var(--font-weight-medium) var(--font-size-sm)/var(--line-height-component) var(--font-family); padding: var(--spacing-4); white-space: nowrap; }
+.admin-tab:hover { color: var(--color-heading); background: var(--color-neutral-secondary-soft); }
+.admin-tab[aria-selected="true"] { border-bottom-color: var(--color-brand); color: var(--color-fg-brand); }
+.admin-tab:focus-visible, .admin-workspace input:focus-visible, .admin-workspace select:focus-visible, .admin-workspace textarea:focus-visible, .admin-workspace button:focus-visible { outline: none; box-shadow: var(--focus-ring-brand); }
+.admin-panel { background: var(--color-neutral-primary); border: 1px solid var(--color-border-default); border-radius: var(--radius-xxl); padding: var(--spacing-6); }
+.admin-panel-heading { align-items: flex-start; display: flex; gap: var(--spacing-6); justify-content: space-between; }
+.admin-panel-heading-compact h2 { margin-bottom: var(--spacing-2); }
+.admin-panel-heading-compact p { margin-bottom: var(--spacing-4); }
+.admin-panel-heading-compact + .admin-toolbar { margin-bottom: var(--spacing-4); }
+.admin-toolbar { align-items: end; display: flex; flex-wrap: wrap; gap: var(--spacing-3); margin-bottom: var(--spacing-6); }
+.admin-field-shell { background: var(--color-neutral-tertiary); border: 1px solid var(--color-border-default); border-radius: var(--radius-xxl); flex: 1 1 var(--spacing-72); }
+.admin-field-shell:focus-within { border-color: var(--color-brand); box-shadow: var(--focus-ring-brand); }
+.admin-workspace input, .admin-workspace select, .admin-workspace textarea { background: var(--color-neutral-tertiary); border: 1px solid var(--color-border-default); border-radius: var(--radius-xxl); color: var(--color-heading); font: var(--font-weight-normal) var(--font-size-sm)/var(--line-height-component) var(--font-family); padding: var(--spacing-2-5) var(--spacing-3); }
+.admin-field-shell input { background: transparent; border: 0; box-shadow: none; outline: 0; width: 100%; }
+.admin-workspace textarea { border-radius: var(--radius-md); min-height: var(--spacing-24); resize: vertical; width: 100%; }
+.admin-workspace select { min-width: var(--spacing-48); }
+.admin-workspace .btn { border-radius: var(--radius-full); font: var(--font-weight-medium) var(--font-size-sm)/var(--line-height-component) var(--font-family); padding: var(--spacing-2-5) var(--spacing-4); }
+.admin-workspace .btn-primary { background: var(--color-brand); border: 1px solid var(--color-brand); color: var(--color-heading); }
+.admin-workspace .btn-primary:hover { background: var(--color-brand-strong); }
+.admin-workspace .btn-secondary { background: var(--color-neutral-secondary); border: 1px solid var(--color-border-medium); color: var(--color-heading); }
+.admin-workspace .btn-secondary:hover { background: var(--color-neutral-tertiary-medium); }
+.admin-table-wrap { border-radius: var(--radius-xxl); overflow-x: auto; }
+.admin-workspace .admin-table { background: var(--color-neutral-primary); border-collapse: separate; border-spacing: 0; color: var(--color-body); font: var(--font-weight-normal) var(--font-size-sm)/var(--line-height-body) var(--font-family); min-width: 100%; width: 100%; }
+.admin-workspace .admin-table thead { background: var(--color-neutral-secondary-soft); }
+.admin-workspace .admin-table th, .admin-workspace .admin-table td { border-bottom: 1px solid var(--color-border-default); padding: var(--spacing-4) var(--spacing-6); text-align: left; vertical-align: top; }
+.admin-workspace .admin-table th { color: var(--color-body); font-weight: var(--font-weight-medium); }
+.admin-workspace .admin-table tbody th { color: var(--color-heading); }
+.admin-workspace .admin-table tbody tr:hover { background: var(--color-neutral-secondary); }
+.admin-subtle { color: var(--color-body-subtle); font-size: var(--font-size-xs); }
+.admin-badge { background: var(--color-neutral-tertiary-medium); border-radius: var(--radius-full); color: var(--color-body); display: inline-block; font-size: var(--font-size-xs); font-weight: var(--font-weight-medium); padding: var(--spacing-1) var(--spacing-2); }
+.admin-badge.is-danger { background: var(--color-danger-soft); color: var(--color-fg-danger); }
+.admin-badge.is-success { background: var(--color-success-soft); color: var(--color-fg-success); }
+.admin-action { background: transparent; border: 0; color: var(--color-fg-brand); cursor: pointer; font: var(--font-weight-medium) var(--font-size-sm)/var(--line-height-component) var(--font-family); padding: var(--spacing-2); text-decoration: underline; text-underline-offset: var(--spacing-1); }
+.admin-action:hover { color: var(--color-heading); }
+.admin-action-danger { color: var(--color-fg-danger); }
+.admin-actions-cell { white-space: nowrap; }
+.admin-table-state { color: var(--color-body-subtle); margin: var(--spacing-4) 0 0; min-height: var(--spacing-6); }
+.admin-table-state:empty { display: none; }
+.admin-table-state.is-error { color: var(--color-fg-danger); }
+.admin-pagination { display: flex; justify-content: end; margin-top: var(--spacing-4); }
+.admin-workspace .admin-section { border-top: 1px solid var(--color-border-default); margin-top: var(--spacing-6); padding: var(--spacing-6) 0 0; }
+.admin-panel > .admin-section:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
+.admin-workspace .admin-price-form { gap: var(--spacing-3); }
+.admin-dialog { background: var(--color-neutral-primary-soft); border: 1px solid var(--color-border-medium); border-radius: var(--radius-xxl); color: var(--color-body); max-height: calc(100vh - var(--spacing-8)); padding: 0; width: min(calc(100% - var(--spacing-8)), var(--layout-modal-default)); }
+.admin-dialog::backdrop { background: rgba(0, 0, 0, .5); }
+.admin-dialog-form { margin: 0; }
+.admin-dialog header, .admin-dialog footer { align-items: center; border-color: var(--color-border-default); display: flex; gap: var(--spacing-4); justify-content: space-between; padding: var(--spacing-5) var(--spacing-6); }
+.admin-dialog header { border-bottom: 1px solid var(--color-border-default); }
+.admin-dialog footer { border-top: 1px solid var(--color-border-default); justify-content: end; }
+.admin-dialog header h2 { font-size: var(--font-size-lg); margin: 0; }
+.admin-dialog-close { background: transparent; border: 0; border-radius: var(--radius-md); color: var(--color-body); cursor: pointer; font-size: var(--font-size-xl); line-height: 1; padding: 0; }
+.admin-dialog-body { display: grid; gap: var(--spacing-4); max-height: min(60vh, var(--spacing-96)); overflow-y: auto; padding: var(--spacing-6); }
+.admin-dialog-body p { margin: 0; }
+.admin-dialog-body label { color: var(--color-heading); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); }
+.admin-detail-list { display: grid; gap: var(--spacing-2) var(--spacing-4); grid-template-columns: auto minmax(0, 1fr); margin: 0; }
+.admin-detail-list dt { color: var(--color-body-subtle); }
+.admin-detail-list dd { color: var(--color-heading); margin: 0; overflow-wrap: anywhere; }
+.admin-history-list { display: grid; gap: var(--spacing-2); margin: 0; padding-left: var(--spacing-5); }
+
+@media (max-width: 640px) {
+  .admin-workspace { padding: var(--spacing-8) var(--spacing-3) var(--spacing-14); }
+  .admin-panel { padding: var(--spacing-4); }
+  .admin-panel-heading, .admin-toolbar { align-items: stretch; flex-direction: column; }
+  .admin-workspace select, .admin-workspace .btn { width: 100%; }
+  .admin-workspace .admin-table th, .admin-workspace .admin-table td { padding: var(--spacing-3) var(--spacing-4); }
+}
 
 @media (max-width: 640px) {
   .account-form, .premium-filter-grid { grid-template-columns: 1fr; }

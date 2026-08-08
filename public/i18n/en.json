@@ -809,6 +809,7 @@
     "avatarInvalid": "Choose one of the available avatars.",
     "alreadySignedIn": "You’re already signed in.",
     "guestProfileMissing": "Let’s set up your guest profile again.",
+    "guestRestricted": "This guest profile is temporarily restricted.",
     "guestClaimUnavailable": "This guest account is no longer available to claim.",
     "guestNameUsed": "You’ve already used your guest name change.",
     "registeredLogout": "Use Sign out in Account settings.",

@@ -77,12 +77,14 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
 
 - `GET /api/database-health`: PostgreSQL status.
 - `GET /admin`: minimal users, reports and plan-price view.
-- `GET /api/admin/guests`, `GET /api/admin/users`,
+- `GET /api/admin/guests`, `GET /api/admin/guests/:id`, `GET /api/admin/users`,
   `GET /api/admin/reports`, `GET /api/admin/bans`: keyset-paginated
-  operational collections. Guest cursors use `(created_at, UUID)` and guest
-  responses expose the compact alias rather than the internal UUID.
+  operational collections. Guest cursors use `(created_at, UUID)`; the
+  admin-only collection exposes a guest UUID for Details and moderation.
 - `GET /api/admin/database-capacity`: last 30 aggregate capacity samples and retention runs.
 - `POST /api/admin/users/:id/ban`: temporary or permanent ban.
+- `POST /api/admin/guests/:id/ban`: temporary guest-principal restriction.
+- `PATCH /api/admin/guest-bans/:id/revoke`: revokes a guest restriction.
 - `DELETE /api/admin/users/:id`: permanent ban, IP ban when available and account anonymization.
 - `PATCH /api/admin/reports/:id`: resolve or dismiss a report.
 - `POST /api/admin/prices`: record a new premium price.
@@ -108,6 +110,7 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
 - `direct-chat-requested`, `direct-chat-request-sent`, `direct-chat-error`: direct-chat lifecycle.
 - `notification-created`: tells the client to refresh notifications.
 - `account-banned`: closes the account session after moderation action.
+- `guest-restricted`: closes a restricted guest principal session.
 - `chat-error`: general realtime error.
 
 ## Safety and future work

@@ -40,8 +40,27 @@ ma l'interfaccia visualizza `displayAlias`.
 
 `GET /api/admin/guests` richiede un account amministratore e restituisce una
 collezione con limite predefinito 30 e massimo 100. Il cursore opaco usa
-`(created_at, UUID)`; la risposta amministrativa non espone l'UUID interno.
-Il filtro opzionale `status` accetta `active`, `claimed`, `deleted` o `expired`.
+`(created_at, UUID)`. L'UUID è esposto soltanto al workspace amministrativo,
+abbreviato nella tabella e completo nella pagina Details; non è un token di
+autorizzazione. I filtri `status` e `q` ricercano rispettivamente stato e
+nome, alias o UUID esatto.
+
+## Restrizioni guest N4
+
+Un amministratore appena riautenticato può applicare una restrizione solo
+temporanea al principal guest. La decisione richiede motivazione, durata tra
+un'ora e 30 giorni e un record append-only in `audit_log`; non copia nome,
+messaggi, IP o contenuti della conversazione nell'audit.
+
+La restrizione è verificata su HTTP, all'ammissione Socket.IO e prima di ogni
+evento Socket.IO sensibile. Le connessioni attive vengono chiuse anche sulle
+repliche attraverso il canale PostgreSQL di controllo. Il partner riceve solo
+la normale chiusura `partner-left`, senza stato o motivazione di moderazione.
+La revoca richiede a sua volta una motivazione e produce un audit record.
+
+`guest_bans` viene cancellata insieme al principal scaduto tramite chiave
+esterna `ON DELETE CASCADE`; l'audit conserva soltanto l'UUID del target per
+la tracciabilità della decisione.
 
 ## Verifica
 

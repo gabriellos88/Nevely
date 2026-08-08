@@ -149,7 +149,16 @@ test('persistent guest principals are session-bound, paginated and retained', {
   assert.equal(firstPage.body.page.hasMore, true);
   assert.equal(typeof firstPage.body.page.nextCursor, 'string');
   assert.equal(Object.hasOwn(firstPage.body.guests[0], 'id'), false);
+  assert.match(firstPage.body.guests[0].guestId, /^[0-9a-f-]{36}$/);
   assert.match(firstPage.body.guests[0].displayAlias, /^gst_[0-9A-F]{10}$/);
+  const guestDetail = await admin
+    .get(`/api/admin/guests/${firstPage.body.guests[0].guestId}`)
+    .expect(200);
+  assert.equal(guestDetail.body.guest.id, firstPage.body.guests[0].guestId);
+  const searched = await admin
+    .get(`/api/admin/guests?q=${encodeURIComponent(firstPage.body.guests[0].guestId)}`)
+    .expect(200);
+  assert.equal(searched.body.guests.some((item) => item.guestId === firstPage.body.guests[0].guestId), true);
 
   const secondPage = await admin
     .get(`/api/admin/guests?limit=1&cursor=${encodeURIComponent(firstPage.body.page.nextCursor)}`)
