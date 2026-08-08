@@ -27,7 +27,8 @@ Implemented in N1:
 
 - `GET`, `POST`, `PATCH`, `DELETE /api/guest-profile`: create, restore, update
   or tombstone the persistent guest principal bound to the current server
-  session. A browser-supplied UUID is never accepted as proof of ownership.
+  session. The response exposes only `gst_` + 12 lowercase hexadecimal
+  characters; a browser-supplied UUID is never accepted as proof of ownership.
 - `GET /api/account`: private account details.
 - `PATCH /api/account`: update display name, canonical gender/country and
   temporary image URL. Birth date is support-controlled; email uses a separate
@@ -40,7 +41,7 @@ Implemented in N1:
 - `DELETE /api/account`: anonymize existing messages and delete the account. Body confirmation: `DELETE`.
 - `POST /api/account/avatar`: reserved endpoint; returns `501` until object storage is configured.
 - `GET /api/users/:id/profile`: public profile plus friendship/block state;
-  `:id` is the opaque `nvy_...` public identifier.
+  `:id` is the opaque `nvy_` + 12 lowercase hexadecimal public identifier.
 - `GET /api/blocks`, `PUT /api/blocks/:id`, `DELETE /api/blocks/:id`: block-list management. The list uses the shared `cursor` contract.
 
 ### Conversations
@@ -79,8 +80,9 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
 - `GET /admin`: minimal users, reports and plan-price view.
 - `GET /api/admin/guests`, `GET /api/admin/guests/:id`, `GET /api/admin/users`,
   `GET /api/admin/reports`, `GET /api/admin/bans`: keyset-paginated
-  operational collections. Guest cursors use `(created_at, UUID)`; the
-  admin-only collection exposes a guest UUID for Details and moderation.
+  operational collections. Guest cursors use `(created_at, public_id)` and
+  Details/moderation routes accept only the canonical `gst_...` ID (with a
+  temporary server-side legacy resolver); UUIDs are never emitted.
 - `GET /api/admin/database-capacity`: last 30 aggregate capacity samples and retention runs.
 - `POST /api/admin/users/:id/ban`: temporary or permanent ban.
 - `POST /api/admin/guests/:id/ban`: temporary guest-principal restriction.

@@ -87,7 +87,8 @@ function appendUsers(users) {
       username.textContent = user.username;
       account.append(document.createElement('br'), username);
     }
-    cell(row, abbreviatedId(user.public_id));
+    const idCell = cell(row, '', { fallback: '' });
+    idCell.append(publicIdButton(user.public_id));
     cell(row, user.plan);
     cell(row, user.email);
     cell(row, user.email_verified_at ? 'Verified' : 'Not verified');
@@ -108,8 +109,9 @@ function appendGuests(guests) {
   const body = document.querySelector('[data-admin-table="guests"]');
   guests.forEach((guest) => {
     const row = document.createElement('tr');
-    cell(row, guest.name || guest.displayAlias, { header: true });
-    cell(row, abbreviatedId(guest.guestId));
+    cell(row, guest.name, { header: true });
+    const idCell = cell(row, '', { fallback: '' });
+    idCell.append(publicIdButton(guest.publicId));
     const state = cell(row, '', { fallback: '' });
     state.replaceChildren(badge(guest.status));
     const banCell = cell(row, '', { fallback: '' });
@@ -118,9 +120,9 @@ function appendGuests(guests) {
     cell(row, dateTime(guest.lastSeenAt));
     const actions = cell(row, '', { fallback: '' });
     actions.className = 'admin-actions-cell';
-    actions.append(button('Details', { adminGuestDetail: guest.guestId }));
+    actions.append(button('Details', { adminGuestDetail: guest.publicId }));
     if (guest.activeBanId) actions.append(button('Unban', { adminRevoke: 'guest', adminBanId: String(guest.activeBanId) }, 'admin-action admin-action-danger'));
-    else if (guest.status === 'active') actions.append(button('Ban', { adminGuestBan: guest.guestId }));
+    else if (guest.status === 'active') actions.append(button('Ban', { adminGuestBan: guest.publicId }));
     body.append(row);
   });
 }
@@ -130,13 +132,27 @@ function abbreviatedId(value) {
   return id.length > 15 ? `${id.slice(0, 12)}…` : id;
 }
 
+function announceCopy(message) {
+  const feedback = document.getElementById('adminCopyFeedback');
+  if (feedback) feedback.textContent = message;
+}
+
+function publicIdButton(value) {
+  const id = text(value, '');
+  const control = button(abbreviatedId(id), {}, 'admin-id-copy');
+  control.dataset.adminCopyId = id;
+  control.title = id;
+  control.setAttribute('aria-label', `Copy public ID ${id}`);
+  return control;
+}
+
 function appendReports(reports) {
   const body = document.querySelector('[data-admin-table="reports"]');
   reports.forEach((report) => {
     const row = document.createElement('tr');
     cell(row, dateTime(report.created_at));
-    cell(row, report.reporter_name || report.reporter_guest_alias || 'Guest');
-    cell(row, report.reported_name || report.reported_guest_alias || 'Guest');
+    cell(row, report.reporter_name || report.reporter_guest_public_id || 'Guest');
+    cell(row, report.reported_name || report.reported_guest_public_id || 'Guest');
     cell(row, report.reason);
     const state = cell(row, '');
     state.replaceChildren(badge(report.status));
@@ -333,7 +349,7 @@ async function openGuestDetail(guestId) {
     const summary = document.createElement('dl');
     summary.className = 'admin-detail-list';
     [
-      ['Guest ID', guest.id], ['Alias', guest.displayAlias], ['Name', guest.name], ['State', guest.status],
+      ['Guest ID', guest.publicId], ['Name', guest.name], ['State', guest.status],
       ['Country', guest.country], ['Created', dateTime(guest.createdAt)], ['Recent chats', guest.recentChatCount],
       ['Last seen', dateTime(guest.lastSeenAt)],
       ['Restriction', guest.activeBan ? `Until ${dateTime(guest.activeBan.endsAt)}: ${guest.activeBan.reason}` : 'None']
@@ -373,6 +389,13 @@ document.querySelectorAll('[data-admin-more]').forEach((control) => {
 });
 
 document.addEventListener('click', (event) => {
+  const copyId = event.target.closest('[data-admin-copy-id]');
+  if (copyId) {
+    navigator.clipboard?.writeText(copyId.dataset.adminCopyId || '')
+      .then(() => announceCopy('Public ID copied.'))
+      .catch(() => announceCopy('Unable to copy the public ID. Select it from the details view.'));
+    return;
+  }
   const detail = event.target.closest('[data-admin-detail]');
   if (detail) return openAccountDetail(detail.dataset.adminDetail);
   const guestDetail = event.target.closest('[data-admin-guest-detail]');

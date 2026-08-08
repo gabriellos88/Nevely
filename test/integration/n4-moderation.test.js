@@ -9,7 +9,7 @@ async function createUser(db, suffix, role = 'user') {
   const result = await db.query(
     `INSERT INTO users (username, email, password_hash, public_id, display_name, role)
      VALUES ($1, $2, 'synthetic-hash', $3, $4, $5) RETURNING id, session_version`,
-    [`n4_${suffix}`, `n4-${suffix}@example.test`, `nvy_${suffix.padEnd(20, '0').slice(0, 20)}`, `N4 ${suffix}`, role]
+    [`n4_${suffix}`, `n4-${suffix}@example.test`, `nvy_${Buffer.from(suffix).toString('hex').padEnd(12, '0').slice(0, 12)}`, `N4 ${suffix}`, role]
   );
   return result.rows[0];
 }
@@ -67,8 +67,8 @@ test('N4 moderation bans are auditable, transactional and network-separated', {
 
   const guest = (await db.query(
     `INSERT INTO guest_principals
-       (display_alias, name, gender, age, country, country_code, avatar_id)
-     VALUES ('gst_N4GUEST001', 'N4 Guest', 'any', 28, 'Switzerland', 'ch', 'astra')
+       (public_id, display_alias, name, gender, age, country, country_code, avatar_id)
+     VALUES ('gst_a4b0c0d00001', 'gst_N4GUEST001', 'N4 Guest', 'any', 28, 'Switzerland', 'ch', 'astra')
      RETURNING id`
   )).rows[0];
   const guestModeration = createModerationService({

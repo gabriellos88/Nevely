@@ -28,10 +28,10 @@ function disabledDb() {
   };
 }
 
-test('public account IDs contain 80 random bits and never expose a sequence', () => {
+test('public account IDs contain 48 random bits, lowercase hex, and never expose a sequence', () => {
   const values = new Set(Array.from({ length: 100 }, () => makePublicId()));
   assert.equal(values.size, 100);
-  for (const value of values) assert.match(value, /^nvy_[a-f0-9]{20}$/);
+  for (const value of values) assert.match(value, /^nvy_[a-f0-9]{12}$/);
 });
 
 test('registered profiles use canonical birth, gender and country values', () => {

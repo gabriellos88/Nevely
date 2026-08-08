@@ -204,7 +204,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
     .set('Accept', 'application/json')
     .send(registrationPayload('email_member', 'email-member@example.test'))
     .expect(201);
-  assert.match(registration.body.user.publicId, /^nvy_[a-f0-9]{20}$/);
+  assert.match(registration.body.user.publicId, /^nvy_[a-f0-9]{12}$/);
   assert.equal(Object.hasOwn(registration.body.user, 'internalId'), false);
   assert.equal(Object.hasOwn(registration.body.user, 'id'), false);
   assert.match(
@@ -509,7 +509,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
     `INSERT INTO users
        (username, email, password_hash, public_id, display_name, deleted_at)
      VALUES ('deleted_legacy_google', 'deleted-legacy@deleted.nevely.invalid', NULL,
-             'nvy_cccccccccccccccccccc', 'Deleted user', NOW())
+             'nvy_cccccccccccc', 'Deleted user', NOW())
      RETURNING id`
   );
   await db.query(
@@ -547,7 +547,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
        (username, email, password_hash, public_id, display_alias, display_name,
         birth_date, gender, country, country_code, profile_completed_at, email_verified_at)
      VALUES ('google_banned', 'google-banned@example.test', NULL,
-             'nvy_aaaaaaaaaaaaaaaaaaaa', 'Nevely#aaaaaa', 'Google Banned',
+             'nvy_aaaaaaaaaaaa', 'Nevely#aaaaaa', 'Google Banned',
              '1990-06-15', 'non-binary', 'Switzerland', 'ch', NOW(), NOW())
      RETURNING id`
   );
@@ -574,7 +574,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
         birth_date, gender, country, country_code, profile_completed_at,
         email_verified_at, role, admin_totp_secret, admin_2fa_enabled_at)
      VALUES ('google_admin', 'google-admin@example.test', NULL,
-             'nvy_bbbbbbbbbbbbbbbbbbbb', 'Nevely#bbbbbb', 'Google Admin',
+             'nvy_bbbbbbbbbbbb', 'Nevely#bbbbbb', 'Google Admin',
              '1990-06-15', 'non-binary', 'Switzerland', 'ch', NOW(), NOW(),
              'admin', $1, NOW())
      RETURNING id`,

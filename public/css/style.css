@@ -337,6 +337,9 @@
 .admin-table-state { color: var(--color-body-subtle); margin: var(--spacing-4) 0 0; min-height: var(--spacing-6); }
 .admin-table-state:empty { display: none; }
 .admin-table-state.is-error { color: var(--color-fg-danger); }
+.admin-copy-feedback { color: var(--color-body-subtle); min-height: var(--spacing-5); margin: var(--spacing-2) 0; }
+.admin-id-copy { background: transparent; border: 0; color: var(--color-fg-brand); cursor: pointer; font: inherit; padding: 0; text-decoration: underline; text-underline-offset: 2px; }
+.admin-id-copy:focus-visible { outline: 2px solid var(--color-brand-medium); outline-offset: var(--spacing-1); }
 .admin-pagination { display: flex; justify-content: end; margin-top: var(--spacing-4); }
 .admin-workspace .admin-section { border-top: 1px solid var(--color-border-default); margin-top: var(--spacing-6); padding: var(--spacing-6) 0 0; }
 .admin-panel > .admin-section:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }

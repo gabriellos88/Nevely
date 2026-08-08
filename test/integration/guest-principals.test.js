@@ -61,18 +61,16 @@ test('persistent guest principals are session-bound, paginated and retained', {
     .post('/api/guest-profile')
     .send(guestPayload())
     .expect(201);
-  assert.match(created.body.guest.id, /^[0-9a-f-]{36}$/);
-  assert.notEqual(created.body.guest.id, guestPayload().id);
-  assert.match(created.body.guest.displayAlias, /^gst_[0-9A-F]{10}$/);
+  assert.equal(Object.hasOwn(created.body.guest, 'id'), false);
+  assert.match(created.body.guest.publicId, /^gst_[0-9a-f]{12}$/);
   assert.equal(created.body.guest.status, 'active');
 
   const stored = (await db.query(
-    `SELECT id, display_alias, status, last_seen_at, retention_until
+    `SELECT id, public_id, status, last_seen_at, retention_until
      FROM guest_principals`
   )).rows;
   assert.equal(stored.length, 1);
-  assert.equal(stored[0].id, created.body.guest.id);
-  assert.equal(stored[0].display_alias, created.body.guest.displayAlias);
+  assert.equal(stored[0].public_id, created.body.guest.publicId);
   assert.equal(stored[0].status, 'active');
   assert.equal(new Date(stored[0].retention_until) > new Date(stored[0].last_seen_at), true);
 
@@ -80,7 +78,7 @@ test('persistent guest principals are session-bound, paginated and retained', {
     .post('/api/guest-profile')
     .send(guestPayload('Replacement Attempt'))
     .expect(200);
-  assert.equal(duplicate.body.guest.id, created.body.guest.id);
+  assert.equal(duplicate.body.guest.publicId, created.body.guest.publicId);
   assert.equal(
     Number((await db.query('SELECT COUNT(*) AS count FROM guest_principals')).rows[0].count),
     1
@@ -89,10 +87,10 @@ test('persistent guest principals are session-bound, paginated and retained', {
   const outsider = request.agent(runtime.app);
   await outsider
     .patch('/api/guest-profile')
-    .send({ id: created.body.guest.id, name: 'Hijacked Guest' })
+    .send({ id: '00000000-0000-4000-8000-000000000000', name: 'Hijacked Guest' })
     .expect(404);
   assert.equal(
-    (await db.query('SELECT name FROM guest_principals WHERE id = $1', [created.body.guest.id])).rows[0].name,
+    (await db.query('SELECT name FROM guest_principals WHERE public_id = $1', [created.body.guest.publicId])).rows[0].name,
     'Persistent Guest'
   );
 
@@ -149,24 +147,23 @@ test('persistent guest principals are session-bound, paginated and retained', {
   assert.equal(firstPage.body.page.hasMore, true);
   assert.equal(typeof firstPage.body.page.nextCursor, 'string');
   assert.equal(Object.hasOwn(firstPage.body.guests[0], 'id'), false);
-  assert.match(firstPage.body.guests[0].guestId, /^[0-9a-f-]{36}$/);
-  assert.match(firstPage.body.guests[0].displayAlias, /^gst_[0-9A-F]{10}$/);
+  assert.match(firstPage.body.guests[0].publicId, /^gst_[0-9a-f]{12}$/);
   const guestDetail = await admin
-    .get(`/api/admin/guests/${firstPage.body.guests[0].guestId}`)
+    .get(`/api/admin/guests/${firstPage.body.guests[0].publicId}`)
     .expect(200);
-  assert.equal(guestDetail.body.guest.id, firstPage.body.guests[0].guestId);
+  assert.equal(guestDetail.body.guest.publicId, firstPage.body.guests[0].publicId);
   const searched = await admin
-    .get(`/api/admin/guests?q=${encodeURIComponent(firstPage.body.guests[0].guestId)}`)
+    .get(`/api/admin/guests?q=${encodeURIComponent(firstPage.body.guests[0].publicId)}`)
     .expect(200);
-  assert.equal(searched.body.guests.some((item) => item.guestId === firstPage.body.guests[0].guestId), true);
+  assert.equal(searched.body.guests.some((item) => item.publicId === firstPage.body.guests[0].publicId), true);
 
   const secondPage = await admin
     .get(`/api/admin/guests?limit=1&cursor=${encodeURIComponent(firstPage.body.page.nextCursor)}`)
     .expect(200);
   assert.equal(secondPage.body.guests.length, 1);
   assert.notEqual(
-    secondPage.body.guests[0].displayAlias,
-    firstPage.body.guests[0].displayAlias
+    secondPage.body.guests[0].publicId,
+    firstPage.body.guests[0].publicId
   );
   await admin.get('/api/admin/guests?cursor=malformed').expect(400);
 
@@ -175,7 +172,7 @@ test('persistent guest principals are session-bound, paginated and retained', {
   const tombstone = (await db.query(
     `SELECT status, deleted_at, retention_until
      FROM guest_principals WHERE id = $1`,
-    [created.body.guest.id]
+    [stored[0].id]
   )).rows[0];
   assert.equal(tombstone.status, 'deleted');
   assert.notEqual(tombstone.deleted_at, null);
@@ -194,14 +191,14 @@ test('persistent guest principals are session-bound, paginated and retained', {
   assert.equal(
     Number((await db.query(
       'SELECT COUNT(*) AS count FROM guest_principals WHERE id = $1',
-      [created.body.guest.id]
+      [stored[0].id]
     )).rows[0].count),
     0
   );
   assert.equal(
     Number((await db.query(
       'SELECT COUNT(*) AS count FROM guest_principals WHERE id = $1',
-      [secondCreated.body.guest.id]
+      [(await db.query('SELECT id FROM guest_principals WHERE public_id = $1', [secondCreated.body.guest.publicId])).rows[0].id]
     )).rows[0].count),
     1
   );

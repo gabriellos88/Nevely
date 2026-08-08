@@ -542,8 +542,7 @@ function persistServerGuest(serverGuest, localProfile = guestProfile) {
     age: serverGuest.age,
     country: serverGuest.country,
     avatarId: serverGuest.avatarId,
-    guestId: serverGuest.id,
-    displayAlias: serverGuest.displayAlias,
+    publicId: serverGuest.publicId,
     nameChanges: serverGuest.nameChanges,
     accountNotificationRead: localProfile?.accountNotificationRead === true
   }, countryCatalog);
@@ -586,8 +585,7 @@ function renderGuestIdentity() {
       : chatCopy.feedback.nameChangeAvailable;
   }
   if (guestSettingsUserId) {
-    guestSettingsUserId.textContent = guestProfile?.displayAlias
-      || guestProfile?.guestId
+    guestSettingsUserId.textContent = guestProfile?.publicId
       || uiCopy.account.settingUp;
   }
   if (guestSettingsAge) guestSettingsAge.textContent = guestProfile?.age ? String(guestProfile.age) : '—';

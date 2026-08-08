@@ -89,7 +89,7 @@ test('migrations, authentication, profile validation and authorization contracts
   const primaryPublicId = registration.body.user.publicId;
   const primaryId = await internalId(db, primaryPublicId);
   assert.equal(Number.isSafeInteger(primaryId), true);
-  assert.match(primaryPublicId, /^nvy_[a-f0-9]{20}$/);
+  assert.match(primaryPublicId, /^nvy_[a-f0-9]{12}$/);
   assert.equal(Object.hasOwn(registration.body.user, 'id'), false);
   assert.equal(Object.hasOwn(registration.body.user, 'password'), false);
   assert.equal(Object.hasOwn(registration.body.user, 'password_hash'), false);

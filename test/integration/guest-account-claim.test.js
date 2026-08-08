@@ -64,7 +64,8 @@ test('guest account claims are session-authorized, verified, transactional and n
 
   const guest = request.agent(runtime.app);
   const createdGuest = await guest.post('/api/guest-profile').send(guestPayload('Claimable Guest')).expect(201);
-  const guestId = createdGuest.body.guest.id;
+  const guestPublicId = createdGuest.body.guest.publicId;
+  const guestId = (await db.query('SELECT id FROM guest_principals WHERE public_id = $1', [guestPublicId])).rows[0].id;
 
   const loginPage = await guest.get('/login').expect(200);
   assert.match(loginPage.text, /New here\? Create an account/);
@@ -265,11 +266,14 @@ test('guest account claims are session-authorized, verified, transactional and n
   const restored = await separateGuest.post('/logout').set('Accept', 'application/json').expect(200);
   assert.equal(restored.body.guestRestored, true);
   const recoveredGuest = await separateGuest.get('/api/guest-profile').expect(200);
-  assert.equal(recoveredGuest.body.guest.id, separateGuestProfile.body.guest.id);
+  assert.equal(recoveredGuest.body.guest.publicId, separateGuestProfile.body.guest.publicId);
+  const separateGuestId = (await db.query(
+    'SELECT id FROM guest_principals WHERE public_id = $1', [separateGuestProfile.body.guest.publicId]
+  )).rows[0].id;
   assert.equal(
     Number((await db.query(
       'SELECT COUNT(*) AS count FROM guest_account_claims WHERE guest_id = $1',
-      [separateGuestProfile.body.guest.id]
+      [separateGuestId]
     )).rows[0].count),
     0
   );

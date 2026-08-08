@@ -28,7 +28,7 @@ test('PostgreSQL moderation control disconnects a user on every listening replic
   await resetDatabase(db);
   const user = (await db.query(
     `INSERT INTO users (username, email, password_hash, public_id, display_name)
-     VALUES ('control_target', 'control-target@example.test', 'synthetic', 'nvy_11111111111111111111', 'Control target')
+     VALUES ('control_target', 'control-target@example.test', 'synthetic', 'nvy_111111111111', 'Control target')
      RETURNING id`
   )).rows[0];
   await db.query(
@@ -70,12 +70,12 @@ test('PostgreSQL moderation control disconnects a guest on every replica without
   const actor = (await db.query(
     `INSERT INTO users (username, email, password_hash, public_id, display_name, role)
      VALUES ('guest_control_admin', 'guest-control-admin@example.test', 'synthetic',
-             'nvy_22222222222222222222', 'Guest Control Admin', 'admin') RETURNING id`
+             'nvy_222222222222', 'Guest Control Admin', 'admin') RETURNING id`
   )).rows[0];
   const guest = (await db.query(
     `INSERT INTO guest_principals
-       (display_alias, name, gender, age, country, country_code, avatar_id)
-     VALUES ('gst_CONTROL002', 'Private Guest', 'any', 28, 'Switzerland', 'ch', 'astra') RETURNING id`
+       (public_id, display_alias, name, gender, age, country, country_code, avatar_id)
+     VALUES ('gst_c0ffee000002', 'gst_CONTROL002', 'Private Guest', 'any', 28, 'Switzerland', 'ch', 'astra') RETURNING id`
   )).rows[0];
   await db.query(
     `INSERT INTO guest_bans (guest_id, reason, ends_at, created_by)

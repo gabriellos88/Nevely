@@ -16,6 +16,7 @@
       <button id="admin-tab-audit" class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-audit" data-admin-tab="audit">Audit</button>
       <button id="admin-tab-controls" class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-controls" data-admin-tab="controls">Controls</button>
     </nav>
+    <p id="adminCopyFeedback" class="admin-copy-feedback" role="status" aria-live="polite"></p>
 
     <section id="admin-panel-users" class="admin-panel" role="tabpanel" aria-labelledby="admin-tab-users" data-admin-panel="users">
       <div class="admin-panel-heading admin-panel-heading-compact">
@@ -34,8 +35,8 @@
     </section>
 
     <section id="admin-panel-guests" class="admin-panel" role="tabpanel" aria-labelledby="admin-tab-guests" data-admin-panel="guests" hidden>
-      <div class="admin-panel-heading admin-panel-heading-compact"><div><h2>Guests</h2><p>Search a guest principal by name, alias, or exact ID.</p></div></div>
-      <form class="admin-toolbar" data-admin-filter="guests" role="search"><label class="sr-only" for="admin-guest-search">Search guest principals</label><div class="admin-field-shell"><input id="admin-guest-search" name="q" type="search" maxlength="100" placeholder="Name, alias, or guest ID"></div><label class="sr-only" for="admin-guest-state">Guest state</label><select id="admin-guest-state" name="status"><option value="">All guest states</option><option value="active">Active</option><option value="claimed">Claimed</option><option value="expired">Expired</option><option value="deleted">Deleted</option></select><button class="btn btn-primary" type="submit">Search</button></form>
+      <div class="admin-panel-heading admin-panel-heading-compact"><div><h2>Guests</h2><p>Search a guest principal by name or public ID.</p></div></div>
+      <form class="admin-toolbar" data-admin-filter="guests" role="search"><label class="sr-only" for="admin-guest-search">Search guest principals</label><div class="admin-field-shell"><input id="admin-guest-search" name="q" type="search" maxlength="100" placeholder="Name or guest public ID"></div><label class="sr-only" for="admin-guest-state">Guest state</label><select id="admin-guest-state" name="status"><option value="">All guest states</option><option value="active">Active</option><option value="claimed">Claimed</option><option value="expired">Expired</option><option value="deleted">Deleted</option></select><button class="btn btn-primary" type="submit">Search</button></form>
       <div class="admin-table-wrap" tabindex="0"><table class="admin-table"><caption class="sr-only">Guest principal results</caption><thead><tr><th scope="col">Name</th><th scope="col">ID</th><th scope="col">State</th><th scope="col">Ban</th><th scope="col">Recent chats</th><th scope="col">Last seen</th><th scope="col">Actions</th></tr></thead><tbody data-admin-table="guests"></tbody></table></div>
       <p class="admin-table-state" data-admin-state="guests" role="status" aria-live="polite">Open this section to load guests.</p>
       <nav class="admin-pagination" data-admin-pagination="guests" aria-label="Guests pagination" hidden><button class="btn btn-secondary" type="button" data-admin-more="guests">Load more</button></nav>
