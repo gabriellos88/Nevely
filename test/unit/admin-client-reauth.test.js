@@ -45,7 +45,10 @@ function createClient({ valid = true, status = 204 } = {}) {
         return [];
       },
       querySelector() {
-        return { content: 'fallback-csrf-token' };
+        return null;
+      },
+      addEventListener() {
+        // The focused reauthentication test has no workspace DOM to bind.
       },
       getElementById(id) {
         if (id === 'adminReauthForm') return form;
@@ -62,6 +65,7 @@ function createClient({ valid = true, status = 204 } = {}) {
       };
     },
     FormData: SyntheticFormData,
+    URLSearchParams,
     window
   });
   vm.runInContext(clientSource, context, { filename: 'admin.js' });

@@ -146,8 +146,12 @@ test('migrations, authentication, profile validation and authorization contracts
     { method: 'get', path: '/admin' },
     { method: 'get', path: '/api/admin/guests' },
     { method: 'get', path: '/api/admin/users' },
+    { method: 'get', path: `/api/admin/users/${memberPublicId}` },
+    { method: 'get', path: `/api/admin/users/${memberPublicId}/moderation` },
     { method: 'get', path: '/api/admin/reports' },
     { method: 'get', path: '/api/admin/bans' },
+    { method: 'get', path: '/api/admin/appeals' },
+    { method: 'get', path: '/api/admin/audit' },
     { method: 'get', path: '/api/admin/database-capacity' },
     { method: 'post', path: `/api/admin/users/${memberPublicId}/ban`, body: { type: 'temporary', hours: 24 } },
     { method: 'delete', path: `/api/admin/users/${memberPublicId}`, body: { confirmation: 'BAN AND DELETE' } },
@@ -367,14 +371,37 @@ test('migrations, authentication, profile validation and authorization contracts
   assert.equal(pagedUsers.body.page.hasMore, true);
   assert.equal(Object.hasOwn(pagedUsers.body.users[0], 'id'), false);
   await admin.get('/api/admin/users?cursor=invalid').expect(400);
+  const bannedUsers = await admin.get('/api/admin/users?state=banned&limit=20').expect(200);
+  assert.equal(bannedUsers.body.users.some((item) => item.public_id === memberPublicId && item.active_ban), true);
+
+  const userDetail = await admin.get(`/api/admin/users/${memberPublicId}`).expect(200);
+  assert.equal(userDetail.body.user.publicId, memberPublicId);
+  assert.equal(userDetail.body.user.activeBan.id, ban.body.banId);
+  const moderationHistory = await admin.get(`/api/admin/users/${memberPublicId}/moderation?limit=20`).expect(200);
+  assert.equal(moderationHistory.body.moderation.some((item) => item.action === 'account_ban_created'), true);
+  assert.equal(Object.hasOwn(moderationHistory.body.moderation[0], 'before_state'), false);
 
   const pagedReports = await admin.get('/api/admin/reports?limit=20').expect(200);
   assert.equal(pagedReports.body.reports.some((item) => Number(item.id) === reportId), true);
   assert.equal(pagedReports.body.page.limit, 20);
+  assert.equal(Object.hasOwn(pagedReports.body.reports.find((item) => Number(item.id) === reportId), 'details'), false);
 
   const pagedBans = await admin.get('/api/admin/bans?limit=20').expect(200);
   assert.equal(pagedBans.body.bans.some((item) => Number(item.id) === ban.body.banId), true);
   assert.equal(pagedBans.body.page.limit, 20);
+
+  await db.query(
+    `INSERT INTO moderation_appeals (account_ban_id, appellant_user_id, appeal_text)
+     VALUES ($1, $2, $3)`,
+    [ban.body.banId, memberId, 'Synthetic appeal for the moderation workspace']
+  );
+  const appeals = await admin.get('/api/admin/appeals?status=pending&limit=20').expect(200);
+  assert.equal(appeals.body.appeals.length, 1);
+  assert.equal(Object.hasOwn(appeals.body.appeals[0], 'appeal_text'), false);
+
+  const auditLog = await admin.get(`/api/admin/audit?target=${encodeURIComponent(memberPublicId)}&limit=20`).expect(200);
+  assert.equal(auditLog.body.audit.some((item) => item.action === 'account_ban_created'), true);
+  assert.equal(Object.hasOwn(auditLog.body.audit[0], 'after_state'), false);
 
   const databaseCapacity = await admin.get('/api/admin/database-capacity').expect(200);
   assert.equal(Array.isArray(databaseCapacity.body.capacity), true);
