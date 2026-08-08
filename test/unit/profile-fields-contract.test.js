@@ -68,3 +68,37 @@ test('account security actions use one accessible progressive disclosure control
     assert.match(accountView, new RegExp(`id="${id}Cancel"`));
   }
 });
+
+test('Account Country shares the Gender field shell and preserves combobox DOM behavior', () => {
+  const styles = read('public/css/style.css');
+  const client = read('public/js/profile-fields.js');
+  const accountView = read('views/chat.ejs');
+
+  assert.match(
+    styles,
+    /\.chat-app-page \.account-form input,[\s\S]*?\.chat-app-page \.account-form select \{[\s\S]*?min-height: var\(--spacing-12\);[\s\S]*?padding: var\(--spacing-2-5\) var\(--spacing-3\);[\s\S]*?border: var\(--spacing-px\) solid var\(--color-border-default\);[\s\S]*?border-radius: var\(--radius-xxl\);[\s\S]*?background: var\(--color-neutral-tertiary\);[\s\S]*?font-size: var\(--font-size-sm\);/
+  );
+  assert.match(
+    styles,
+    /\.chat-app-page \.account-country-combobox \.profile-country-search \{[\s\S]*?min-height: var\(--spacing-12\);[\s\S]*?padding: var\(--spacing-2-5\) var\(--spacing-3\);[\s\S]*?border-color: var\(--color-border-default\);[\s\S]*?border-radius: var\(--radius-xxl\);[\s\S]*?background: var\(--color-neutral-tertiary\);/
+  );
+  assert.match(
+    styles,
+    /\.chat-app-page \.account-country-combobox \.profile-country-search:focus-within \{[\s\S]*?border-color: var\(--color-brand-medium\);[\s\S]*?box-shadow: var\(--focus-ring-brand\);/
+  );
+  assert.match(styles, /\.auth-field-shell \{[\s\S]*?width: 100%;/);
+  assert.match(styles, /\.chat-app-page \.account-form \{[\s\S]*?grid-template-columns: repeat\(2, minmax\(0, 1fr\)\);/);
+  assert.match(
+    styles,
+    /@media \(max-width: 768px\) \{[\s\S]*?\.chat-app-page \.account-form \{[\s\S]*?grid-template-columns: 1fr;/
+  );
+  assert.match(accountView, /class="account-country-combobox auth-country-combobox" data-country-combobox/);
+  assert.match(accountView, /id="account-country-search"[\s\S]*role="combobox"[\s\S]*aria-autocomplete="list"[\s\S]*aria-controls="account-country-suggestions"/);
+  assert.match(accountView, /select name="countryCode" class="profile-native-control"/);
+  assert.match(client, /query\.length < 2/);
+  assert.match(client, /addEventListener\('pointerdown'/);
+  assert.match(client, /addEventListener\('click', \(\) => chooseCountry/);
+  assert.match(client, /\['ArrowDown', 'ArrowUp', 'Enter'\]/);
+  assert.match(client, /state\.select\.value = country\.code/);
+  assert.match(client, /setAttribute\('aria-activedescendant'/);
+});

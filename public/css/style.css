@@ -7153,6 +7153,19 @@ body:has(> main.auth-page) .footer-bottom p {
   box-shadow: none;
 }
 
+.chat-app-page .account-country-combobox .profile-country-search {
+  min-height: var(--spacing-12);
+  padding: var(--spacing-2-5) var(--spacing-3);
+  border-color: var(--color-border-default);
+  border-radius: var(--radius-xxl);
+  background: var(--color-neutral-tertiary);
+}
+
+.chat-app-page .account-country-combobox .profile-country-search:focus-within {
+  border-color: var(--color-brand-medium);
+  box-shadow: var(--focus-ring-brand);
+}
+
 .chat-app-page .account-email-field {
   display: grid;
   gap: var(--spacing-2-5);

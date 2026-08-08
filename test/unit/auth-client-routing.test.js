@@ -9,15 +9,23 @@ const clientSource = fs.readFileSync(
   'utf8'
 );
 
-function createClient({ mode = 'login', status = 200, body = {} } = {}) {
+function createClient({
+  mode = 'login',
+  googleProfileRequired = false,
+  claimMode = false,
+  status = 200,
+  body = {}
+} = {}) {
   const destinations = [];
+  const requests = [];
   let feedback = null;
   let createdFeedbackCount = 0;
   const window = {
     __AUTH_CONFIG__: {
       mode,
       csrfToken: 'synthetic-csrf-token',
-      googleProfileRequired: mode === 'register'
+      googleProfileRequired,
+      claimMode
     },
     history: {},
     scrollTo() {},
@@ -50,16 +58,20 @@ function createClient({ mode = 'login', status = 200, body = {} } = {}) {
         return feedback;
       }
     },
-    fetch: async () => ({
-      ok: status >= 200 && status < 300,
-      status,
-      json: async () => body
-    }),
+    fetch: async (url, options) => {
+      requests.push({ url, body: JSON.parse(options.body) });
+      return {
+        ok: status >= 200 && status < 300,
+        status,
+        json: async () => body
+      };
+    },
     window
   });
   vm.runInContext(clientSource, context, { filename: 'auth-client.js' });
   return {
     destinations,
+    requests,
     createdFeedbackCount: () => createdFeedbackCount,
     feedbackText: () => feedback?.textContent || '',
     handle: window.handleGoogleCredential
@@ -102,6 +114,7 @@ test('Google auth client routes profile, admin and successful login outcomes', a
 test('Google profile validation stays inline on the registration page', async () => {
   const client = createClient({
     mode: 'register',
+    googleProfileRequired: true,
     status: 422,
     body: {
       code: 'GOOGLE_PROFILE_REQUIRED',
@@ -112,6 +125,37 @@ test('Google profile validation stays inline on the registration page', async ()
   assert.deepEqual(client.destinations, []);
   assert.equal(client.feedbackText(), '');
   assert.equal(client.createdFeedbackCount(), 0);
+  assert.equal(client.requests[0].body.profileCompletion, '1');
+});
+
+test('new Google identities enter the same dedicated registration path from login and register', async () => {
+  for (const mode of ['login', 'register']) {
+    const client = createClient({
+      mode,
+      status: 422,
+      body: {
+        code: 'GOOGLE_PROFILE_REQUIRED',
+        error: 'Complete the required profile.'
+      }
+    });
+    await client.handle({ credential: 'synthetic-google-credential' });
+    assert.deepEqual(client.destinations, ['/register?google=profile-required']);
+    assert.equal(client.feedbackText(), '');
+    assert.equal(client.createdFeedbackCount(), 0);
+    assert.equal(Object.hasOwn(client.requests[0].body, 'profileCompletion'), false);
+  }
+});
+
+test('Google claim routing preserves claim mode without exposing guest identity fields', async () => {
+  const client = createClient({
+    mode: 'login',
+    claimMode: true,
+    status: 422,
+    body: { code: 'GOOGLE_PROFILE_REQUIRED' }
+  });
+  await client.handle({ credential: 'synthetic-google-credential' });
+  assert.deepEqual(client.destinations, ['/register?google=profile-required&claim=1']);
+  assert.equal(client.requests[0].body.claim, '1');
 });
 
 test('Google auth creates an alert only for a real error with non-empty copy', async () => {
@@ -123,4 +167,17 @@ test('Google auth creates an alert only for a real error with non-empty copy', a
   await client.handle({ credential: 'synthetic-google-credential' });
   assert.equal(client.createdFeedbackCount(), 1);
   assert.equal(client.feedbackText(), 'Google could not verify this sign-in.');
+
+  const invalidProfile = createClient({
+    mode: 'register',
+    googleProfileRequired: true,
+    status: 422,
+    body: {
+      code: 'GOOGLE_PROFILE_INVALID',
+      error: 'Enter a valid date of birth. You must be at least 18.'
+    }
+  });
+  await invalidProfile.handle({ credential: 'synthetic-google-credential' });
+  assert.equal(invalidProfile.createdFeedbackCount(), 1);
+  assert.match(invalidProfile.feedbackText(), /at least 18/);
 });

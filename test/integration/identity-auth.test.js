@@ -74,6 +74,13 @@ test('N1 email tokens, session revocation and Google identity contracts', {
       picture: '',
       expiresAt: new Date(Date.now() + 5 * 60 * 1000)
     }],
+    ['google-profile-invalid', {
+      subject: 'google-subject-profile-invalid',
+      email: 'google-profile-invalid@example.test',
+      name: 'Profile Invalid',
+      picture: '',
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000)
+    }],
     ['google-duplicate-email', {
       subject: 'google-subject-duplicate',
       email: 'email-member@example.test',
@@ -175,6 +182,22 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   assert.equal(missingGoogleProfile.body.code, 'GOOGLE_PROFILE_REQUIRED');
   assert.match(missingGoogleProfile.body.error, /then continue with Google/);
   assert.doesNotMatch(missingGoogleProfile.body.error, /enter.*email/i);
+
+  const invalidGoogleProfile = await account
+    .post('/auth/google')
+    .set('Accept', 'application/json')
+    .set('X-Forwarded-For', '198.51.100.41')
+    .send({
+      credential: 'google-profile-invalid',
+      profileCompletion: '1',
+      username: 'invalid_google_profile',
+      birthDate: '2015-01-01',
+      gender: 'non-binary',
+      countryCode: 'ch'
+    })
+    .expect(422);
+  assert.equal(invalidGoogleProfile.body.code, 'GOOGLE_PROFILE_INVALID');
+  assert.match(invalidGoogleProfile.body.error, /at least 18/);
 
   const registration = await account
     .post('/register')

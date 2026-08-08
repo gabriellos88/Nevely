@@ -37,13 +37,18 @@ window.handleGoogleCredential = async ({ credential } = {}) => {
         'Content-Type': 'application/json',
         'X-CSRF-Token': authConfiguration.csrfToken || ''
       },
-      body: JSON.stringify({ ...values, credential, claim: authConfiguration.claimMode ? '1' : undefined })
+      body: JSON.stringify({
+        ...values,
+        credential,
+        claim: authConfiguration.claimMode ? '1' : undefined,
+        profileCompletion: authConfiguration.googleProfileRequired ? '1' : undefined
+      })
     });
     const data = await response.json().catch(() => ({}));
     if (!response.ok) {
       if (response.status === 422
         && data.code === 'GOOGLE_PROFILE_REQUIRED'
-        && authConfiguration.mode === 'login') {
+        && !authConfiguration.googleProfileRequired) {
         window.scrollTo?.(0, 0);
         window.location.replace(`/register?google=profile-required${authConfiguration.claimMode ? '&claim=1' : ''}`);
         return;
