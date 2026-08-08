@@ -165,7 +165,7 @@ test('shutdown waits for active conversation persistence before closing resource
       };
     },
     async query(sql) {
-      if (sql.includes('SELECT 1 FROM bans')) return { rowCount: 0, rows: [] };
+      if (sql.includes('FROM account_bans') || sql.includes('FROM network_bans')) return { rowCount: 0, rows: [] };
       if (sql.includes('UPDATE conversations SET status')) {
         markEndUpdateStarted();
         await endUpdateGate;

@@ -13,6 +13,7 @@ const { registerApiRoutes } = require('./lib/api');
 const { registerChat } = require('./lib/chat');
 const { findActiveGuestPrincipal, guestPassportComplete } = require('./lib/guest-principals');
 const { createPresence } = require('./lib/presence');
+const { createModerationService } = require('./lib/moderation');
 const { createRetentionWorker } = require('./lib/retention');
 const { csrfProtection, secureHeaders } = require('./lib/security');
 const { createPrivatePreview } = require('./lib/private-preview');
@@ -112,6 +113,9 @@ function createRuntime(options = {}) {
   if (isProduction && !environment.ADMIN_TOTP_ENCRYPTION_KEY) {
     throw new Error('ADMIN_TOTP_ENCRYPTION_KEY must be configured in production.');
   }
+  if (isProduction && !environment.NETWORK_BAN_HMAC_KEY) {
+    throw new Error('NETWORK_BAN_HMAC_KEY must be configured in production.');
+  }
   if (isProduction && environment.EMAIL_DELIVERY_MODE === 'live') {
     if (!environment.RESEND_API_KEY) {
       throw new Error('RESEND_API_KEY must be configured for live email delivery.');
@@ -183,20 +187,11 @@ function createRuntime(options = {}) {
     googleVerifier: options.googleVerifier
   });
 
+  let moderation;
   app.get('/chat', async (req, res, next) => {
     if (db.isConfigured) {
       try {
-        const ipBan = await db.query(
-          `SELECT 1 FROM bans
-           WHERE type = 'ip'
-             AND ip_address = $1
-             AND starts_at <= NOW()
-             AND (ends_at IS NULL OR ends_at > NOW())
-           ORDER BY starts_at DESC, id DESC
-           LIMIT 1`,
-          [req.ip]
-        );
-        if (ipBan.rowCount) return res.status(403).send(uiCopy.errors.networkBlocked);
+        if (await moderation.isNetworkBlocked(req.ip)) return res.status(403).send(uiCopy.errors.networkBlocked);
       } catch (error) {
         return next(error);
       }
@@ -230,12 +225,14 @@ function createRuntime(options = {}) {
   });
 
   const presence = createPresence(io);
-  registerApiRoutes(app, db, presence, { environment });
   const chat = registerChat(io, db, presence, {
     guestDurationSeconds: GUEST_CHAT_DURATION_SECONDS,
     enforcePersistentGuestOwnership: options.enforcePersistentGuestOwnership,
+    isNetworkBlocked: (address) => moderation?.isNetworkBlocked(address) || Promise.resolve(false),
     log
   });
+  moderation = createModerationService({ db, presence, chat, environment });
+  registerApiRoutes(app, db, presence, { environment, moderation });
   const outboxWorker = createOutboxWorker({
     db,
     environment,

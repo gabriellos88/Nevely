@@ -357,7 +357,7 @@ test('migrations, authentication, profile validation and authorization contracts
     .expect(201);
   assert.equal(Number.isSafeInteger(ban.body.banId), true);
   assert.equal(
-    Number((await db.query('SELECT COUNT(*) AS count FROM bans WHERE user_id = $1', [memberId])).rows[0].count),
+    Number((await db.query('SELECT COUNT(*) AS count FROM account_bans WHERE user_id = $1', [memberId])).rows[0].count),
     1
   );
 
@@ -421,8 +421,8 @@ test('migrations, authentication, profile validation and authorization contracts
   assert.notEqual(removedByAdmin.deleted_at, null);
   assert.equal(
     Number((await db.query(
-      `SELECT COUNT(*) AS count FROM bans
-       WHERE user_id = $1 AND type = 'permanent' AND created_by = $2`,
+      `SELECT COUNT(*) AS count FROM audit_log
+       WHERE target_user_id = $1 AND action = 'account_deleted' AND actor_user_id = $2`,
       [adminDeleteTargetId, adminId]
     )).rows[0].count),
     1
