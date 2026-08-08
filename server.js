@@ -229,6 +229,8 @@ function createRuntime(options = {}) {
     guestDurationSeconds: GUEST_CHAT_DURATION_SECONDS,
     enforcePersistentGuestOwnership: options.enforcePersistentGuestOwnership,
     isNetworkBlocked: (address) => moderation?.isNetworkBlocked(address) || Promise.resolve(false),
+    rateLimiter: options.rateLimiter,
+    rateLimitPrincipalResolver: options.rateLimitPrincipalResolver,
     log
   });
   moderation = createModerationService({ db, presence, chat, environment });
