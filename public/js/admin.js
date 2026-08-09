@@ -1,6 +1,6 @@
 const uiCopy = window.__COPY__ || { admin: { actionFailed: 'Action failed' } };
 const adminConfiguration = window.__ADMIN_CONFIG__ || {};
-const dataSections = ['users', 'guests', 'reports', 'bans', 'appeals', 'audit'];
+const dataSections = ['users', 'guests', 'reports', 'bans', 'audit'];
 const sections = [...dataSections, 'controls'];
 const sectionState = Object.fromEntries(dataSections.map((section) => [section, {
   cursor: null,
@@ -9,6 +9,20 @@ const sectionState = Object.fromEntries(dataSections.map((section) => [section, 
   filters: new URLSearchParams()
 }]));
 let pendingAction = null;
+let reauthTimer = null;
+
+function showReauthState(expiresAt) {
+  const state = document.getElementById('adminReauthState');
+  if (!state) return;
+  if (reauthTimer) clearTimeout(reauthTimer);
+  const expiry = expiresAt ? new Date(expiresAt) : null;
+  const active = expiry && !Number.isNaN(expiry.getTime()) && expiry.getTime() > Date.now();
+  state.dataset.unlocked = String(Boolean(active));
+  state.textContent = active
+    ? `High-risk actions unlocked until ${expiry.toLocaleTimeString()}`
+    : 'High-risk actions locked';
+  if (active) reauthTimer = setTimeout(() => showReauthState(null), Math.max(0, expiry.getTime() - Date.now()));
+}
 
 async function adminApi(url, options = {}) {
   const response = await fetch(url, {
@@ -78,23 +92,28 @@ function appendUsers(users) {
     const row = document.createElement('tr');
     const account = cell(row, '', { header: true, fallback: '' });
     const name = document.createElement('strong');
-    const displayName = user.display_name || user.username;
+    const displayName = user.display_name || user.username || 'Deleted user';
     name.textContent = text(displayName);
     account.append(name);
     const idCell = cell(row, '', { fallback: '' });
     idCell.append(publicIdButton(user.public_id));
     cell(row, user.plan);
     cell(row, user.email);
-    cell(row, user.email_verified_at ? 'Verified' : 'Not verified');
+    cell(row, user.age);
+    cell(row, user.country);
     const banCell = cell(row, '', { fallback: '' });
-    banCell.replaceChildren(badge(user.active_ban ? 'Active' : 'None', user.active_ban ? 'is-danger' : 'is-success'));
+    if (user.deleted_at) banCell.replaceChildren(badge(`Deleted ${dateTime(user.deleted_at)}`));
+    else if (user.active_ban) {
+      const expiry = user.active_ban_type === 'permanent' ? 'permanent' : `until ${dateTime(user.active_ban_ends_at)}`;
+      banCell.replaceChildren(badge(`Banned · ${user.active_ban_type} · ${expiry}`, 'is-danger'));
+    } else banCell.replaceChildren(badge('Active', 'is-success'));
     cell(row, Number(user.recent_chat_count || 0));
     cell(row, dateTime(user.last_seen_at));
     const actions = cell(row, '', { fallback: '' });
     actions.className = 'admin-actions-cell';
     actions.append(button('Details', { adminDetail: user.public_id }));
     if (user.active_ban) actions.append(button('Unban', { adminRevoke: 'account', adminBanId: String(user.active_ban_id) }, 'admin-action admin-action-danger'));
-    else actions.append(button('Ban', { adminBan: user.public_id }));
+    else if (!user.deleted_at) actions.append(button('Ban', { adminBan: user.public_id }));
     body.append(row);
   });
 }
@@ -106,10 +125,13 @@ function appendGuests(guests) {
     cell(row, guest.name, { header: true });
     const idCell = cell(row, '', { fallback: '' });
     idCell.append(publicIdButton(guest.publicId));
-    const state = cell(row, '', { fallback: '' });
-    state.replaceChildren(badge(guest.status));
+    cell(row, guest.age);
+    cell(row, guest.country);
     const banCell = cell(row, '', { fallback: '' });
-    banCell.replaceChildren(badge(guest.activeBanId ? 'Active' : 'None', guest.activeBanId ? 'is-danger' : 'is-success'));
+    if (guest.activeBan) {
+      const expiry = guest.activeBan.type === 'permanent' ? 'permanent' : `until ${dateTime(guest.activeBan.endsAt)}`;
+      banCell.replaceChildren(badge(`${guest.status} · banned · ${guest.activeBan.type} · ${expiry}`, 'is-danger'));
+    } else banCell.replaceChildren(badge(guest.status, guest.status === 'active' ? 'is-success' : ''));
     cell(row, Number(guest.recentChatCount || 0));
     cell(row, dateTime(guest.lastSeenAt));
     const actions = cell(row, '', { fallback: '' });
@@ -172,20 +194,9 @@ function appendBans(bans) {
       adminRevoke: ban.scope,
       adminBanId: String(ban.ban_id)
     }, 'admin-action admin-action-danger'));
-    body.append(row);
-  });
-}
-
-function appendAppeals(appeals) {
-  const body = document.querySelector('[data-admin-table="appeals"]');
-  appeals.forEach((appeal) => {
-    const row = document.createElement('tr');
-    cell(row, dateTime(appeal.created_at));
-    cell(row, appeal.appellant_name || appeal.appellant_public_id || 'Unavailable');
-    cell(row, appeal.account_ban_id ? `Account ${appeal.account_public_id || ''}` : 'Network');
-    const state = cell(row, '');
-    state.replaceChildren(badge(appeal.status));
-    cell(row, appeal.reviewed_at ? `${dateTime(appeal.reviewed_at)} · ${text(appeal.reviewer_public_id)}` : 'Awaiting review');
+    if (ban.scope === 'account' && ban.user_public_id) {
+      actions.prepend(button('Details', { adminDetail: ban.user_public_id }));
+    }
     body.append(row);
   });
 }
@@ -203,7 +214,7 @@ function appendAudit(records) {
   });
 }
 
-const renderers = { users: appendUsers, guests: appendGuests, reports: appendReports, bans: appendBans, appeals: appendAppeals, audit: appendAudit };
+const renderers = { users: appendUsers, guests: appendGuests, reports: appendReports, bans: appendBans, audit: appendAudit };
 
 async function loadSection(section, { reset = false } = {}) {
   const state = sectionState[section];
@@ -316,12 +327,18 @@ async function openAccountDetail(publicId) {
     const user = detail.user;
     const summary = document.createElement('dl');
     summary.className = 'admin-detail-list';
-    [
-      ['Public ID', user.publicId], ['Username', user.username], ['Email', user.email], ['Role', user.role], ['Plan', user.plan],
-      ['Email verification', user.emailVerifiedAt ? `Verified ${dateTime(user.emailVerifiedAt)}` : 'Not verified'],
+    const summaryFields = [
+      ['Public ID', user.publicId], ['Name', user.displayName], ['Username', user.username], ['Email', user.email],
+      ['Role', user.role], ['Plan', user.plan], ['Age', user.age], ['Country', user.country],
+      ['Email verification', user.deletedAt ? null : (user.emailVerifiedAt ? `Verified ${dateTime(user.emailVerifiedAt)}` : 'Not verified')],
       ['Recent chats', user.recentChatCount], ['Last seen', dateTime(user.lastSeenAt)],
       ['Active ban', user.activeBan ? `${user.activeBan.type} · ${user.activeBan.reason}` : 'None']
-    ].forEach(([label, value]) => {
+    ];
+    if (user.deletedAt) {
+      summaryFields.push(['Deleted at', dateTime(user.deletedAt)]);
+      if (user.scheduledDeletion) summaryFields.push(['Scheduled deletion', dateTime(user.scheduledDeletion)]);
+    }
+    summaryFields.forEach(([label, value]) => {
       const term = document.createElement('dt'); term.textContent = label;
       const definition = document.createElement('dd'); definition.textContent = text(value);
       summary.append(term, definition);
@@ -355,7 +372,7 @@ async function openGuestDetail(guestId) {
     const summary = document.createElement('dl');
     summary.className = 'admin-detail-list';
     [
-      ['Guest ID', guest.publicId], ['Name', guest.name], ['State', guest.status],
+      ['Guest ID', guest.publicId], ['Name', guest.name], ['State', guest.status], ['Age', guest.age],
       ['Country', guest.country], ['Created', dateTime(guest.createdAt)], ['Recent chats', guest.recentChatCount],
       ['Last seen', dateTime(guest.lastSeenAt)],
       ['Restriction', guest.activeBan ? `${guest.activeBan.type} ${guest.activeBan.endsAt ? `until ${dateTime(guest.activeBan.endsAt)}` : '(no scheduled end)'}: ${guest.activeBan.reason}` : 'None'],
@@ -474,15 +491,60 @@ document.getElementById('adminPriceForm')?.addEventListener('submit', async (eve
   }
 });
 
+document.getElementById('networkApprovalRequestForm')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const feedback = document.querySelector('[data-network-feedback="request"]');
+  try {
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    const result = await adminApi('/api/admin/network-ban-privacy-approvals', {
+      method: 'POST', body: JSON.stringify(values)
+    });
+    document.getElementById('network-review-id').value = result.approvalId;
+    document.getElementById('network-create-approval').value = result.approvalId;
+    document.getElementById('network-create-cidr').value = values.cidr;
+    feedback.textContent = `Review requested. Approval ID: ${result.approvalId}`;
+  } catch (error) {
+    feedback.textContent = error.message;
+  }
+});
+
+document.getElementById('networkApprovalReviewForm')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const feedback = document.querySelector('[data-network-feedback="review"]');
+  try {
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    const result = await adminApi(`/api/admin/network-ban-privacy-approvals/${encodeURIComponent(values.approvalId)}/approve`, {
+      method: 'POST', body: JSON.stringify({ reason: values.reason, reviewReference: values.reviewReference })
+    });
+    feedback.textContent = `Privacy review approved until ${dateTime(result.expiresAt)}.`;
+  } catch (error) {
+    feedback.textContent = error.message;
+  }
+});
+
+document.getElementById('networkBanCreateForm')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const feedback = document.querySelector('[data-network-feedback="create"]');
+  try {
+    const values = Object.fromEntries(new FormData(event.currentTarget));
+    const result = await adminApi('/api/admin/network-bans', {
+      method: 'POST', body: JSON.stringify({ ...values, hours: Number(values.hours) })
+    });
+    feedback.textContent = `Network ban created until ${dateTime(result.endsAt)}.`;
+    await loadSection('bans', { reset: true });
+  } catch (error) {
+    feedback.textContent = error.message;
+  }
+});
+
 document.getElementById('adminReauthForm')?.addEventListener('submit', async (event) => {
   event.preventDefault();
   if (adminConfiguration.reauthMethod !== 'password') return;
   const feedback = document.getElementById('adminReauthFeedback');
   try {
-    await adminApi('/api/admin/reauth', { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))) });
+    const result = await adminApi('/api/admin/reauth', { method: 'POST', body: JSON.stringify(Object.fromEntries(new FormData(event.currentTarget))) });
     feedback.textContent = uiCopy.admin?.reauthenticationComplete || 'Re-authentication complete.';
-    const state = document.getElementById('adminReauthState');
-    if (state) { state.textContent = 'High-risk actions unlocked'; state.dataset.unlocked = 'true'; }
+    showReauthState(result.expiresAt);
   } catch (error) {
     feedback.textContent = error.message;
   }
@@ -495,13 +557,13 @@ window.handleAdminGoogleReauth = async ({ credential } = {}) => {
   if (!form?.reportValidity()) return;
   try {
     const values = Object.fromEntries(new FormData(form));
-    await adminApi('/api/admin/reauth', { method: 'POST', body: JSON.stringify({ ...values, credential }) });
+    const result = await adminApi('/api/admin/reauth', { method: 'POST', body: JSON.stringify({ ...values, credential }) });
     feedback.textContent = uiCopy.admin?.reauthenticationComplete || 'Re-authentication complete.';
-    const state = document.getElementById('adminReauthState');
-    if (state) { state.textContent = 'High-risk actions unlocked'; state.dataset.unlocked = 'true'; }
+    showReauthState(result.expiresAt);
   } catch (error) {
     feedback.textContent = error.message;
   }
 };
 
 if (document.querySelector('[data-admin-table="users"]')) loadSection('users');
+showReauthState(adminConfiguration.reauthExpiresAt);

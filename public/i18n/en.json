@@ -130,6 +130,10 @@
       {
         "question": "Can I change my age, gender, or country?",
         "answer": "These details are fixed after setup for now. Email Support if you need help with them."
+      },
+      {
+        "question": "What can I do if my account or guest access is restricted?",
+        "answer": "Contact the Nevely team from this Support page and explain what happened without including passwords or sensitive information. Support cannot promise a response time or that access will be restored."
       }
     ],
     "contactEyebrow": "Need more help?",

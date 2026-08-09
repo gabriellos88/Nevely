@@ -45,10 +45,12 @@ nome e Public ID (con lookup legacy temporaneo sul server).
 
 ## Restrizioni guest N4
 
-Un amministratore appena riautenticato può applicare una restrizione solo
-temporanea al principal guest. La decisione richiede motivazione, durata tra
-un'ora e 30 giorni e un record append-only in `audit_log`; non copia nome,
-messaggi, IP o contenuti della conversazione nell'audit.
+Un amministratore con una sessione high-risk valida può applicare una
+restrizione temporanea (da un'ora a 30 giorni) o permanente al principal guest.
+La decisione richiede motivazione e un record append-only in `audit_log`; non
+copia nome, messaggi, IP o contenuti della conversazione nell'audit. Una
+restrizione permanente crea soltanto la separata device restriction HMAC e non
+crea mai un ban IP/network.
 
 La restrizione è verificata su HTTP, all'ammissione Socket.IO e prima di ogni
 evento Socket.IO sensibile. Le connessioni attive vengono chiuse anche sulle
@@ -68,7 +70,8 @@ La suite PostgreSQL usa-e-getta controlla che:
 - una seconda sessione non possa modificare un guest conoscendone l'UUID;
 - POST ripetuti nella stessa sessione non creino principal duplicati;
 - cambio nome, avatar, Public ID, cursore admin e limite pagina siano applicati;
-- la cancellazione produca un tombstone e il worker lo elimini;
+- la cancellazione produca `deleted_at` al momento della tombstone e
+  `retention_until` 30 giorni dopo; il worker elimina solo alla scadenza;
 - un principal attivo non venga eliminato insieme al tombstone.
 
 ## Compatibilità degli identificativi

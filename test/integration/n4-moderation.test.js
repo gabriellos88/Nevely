@@ -39,6 +39,11 @@ test('N4 moderation bans are auditable, transactional and network-separated', {
   assert.equal(ban.idempotent, false);
   assert.equal(disconnected.length, 1);
   assert.equal(disconnected[0].userId, Number(target.id));
+  assert.deepEqual(disconnected[0].payload, {});
+  assert.equal(Number((await db.query(
+    `SELECT COUNT(*) AS count FROM notifications WHERE user_id = $1 AND type = 'account_ban'`,
+    [target.id]
+  )).rows[0].count), 0);
   assert.equal(
     Number((await db.query('SELECT session_version FROM users WHERE id = $1', [target.id])).rows[0].session_version),
     Number(target.session_version) + 1
@@ -119,7 +124,7 @@ test('N4 moderation bans are auditable, transactional and network-separated', {
 
   const privacyApproval = await moderation.requestNetworkBanPrivacyApproval({
     actorUserId: Number(actor.id), cidr: '203.0.113.0/24',
-    reason: 'Request an independent privacy review'
+    reason: 'Request an independent privacy review for 203.0.113.0/24'
   });
   await assert.rejects(
     moderation.approveNetworkBanPrivacyApproval({
@@ -132,6 +137,13 @@ test('N4 moderation bans are auditable, transactional and network-separated', {
     reviewerUserId: Number(reviewer.id), approvalId: privacyApproval.id,
     reason: 'Scope and expiry are proportionate', reviewReference: 'privacy-review-N4-001'
   });
+  await assert.rejects(
+    moderation.createNetworkBan({
+      actorUserId: Number(actor.id), cidr: '203.0.113.0/24', hours: 0,
+      reason: 'An invalid duration must not consume the approval', privacyApprovalId: privacyApproval.id
+    }),
+    (error) => error.code === 'BAN_DURATION_INVALID'
+  );
   const networkBan = await moderation.createNetworkBan({
     actorUserId: Number(actor.id), cidr: '203.0.113.0/24', hours: 12,
     reason: 'Reviewed network abuse pattern', privacyApprovalId: privacyApproval.id
@@ -149,6 +161,11 @@ test('N4 moderation bans are auditable, transactional and network-separated', {
   assert.equal(Number(consumedApproval.approved_by), Number(reviewer.id));
   assert.equal(Number(consumedApproval.consumed_by), Number(actor.id));
   assert.equal(consumedApproval.review_reference, 'privacy-review-N4-001');
+  const networkAuditReason = (await db.query(
+    `SELECT reason FROM audit_log WHERE action = 'network_privacy_review_requested' ORDER BY id DESC LIMIT 1`
+  )).rows[0].reason;
+  assert.equal(networkAuditReason.includes('203.0.113'), false);
+  assert.equal(networkAuditReason.includes('[network]'), true);
   await assert.rejects(
     moderation.createNetworkBan({
       actorUserId: Number(actor.id), cidr: '203.0.113.0/24', hours: 12,
@@ -158,7 +175,7 @@ test('N4 moderation bans are auditable, transactional and network-separated', {
   );
 });
 
-test('a valid login receives only the limited suspension mode and an idempotent appeal path', {
+test('a valid login receives only the limited support-based suspension mode', {
   skip: hasDatabase ? false : 'DATABASE_URL is unavailable outside the disposable CI database'
 }, async (t) => {
   const db = require('../../db');
@@ -175,11 +192,11 @@ test('a valid login receives only the limited suspension mode and an idempotent 
     birthDate: '1990-06-15', gender: 'non-binary', countryCode: 'ch'
   }).expect(201);
   const user = (await db.query('SELECT id FROM users WHERE email = $1', ['suspended-member@example.test'])).rows[0];
-  const ban = (await db.query(
+  await db.query(
     `INSERT INTO account_bans (user_id, type, reason, ends_at, created_by)
-     VALUES ($1, 'temporary', 'Documented suspension reason', NOW() + INTERVAL '4 hours', $1) RETURNING id`,
+     VALUES ($1, 'temporary', 'Documented suspension reason', NOW() + INTERVAL '4 hours', $1)`,
     [user.id]
-  )).rows[0];
+  );
   const suspended = await account.post('/login').set('Accept', 'application/json').send({
     email: 'suspended-member@example.test', password: 'SyntheticPassword123!'
   }).expect(403);
@@ -187,11 +204,14 @@ test('a valid login receives only the limited suspension mode and an idempotent 
   assert.equal(suspended.body.suspension.reason, 'Documented suspension reason');
   assert.equal(suspended.body.suspension.type, 'temporary');
   await account.get('/api/account').expect(403);
-  const appeal = await account.post('/api/suspension/appeals').send({ reason: 'Please review this documented decision.' }).expect(201);
-  const repeat = await account.post('/api/suspension/appeals').send({ reason: 'Please review this documented decision.' }).expect(200);
-  assert.equal(repeat.body.appealId, appeal.body.appealId);
-  assert.equal(repeat.body.idempotent, true);
-  const audit = (await db.query('SELECT after_state FROM audit_log WHERE action = $1', ['account_ban_appeal_created'])).rows[0];
-  assert.equal(Object.hasOwn(audit.after_state, 'message'), false);
-  assert.equal(Number((await db.query('SELECT count(*) AS count FROM moderation_appeals WHERE account_ban_id = $1', [ban.id])).rows[0].count), 1);
+  const page = await account.get('/suspension').expect(200);
+  assert.match(page.text, /Contact support/);
+  assert.doesNotMatch(page.text, /Documented suspension reason|Submit appeal/);
+  await account.get('/support').expect(200).expect(/account or guest access is restricted/i);
+  const blockedAppeal = await account.post('/api/suspension/appeals').send({ reason: 'Retired workflow.' }).expect(403);
+  assert.equal(blockedAppeal.body.code, 'ACCOUNT_SUSPENDED');
+  assert.equal(Number((await db.query('SELECT count(*) AS count FROM moderation_appeals')).rows[0].count), 0);
+  assert.equal(Number((await db.query(
+    `SELECT count(*) AS count FROM notifications WHERE user_id = $1 AND type = 'account_ban'`, [user.id]
+  )).rows[0].count), 0);
 });

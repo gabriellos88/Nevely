@@ -604,6 +604,11 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   const googleAdminPage = await adminAgent.get('/admin').expect(200);
   assert.doesNotMatch(googleAdminPage.text, /name="password"/);
   assert.match(googleAdminPage.text, /data-callback="handleAdminGoogleReauth"/);
+  assert.match(googleAdminPage.text, /High-risk actions unlocked until/);
+  await adminAgent
+    .post('/api/admin/network-ban-privacy-approvals')
+    .send({ cidr: '203.0.113.0/24', reason: 'Verify the post-2FA high-risk window' })
+    .expect(201);
   await adminAgent
     .post('/api/admin/reauth')
     .send({ password: 'ArbitraryPassword123!', code: totp(adminTotpSecret) })
@@ -612,8 +617,9 @@ test('N1 email tokens, session revocation and Google identity contracts', {
     .post('/api/admin/reauth')
     .send({ credential: 'google-other-reauth', code: totp(adminTotpSecret) })
     .expect(401);
-  await adminAgent
+  const renewed = await adminAgent
     .post('/api/admin/reauth')
     .send({ credential: 'google-admin-reauth', code: totp(adminTotpSecret) })
-    .expect(204);
+    .expect(200);
+  assert.match(renewed.body.expiresAt, /^\d{4}-\d{2}-\d{2}T/);
 });

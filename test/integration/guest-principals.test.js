@@ -167,6 +167,21 @@ test('persistent guest principals are session-bound, paginated and retained', {
   );
   await admin.get('/api/admin/guests?cursor=malformed').expect(400);
 
+  const guestBan = await admin
+    .post(`/api/admin/guests/${secondCreated.body.guest.publicId}/ban`)
+    .send({ type: 'temporary', hours: 12, reason: 'Synthetic guest restriction' })
+    .expect(201);
+  const bannedGuests = await admin.get('/api/admin/guests?status=banned&limit=20').expect(200);
+  const bannedGuest = bannedGuests.body.guests.find((item) => item.publicId === secondCreated.body.guest.publicId);
+  assert.equal(bannedGuest.activeBanId, guestBan.body.banId);
+  assert.equal(bannedGuest.activeBan.type, 'temporary');
+  assert.notEqual(bannedGuest.activeBan.endsAt, null);
+  const restrictedProfile = await secondGuest.get('/api/guest-profile').expect(403);
+  assert.equal(restrictedProfile.body.code, 'GUEST_ACCESS_RESTRICTED');
+  assert.equal(restrictedProfile.body.redirect, '/guest-restricted');
+  await secondGuest.get('/chat?guest=1').expect(302).expect('Location', '/guest-restricted');
+  await secondGuest.get('/guest-restricted').expect(403).expect(/Contact support/);
+
   await guest.delete('/api/guest-profile').expect(204);
   assert.equal((await guest.get('/api/guest-profile').expect(200)).body.guest, null);
   const tombstone = (await db.query(
@@ -176,6 +191,13 @@ test('persistent guest principals are session-bound, paginated and retained', {
   )).rows[0];
   assert.equal(tombstone.status, 'deleted');
   assert.notEqual(tombstone.deleted_at, null);
+  assert.equal(new Date(tombstone.retention_until) > new Date(tombstone.deleted_at), true);
+  assert.equal(
+    new Date(tombstone.retention_until).getTime() - new Date(tombstone.deleted_at).getTime() >= 29 * 24 * 60 * 60 * 1000,
+    true
+  );
+
+  await db.query('UPDATE guest_principals SET retention_until = created_at WHERE id = $1', [stored[0].id]);
 
   const retention = createRetentionWorker({
     db,

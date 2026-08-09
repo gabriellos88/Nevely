@@ -150,7 +150,6 @@ test('migrations, authentication, profile validation and authorization contracts
     { method: 'get', path: `/api/admin/users/${memberPublicId}/moderation` },
     { method: 'get', path: '/api/admin/reports' },
     { method: 'get', path: '/api/admin/bans' },
-    { method: 'get', path: '/api/admin/appeals' },
     { method: 'get', path: '/api/admin/audit' },
     { method: 'get', path: '/api/admin/database-capacity' },
     { method: 'post', path: `/api/admin/users/${memberPublicId}/ban`, body: { type: 'temporary', hours: 24 } },
@@ -337,11 +336,6 @@ test('migrations, authentication, profile validation and authorization contracts
     .post('/api/admin/2fa/confirm')
     .send({ code: totp(setup.body.secret) })
     .expect(204);
-  await admin
-    .post('/api/admin/reauth')
-    .send({ password: 'SyntheticPassword123!', code: totp(setup.body.secret) })
-    .expect(204);
-
   const adminDeleteTarget = request.agent(runtime.app);
   const adminDeleteRegistration = await adminDeleteTarget
     .post('/register')
@@ -364,7 +358,13 @@ test('migrations, authentication, profile validation and authorization contracts
     [reportId]
   );
 
-  await admin.get('/admin').expect(200);
+  const adminWorkspace = await admin.get('/admin').expect(200);
+  assert.match(adminWorkspace.text, /value="deleted">Deleted/);
+  assert.match(adminWorkspace.text, /value="banned">Banned/);
+  assert.match(adminWorkspace.text, /networkApprovalRequestForm/);
+  assert.match(adminWorkspace.text, /networkApprovalReviewForm/);
+  assert.match(adminWorkspace.text, /networkBanCreateForm/);
+  assert.doesNotMatch(adminWorkspace.text, />Appeals</);
   const ban = await admin
     .post(`/api/admin/users/${memberPublicId}/ban`)
     .send({ type: 'temporary', hours: 24, reason: 'Synthetic authorization test' })
@@ -380,6 +380,9 @@ test('migrations, authentication, profile validation and authorization contracts
   assert.equal(pagedUsers.body.page.limit, 2);
   assert.equal(pagedUsers.body.page.hasMore, true);
   assert.equal(Object.hasOwn(pagedUsers.body.users[0], 'id'), false);
+  await db.query(`UPDATE users SET last_seen_at = NOW() - INTERVAL '5 minutes' WHERE id = $1`, [memberId]);
+  const searchedUser = await admin.get(`/api/admin/users?q=${encodeURIComponent(memberPublicId)}&limit=20`).expect(200);
+  assert.notEqual(searchedUser.body.users.find((item) => item.public_id === memberPublicId).last_seen_at, null);
   await admin.get('/api/admin/users?cursor=invalid').expect(400);
   const bannedUsers = await admin.get('/api/admin/users?state=banned&limit=20').expect(200);
   assert.equal(bannedUsers.body.users.some((item) => item.public_id === memberPublicId && item.active_ban), true);
@@ -400,14 +403,7 @@ test('migrations, authentication, profile validation and authorization contracts
   assert.equal(pagedBans.body.bans.some((item) => Number(item.id) === ban.body.banId), true);
   assert.equal(pagedBans.body.page.limit, 20);
 
-  await db.query(
-    `INSERT INTO moderation_appeals (account_ban_id, appellant_user_id, appeal_text)
-     VALUES ($1, $2, $3)`,
-    [ban.body.banId, memberId, 'Synthetic appeal for the moderation workspace']
-  );
-  const appeals = await admin.get('/api/admin/appeals?status=pending&limit=20').expect(200);
-  assert.equal(appeals.body.appeals.length, 1);
-  assert.equal(Object.hasOwn(appeals.body.appeals[0], 'appeal_text'), false);
+  await admin.get('/api/admin/appeals?status=pending&limit=20').expect(404);
 
   const auditLog = await admin.get(`/api/admin/audit?target=${encodeURIComponent(memberPublicId)}&limit=20`).expect(200);
   assert.equal(auditLog.body.audit.some((item) => item.action === 'account_ban_created'), true);
@@ -484,6 +480,18 @@ test('migrations, authentication, profile validation and authorization contracts
     )).rows[0].count),
     1
   );
+  const deletedUsers = await admin.get('/api/admin/users?state=deleted&limit=20').expect(200);
+  const deletedUser = deletedUsers.body.users.find((item) => item.deleted_at);
+  assert.notEqual(deletedUser, undefined);
+  assert.match(deletedUser.public_id, /^nvy_[0-9a-f]{12}$/);
+  assert.equal(deletedUser.username, null);
+  assert.equal(deletedUser.email, null);
+  assert.notEqual(deletedUser.deleted_at, null);
+  assert.equal(Object.hasOwn(deletedUser, 'id'), false);
+  const deletedDetail = await admin.get(`/api/admin/users/${deletedUser.public_id}`).expect(200);
+  assert.equal(deletedDetail.body.user.username, null);
+  assert.equal(deletedDetail.body.user.email, null);
+  assert.notEqual(deletedDetail.body.user.deletedAt, null);
 
   await db.query('UPDATE users SET role = $1 WHERE id = $2', ['user', adminId]);
   await admin.get('/admin').set('Accept', 'application/json').expect(403);
