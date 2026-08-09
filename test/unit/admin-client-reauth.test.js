@@ -9,7 +9,7 @@ const clientSource = fs.readFileSync(
   'utf8'
 );
 
-function createClient({ valid = true, status = 204 } = {}) {
+function createClient({ valid = true, status = 200 } = {}) {
   const requests = [];
   const feedback = { textContent: '' };
   const form = {
@@ -45,7 +45,10 @@ function createClient({ valid = true, status = 204 } = {}) {
         return [];
       },
       querySelector() {
-        return { content: 'fallback-csrf-token' };
+        return null;
+      },
+      addEventListener() {
+        // The focused reauthentication test has no workspace DOM to bind.
       },
       getElementById(id) {
         if (id === 'adminReauthForm') return form;
@@ -58,10 +61,13 @@ function createClient({ valid = true, status = 204 } = {}) {
       return {
         ok: status >= 200 && status < 300,
         status,
-        json: async () => ({ error: 'Rejected.' })
+        json: async () => status >= 200 && status < 300
+          ? ({ expiresAt: '2026-08-09T12:10:00.000Z' })
+          : ({ error: 'Rejected.' })
       };
     },
     FormData: SyntheticFormData,
+    URLSearchParams,
     window
   });
   vm.runInContext(clientSource, context, { filename: 'admin.js' });

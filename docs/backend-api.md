@@ -27,7 +27,8 @@ Implemented in N1:
 
 - `GET`, `POST`, `PATCH`, `DELETE /api/guest-profile`: create, restore, update
   or tombstone the persistent guest principal bound to the current server
-  session. A browser-supplied UUID is never accepted as proof of ownership.
+  session. The response exposes only `gst_` + 12 lowercase hexadecimal
+  characters; a browser-supplied UUID is never accepted as proof of ownership.
 - `GET /api/account`: private account details.
 - `PATCH /api/account`: update display name, canonical gender/country and
   temporary image URL. Birth date is support-controlled; email uses a separate
@@ -40,7 +41,7 @@ Implemented in N1:
 - `DELETE /api/account`: anonymize existing messages and delete the account. Body confirmation: `DELETE`.
 - `POST /api/account/avatar`: reserved endpoint; returns `501` until object storage is configured.
 - `GET /api/users/:id/profile`: public profile plus friendship/block state;
-  `:id` is the opaque `nvy_...` public identifier.
+  `:id` is the opaque `nvy_` + 12 lowercase hexadecimal public identifier.
 - `GET /api/blocks`, `PUT /api/blocks/:id`, `DELETE /api/blocks/:id`: block-list management. The list uses the shared `cursor` contract.
 
 ### Conversations
@@ -65,7 +66,8 @@ evidence window for 24 months.
 - `GET /api/friend-requests`, `POST /api/friend-requests`: list or create requests.
 - `PATCH /api/friend-requests/:id`: accept or decline a request.
 - `GET /api/chat-requests`: list pending direct-chat requests.
-- `GET /api/notifications`: list notifications.
+- `GET /api/notifications`: list notifications. Ban notifications are neither
+  created nor returned; suspension state is authoritative server state.
 - `PATCH /api/notifications/:id/read`: mark a notification as read.
 
 Guest notifications use the same endpoints and are authorized by the current
@@ -77,13 +79,33 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
 
 - `GET /api/database-health`: PostgreSQL status.
 - `GET /admin`: minimal users, reports and plan-price view.
-- `GET /api/admin/guests`, `GET /api/admin/users`,
+- `GET /api/admin/guests`, `GET /api/admin/guests/:id`, `GET /api/admin/users`,
   `GET /api/admin/reports`, `GET /api/admin/bans`: keyset-paginated
-  operational collections. Guest cursors use `(created_at, UUID)` and guest
-  responses expose the compact alias rather than the internal UUID.
+  operational collections. Users support `state=active|banned|deleted`; guests
+  support `status=active|banned|claimed|deleted|expired`. Both expose age,
+  country, reliable last activity and the bounded recent-chat count where
+  available. Deleted accounts omit username, email and profile attributes.
+  Guest cursors use `(created_at, public_id)` and
+  Details/moderation routes accept only the canonical `gst_...` ID (with a
+  temporary server-side legacy resolver); UUIDs are never emitted.
 - `GET /api/admin/database-capacity`: last 30 aggregate capacity samples and retention runs.
 - `POST /api/admin/users/:id/ban`: temporary or permanent ban.
-- `DELETE /api/admin/users/:id`: permanent ban, IP ban when available and account anonymization.
+- `POST /api/admin/guests/:id/ban`: a `temporary` restriction requires `hours`; a
+  `permanent` restriction creates a separate server-side, HMAC-pseudonymous device
+  restriction linked to the guest ban. It never creates an IP/network ban.
+- `PATCH /api/admin/guest-bans/:id/revoke`: revokes a guest restriction.
+- `POST /api/admin/network-ban-privacy-approvals`, `POST
+  /api/admin/network-ban-privacy-approvals/:id/approve`, `POST
+  /api/admin/network-bans`: request, independently approve and consume a privacy
+  review for one exact, narrowly-scoped CIDR. Network bans are always temporary
+  and are never derived from account or guest bans.
+- `GET /suspension`: after valid credentials for a suspended account, the only
+  browser mode is a support-oriented suspension page and logout. The retired
+  appeal API is not registered. The login JSON response uses `ACCOUNT_SUSPENDED`
+  with reason, start, expiry and type only after credential validation.
+- `GET /guest-restricted`: generic Astra restriction page with a Support link;
+  it does not disclose ban, device or network details.
+- `DELETE /api/admin/users/:id`: account anonymization; it never creates an IP/network ban.
 - `PATCH /api/admin/reports/:id`: resolve or dismiss a report.
 - `POST /api/admin/prices`: record a new premium price.
 
@@ -108,6 +130,7 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
 - `direct-chat-requested`, `direct-chat-request-sent`, `direct-chat-error`: direct-chat lifecycle.
 - `notification-created`: tells the client to refresh notifications.
 - `account-banned`: closes the account session after moderation action.
+- `guest-restricted`: closes a restricted guest principal session.
 - `chat-error`: general realtime error.
 
 ## Safety and future work
@@ -116,4 +139,4 @@ The server enforces text length and a per-socket rate limit. `BANNED_WORDS` can 
 
 ## Database migrations
 
-Run `npm run db:migrate` with `DATABASE_URL` configured. The runner records applied SQL files in `schema_migrations`, removes an accidental UTF-8 BOM and applies each new migration in its own transaction. N2 operations, rollback and verification are documented in [`docs/operations/database-retention-and-capacity.md`](operations/database-retention-and-capacity.md). Persistent guest identity, product ownership and the verified account-claim contract are documented in [`docs/admin/guest-identity.md`](admin/guest-identity.md), [`docs/admin/guest-product-ownership.md`](admin/guest-product-ownership.md) and [`docs/admin/guest-account-claims.md`](admin/guest-account-claims.md).
+Run `npm run db:migrate` with `DATABASE_URL` configured. The runner records applied SQL files in `schema_migrations`, removes an accidental UTF-8 BOM and applies each new migration in its own transaction. Migration 017 adds nullable `users.last_seen_at`, backfills it from conversation activity and removes legacy `account_ban` notifications. It does not delete retired appeal storage or append-only audit history. Application rollback can leave this additive column in place; restoring removed notification rows requires the pre-migration backup. Never delete audit records to perform a rollback. N2 operations, rollback and verification are documented in [`docs/operations/database-retention-and-capacity.md`](operations/database-retention-and-capacity.md). Persistent guest identity, product ownership and the verified account-claim contract are documented in [`docs/admin/guest-identity.md`](admin/guest-identity.md), [`docs/admin/guest-product-ownership.md`](admin/guest-product-ownership.md) and [`docs/admin/guest-account-claims.md`](admin/guest-account-claims.md).

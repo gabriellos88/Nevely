@@ -542,8 +542,7 @@ function persistServerGuest(serverGuest, localProfile = guestProfile) {
     age: serverGuest.age,
     country: serverGuest.country,
     avatarId: serverGuest.avatarId,
-    guestId: serverGuest.id,
-    displayAlias: serverGuest.displayAlias,
+    publicId: serverGuest.publicId,
     nameChanges: serverGuest.nameChanges,
     accountNotificationRead: localProfile?.accountNotificationRead === true
   }, countryCatalog);
@@ -586,8 +585,7 @@ function renderGuestIdentity() {
       : chatCopy.feedback.nameChangeAvailable;
   }
   if (guestSettingsUserId) {
-    guestSettingsUserId.textContent = guestProfile?.displayAlias
-      || guestProfile?.guestId
+    guestSettingsUserId.textContent = guestProfile?.publicId
       || uiCopy.account.settingUp;
   }
   if (guestSettingsAge) guestSettingsAge.textContent = guestProfile?.age ? String(guestProfile.age) : '—';
@@ -1492,7 +1490,11 @@ socket.on('disconnect', () => {
   if (releaseDraining) return;
   setChatComposerState('error', chatCopy.composer.reconnecting);
 });
-socket.on('connect_error', () => {
+socket.on('connect_error', (error) => {
+  if (error?.data?.code === 'GUEST_ACCESS_RESTRICTED') {
+    window.location.assign(error.data.redirect || '/guest-restricted');
+    return;
+  }
   setChatComposerState('error', chatCopy.composer.connectionError);
 });
 socket.on('connect', () => {
@@ -1512,8 +1514,10 @@ socket.on('direct-chat-requested', () => {
   loadChatRequestsPanel();
 });
 socket.on('account-banned', () => {
-  alert(chatCopy.feedback.accountSuspended);
-  logout();
+  window.location.assign('/login');
+});
+socket.on('guest-restricted', ({ redirect = '/guest-restricted' } = {}) => {
+  window.location.assign(redirect);
 });
 
 function getPremiumFilters() {

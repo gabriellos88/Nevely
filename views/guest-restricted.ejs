@@ -1,0 +1,15 @@
+<%- include('partials/header', { hideSiteHeader: true }) %>
+  <main class="auth-page auth-page--action" aria-labelledby="guest-restricted-title">
+    <section class="auth-shell auth-shell--action">
+      <div class="auth-entry">
+        <p class="eyebrow">Guest status</p>
+        <h1 id="guest-restricted-title">Guest access is limited</h1>
+        <p>This browser cannot use guest chat right now. Contact the support team if you need help.</p>
+        <div class="auth-actions">
+          <a class="btn btn-primary" href="/support">Contact support</a>
+          <a class="btn btn-secondary" href="/">Return home</a>
+        </div>
+      </div>
+    </section>
+  </main>
+<%- include('partials/footer') %>

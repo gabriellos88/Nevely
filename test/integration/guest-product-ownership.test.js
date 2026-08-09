@@ -54,6 +54,10 @@ async function createGuest(baseUrl, name, avatarId) {
   };
 }
 
+async function internalGuestId(db, guest) {
+  return (await db.query('SELECT id FROM guest_principals WHERE public_id = $1', [guest.publicId])).rows[0].id;
+}
+
 async function connectGuest(baseUrl, cookie) {
   const socket = createClient(baseUrl, {
     autoConnect: false,
@@ -123,6 +127,8 @@ test('guest sessions own conversations, messages, receipts, reports and bounded 
   const baseUrl = `http://127.0.0.1:${address.port}`;
   const firstGuest = await createGuest(baseUrl, 'First Persistent Guest', 'astra');
   const secondGuest = await createGuest(baseUrl, 'Second Persistent Guest', 'nova');
+  const firstGuestId = await internalGuestId(db, firstGuest.guest);
+  const secondGuestId = await internalGuestId(db, secondGuest.guest);
   const first = await connectGuest(baseUrl, firstGuest.cookie);
   const second = await connectGuest(baseUrl, secondGuest.cookie);
   const anonymous = await connectGuest(baseUrl, '');
@@ -167,7 +173,7 @@ test('guest sessions own conversations, messages, receipts, reports and bounded 
   )).rows;
   assert.deepEqual(
     new Set(participants.map((row) => row.guest_id)),
-    new Set([firstGuest.guest.id, secondGuest.guest.id])
+    new Set([firstGuestId, secondGuestId])
   );
   assert.equal(participants.every((row) => row.user_id === null), true);
 
@@ -176,13 +182,13 @@ test('guest sessions own conversations, messages, receipts, reports and bounded 
     [receivedMessage.id]
   )).rows[0];
   assert.equal(storedMessage.sender_user_id, null);
-  assert.equal(storedMessage.sender_guest_id, firstGuest.guest.id);
+  assert.equal(storedMessage.sender_guest_id, firstGuestId);
   const receipt = (await db.query(
     `SELECT user_id, guest_id, read_at FROM message_receipts WHERE message_id = $1`,
     [receivedMessage.id]
   )).rows[0];
   assert.equal(receipt.user_id, null);
-  assert.equal(receipt.guest_id, secondGuest.guest.id);
+  assert.equal(receipt.guest_id, secondGuestId);
   assert.equal(receipt.read_at, null);
 
   const storedReport = (await db.query(
@@ -191,9 +197,9 @@ test('guest sessions own conversations, messages, receipts, reports and bounded 
     [firstMatch.conversationId]
   )).rows[0];
   assert.equal(storedReport.reporter_user_id, null);
-  assert.equal(storedReport.reporter_guest_id, secondGuest.guest.id);
+  assert.equal(storedReport.reporter_guest_id, secondGuestId);
   assert.equal(storedReport.reported_user_id, null);
-  assert.equal(storedReport.reported_guest_id, firstGuest.guest.id);
+  assert.equal(storedReport.reported_guest_id, firstGuestId);
 
   const recent = await request(baseUrl)
     .get('/api/conversations')
@@ -222,7 +228,7 @@ test('guest sessions own conversations, messages, receipts, reports and bounded 
 
   const seeded = [];
   for (let index = 0; index < 3; index += 1) {
-    seeded.push(await seedEndedConversation(db, secondGuest.guest.id, `saved-${index}`));
+    seeded.push(await seedEndedConversation(db, secondGuestId, `saved-${index}`));
   }
   await request(baseUrl)
     .put(`/api/conversations/${seeded[0]}/saved`)
@@ -255,7 +261,7 @@ test('guest sessions own conversations, messages, receipts, reports and bounded 
     Number((await db.query(
       `SELECT COUNT(*) AS count FROM saved_chats
        WHERE guest_id = $1 AND user_id IS NULL`,
-      [secondGuest.guest.id]
+      [secondGuestId]
     )).rows[0].count),
     2
   );
@@ -277,11 +283,11 @@ test('guest sessions own conversations, messages, receipts, reports and bounded 
   await request(baseUrl)
     .put(`/api/conversations/${firstMatch.conversationId}/saved`)
     .set('Cookie', outsider.cookie)
-    .send({ guestId: secondGuest.guest.id })
+    .send({ guestId: secondGuestId })
     .expect(404);
 
   for (let index = 0; index < 11; index += 1) {
-    await seedEndedConversation(db, secondGuest.guest.id, `retention-${index}`);
+    await seedEndedConversation(db, secondGuestId, `retention-${index}`);
   }
   const worker = createRetentionWorker({
     db,
@@ -308,7 +314,7 @@ test('guest sessions own conversations, messages, receipts, reports and bounded 
        AND EXISTS (
          SELECT 1 FROM messages m WHERE m.conversation_id = c.id
        )`,
-    [secondGuest.guest.id]
+    [secondGuestId]
   );
   assert.equal(retainedUnsaved.rows[0].count, 10);
 });

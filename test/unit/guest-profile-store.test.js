@@ -31,8 +31,7 @@ test('guest passport storage validates, normalizes and removes identity', () => 
     age: 28,
     country: { code: 'CH', name: 'Untrusted label' },
     avatarId: 'astra',
-    guestId: 'b079ed5c-b2d8-49d4-9df3-169264d25e47',
-    displayAlias: 'gst_B079ED5CB2',
+    publicId: 'gst_b079ed5cb2d8',
     nameChanges: 0,
     accountNotificationRead: false
   }, countries);

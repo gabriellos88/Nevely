@@ -46,7 +46,7 @@ test('guest identity persists, recovers after cleared storage and supports respo
   const storedBeforeReload = await page.evaluate(() => (
     JSON.parse(localStorage.getItem('nevely.guestPassport.v1'))
   ));
-  expect(storedBeforeReload.displayAlias).toMatch(/^gst_[0-9A-F]{10}$/);
+  expect(storedBeforeReload.publicId).toMatch(/^gst_[0-9a-f]{12}$/);
 
   await page.reload({ waitUntil: 'domcontentloaded' });
   await expect(page.locator('#guestPassportModal')).toBeHidden();
@@ -58,7 +58,7 @@ test('guest identity persists, recovers after cleared storage and supports respo
   await expect(page.locator('#profileName')).toHaveText('Synthetic Guest');
   expect((await page.evaluate(() => (
     JSON.parse(localStorage.getItem('nevely.guestPassport.v1'))
-  ))).displayAlias).toMatch(/^gst_[0-9A-F]{10}$/);
+  ))).publicId).toMatch(/^gst_[0-9a-f]{12}$/);
 
   for (const name of ['messages', 'friends', 'notifications']) {
     const trigger = page.locator(`#${name}Toggle`);

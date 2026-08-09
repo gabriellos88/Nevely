@@ -47,7 +47,8 @@ secondo la finalità della tabella.
 
 I report creati in chat persistono entrambi i principal guest e continuano a
 produrre lo snapshot immutabile di massimo 50 messaggi previsto da N2.
-L'amministrazione vede l'alias compatto `gst_...`, non l'UUID guest.
+L'amministrazione vede il Public ID canonico `gst_` + 12 caratteri hex, non
+l'UUID o l'alias legacy del guest.
 
 ## Verifica
 

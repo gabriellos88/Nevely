@@ -3,16 +3,15 @@
 N3.1 conserva gli ospiti in `guest_principals`; non crea righe anonime in
 `users`. Il principal contiene:
 
-- UUID interno e alias compatto `gst_XXXXXXXXXX`;
+- UUID interno e Public ID canonico `gst_` + 12 caratteri esadecimali lowercase;
 - nome, genere, età, paese canonico e preset avatar;
 - contatore dell'unico cambio nome consentito;
 - stato, creazione, ultimo accesso e scadenza di retention.
 
-Il browser può memorizzare l'UUID per compatibilità e recupero dell'interfaccia,
-ma non può usarlo per autorizzare letture o modifiche. Il server accetta come
-prova di possesso soltanto `guestPrincipalId` nella sessione PostgreSQL firmata.
-Un UUID inviato nel corpo HTTP viene ignorato. Le sessioni guest precedenti a
-N3.1 vengono migrate alla prima lettura del profilo.
+Il browser riceve e può memorizzare solo il Public ID. L'UUID resta nella
+sessione PostgreSQL firmata e non è una prova di possesso quando viene inviato
+nel corpo HTTP. Le sessioni guest precedenti a N3.1 vengono migrate alla prima
+lettura del profilo.
 
 ## Ciclo di vita
 
@@ -23,7 +22,7 @@ lettura o modifica autenticata dalla sessione aggiorna `last_seen_at` e
 1. imposta `status = 'deleted'`;
 2. registra `deleted_at`;
 3. rende la riga immediatamente eleggibile per il worker N2;
-4. rimuove UUID e snapshot del profilo dalla sessione.
+4. rimuove la chiave interna e lo snapshot del profilo dalla sessione.
 
 Il worker elimina le righe scadute in batch limitati. Gli stati `claimed` ed
 `expired` sono già riservati nello schema; claim, merge e comportamento
@@ -35,13 +34,33 @@ descritta in [`guest-product-ownership.md`](guest-product-ownership.md).
 ## API e amministrazione
 
 `GET`, `POST`, `PATCH` e `DELETE /api/guest-profile` operano solo sul principal
-legato alla sessione corrente. La risposta include l'UUID per compatibilità API,
-ma l'interfaccia visualizza `displayAlias`.
+legato alla sessione corrente. La risposta include soltanto il Public ID
+canonico; l'interfaccia non visualizza alias o UUID.
 
 `GET /api/admin/guests` richiede un account amministratore e restituisce una
 collezione con limite predefinito 30 e massimo 100. Il cursore opaco usa
-`(created_at, UUID)`; la risposta amministrativa non espone l'UUID interno.
-Il filtro opzionale `status` accetta `active`, `claimed`, `deleted` o `expired`.
+`(created_at, public_id)`. La tabella e Details espongono soltanto `gst_…`;
+non è un token di autorizzazione. I filtri `status` e `q` ricercano stato,
+nome e Public ID (con lookup legacy temporaneo sul server).
+
+## Restrizioni guest N4
+
+Un amministratore con una sessione high-risk valida può applicare una
+restrizione temporanea (da un'ora a 30 giorni) o permanente al principal guest.
+La decisione richiede motivazione e un record append-only in `audit_log`; non
+copia nome, messaggi, IP o contenuti della conversazione nell'audit. Una
+restrizione permanente crea soltanto la separata device restriction HMAC e non
+crea mai un ban IP/network.
+
+La restrizione è verificata su HTTP, all'ammissione Socket.IO e prima di ogni
+evento Socket.IO sensibile. Le connessioni attive vengono chiuse anche sulle
+repliche attraverso il canale PostgreSQL di controllo. Il partner riceve solo
+la normale chiusura `partner-left`, senza stato o motivazione di moderazione.
+La revoca richiede a sua volta una motivazione e produce un audit record.
+
+`guest_bans` viene cancellata insieme al principal scaduto tramite chiave
+esterna `ON DELETE CASCADE`; l'audit conserva soltanto il riferimento interno
+del target per la tracciabilità della decisione e non lo espone via API.
 
 ## Verifica
 
@@ -50,6 +69,16 @@ La suite PostgreSQL usa-e-getta controlla che:
 - l'UUID inviato dal browser non venga adottato;
 - una seconda sessione non possa modificare un guest conoscendone l'UUID;
 - POST ripetuti nella stessa sessione non creino principal duplicati;
-- cambio nome, avatar, alias, cursore admin e limite pagina siano applicati;
-- la cancellazione produca un tombstone e il worker lo elimini;
+- cambio nome, avatar, Public ID, cursore admin e limite pagina siano applicati;
+- la cancellazione produca `deleted_at` al momento della tombstone e
+  `retention_until` 30 giorni dopo; il worker elimina solo alla scadenza;
 - un principal attivo non venga eliminato insieme al tombstone.
+
+## Compatibilità degli identificativi
+
+La migrazione 014 conserva i valori precedenti in `legacy_public_id`, con un
+indice univoco per principal, e li risolve solo lato server per URL e lookup
+esistenti. Le risposte API, UI, cursor e nuovi link emettono esclusivamente
+`nvy_`/`gst_` canonici. La compatibilità verrà rimossa in una release successiva
+dopo un periodo di osservazione e una migrazione che elimini le colonne legacy;
+non è previsto alcun riuso di valori legacy.

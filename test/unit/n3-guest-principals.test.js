@@ -6,7 +6,7 @@ const {
   publicGuestPrincipal
 } = require('../../lib/guest-principals');
 
-test('guest principals use a separate compact alias and expose canonical fields', () => {
+test('guest principals retain an internal UUID while exposing only a canonical public ID', () => {
   const id = 'b079ed5c-b2d8-49d4-9df3-169264d25e47';
   assert.equal(guestAlias(id), 'gst_B079ED5CB2');
   assert.equal(GUEST_RETENTION_DAYS, 30);
@@ -14,6 +14,7 @@ test('guest principals use a separate compact alias and expose canonical fields'
 
   const guest = publicGuestPrincipal({
     id,
+    public_id: 'gst_b079ed5cb2d8',
     display_alias: guestAlias(id),
     name: 'Astra Guest',
     gender: 'non-binary',
@@ -31,7 +32,9 @@ test('guest principals use a separate compact alias and expose canonical fields'
   });
 
   assert.equal(guest.id, id);
-  assert.equal(guest.displayAlias, 'gst_B079ED5CB2');
+  assert.equal(guest.publicId, 'gst_b079ed5cb2d8');
+  assert.equal(Object.keys(guest).includes('id'), false);
+  assert.equal(Object.keys(guest).includes('displayAlias'), false);
   assert.deepEqual(guest.country, { code: 'ch', name: 'Switzerland' });
   assert.equal(guest.age, 28);
 });
