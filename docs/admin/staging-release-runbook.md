@@ -30,28 +30,37 @@ Prerequisiti: un account admin con 2FA, un account registrato verificato, due
 sessioni guest in browser distinti e dati sintetici. Usare lo staging candidato
 e non copiare cookie o identificativi interni nei ticket.
 
-1. In `/admin`, verificare testata, logout, unlock e stato re-auth; sbloccare
-   un'azione ad alto rischio con il flusso esistente e verificare che dopo logout torni bloccata.
-2. In Users e Guests cercare per ID canonico, aprire Details e confermare solo
-   `nvy_...`/`gst_...`, nome e username pertinenti. Su un guest eliminato
-   confermare `deleted at` e `scheduled deletion`.
-3. Applicare un guest ban temporaneo e confermare che chat, ripristino profilo
-   e Socket.IO vengono rifiutati. Revocarlo e verificare il ripristino.
-4. Applicare un guest ban permanente, poi tentare `POST /api/guest-profile`
-   con la stessa sessione/device: deve ricevere `GUEST_DEVICE_RESTRICTED`.
-   Non creare né verificare un ban IP implicito. Revocare e confermare il nuovo guest.
-5. Bannare un account e autenticarsi con credenziali valide: ricevere
-   `ACCOUNT_SUSPENDED` soltanto dopo la validazione, con motivo, inizio,
-   scadenza e tipo. `/chat` e API applicative restano negate; `/suspension`,
-   appeal e logout restano disponibili. Ripetere l'appeal e verificare un solo record pending/audit.
-6. Verificare Reports e Audit in sola lettura e che nessuna evidenza/audit
-   mostri contenuto integrale di messaggi.
+1. URL `/admin`: completare un login admin con 2FA e verificare che la testata
+   mostri high-risk sbloccato per dieci minuti. Attendere la scadenza o fare
+   logout e confermare il blocco; rinnovare soltanto dal flusso Unlock esistente.
+2. URL `/admin`, scheda Users: provare Active, Banned, Deleted e All; cercare
+   un `nvy_...`; verificare Age, Country, Last seen e Recent chats. Details di
+   un account eliminato deve omettere email/username e mostrare `deleted at`.
+3. URL `/admin`, scheda Guests: provare ricerca e filtro Banned; verificare
+   `gst_...`, Age, Country, Last seen, chat recenti, tipo e scadenza del ban.
+   Dopo la cancellazione confermare che `scheduled deletion` sia circa 30 giorni
+   dopo `deleted at`, non lo stesso timestamp.
+4. Applicare un guest ban temporaneo: ripristino profilo, `/chat?guest=1` e
+   Socket.IO devono portare alla pagina Astra `/guest-restricted`, che offre
+   `/support` senza motivo o dettagli device/network. Revocare e riprovare.
+5. Applicare un guest ban permanente e tentare un nuovo guest sullo stesso
+   device: deve ricevere `GUEST_ACCESS_RESTRICTED`. Non deve comparire alcun ban
+   IP/network implicito. Revocare e confermare il ripristino.
+6. Bannare un account e autenticarsi con credenziali valide: ricevere
+   `ACCOUNT_SUSPENDED` solo dopo la validazione. `/suspension` deve mostrare il
+   link `/support` e logout, senza appeal o notifiche ban; chat e API restano negate.
+7. In Bans creare una richiesta privacy per un CIDR sintetico consentito,
+   approvarla con un secondo admin e creare un ban temporaneo. Verificare che
+   self-review, CIDR troppo ampi e creazione senza approval siano rifiutati.
+8. Verificare Reports e Audit in sola lettura e che nessuna evidenza/audit
+   mostri contenuto integrale di messaggi, IP raw o device fingerprint.
 
-Rollback N4: fermare il deploy candidato, ripristinare il commit applicativo
-precedente e il backup PostgreSQL precedente alle migrazioni 015–016. Non
-tentare `DELETE` di audit, ban o appeal in produzione. Se è necessario un down
-SQL, prima revocare ogni restriction permanente e risolvere gli appeal pending,
-quindi far approvare e provare il down su un clone dello staging.
+Rollback N4: fermare il deploy candidato e ripristinare il commit applicativo
+precedente. La colonna nullable `users.last_seen_at` può restare senza impatto;
+non cancellare audit né tabelle di moderazione. La migrazione 017 elimina solo
+le vecchie notifiche `account_ban`: per recuperarle serve il backup pre-migrazione.
+Provare ogni eventuale down SQL su un clone dello staging e ripetere readiness,
+login, guest profile, chat e admin prima di riaprire il traffico.
 
 ## Ruoli di branch
 

@@ -312,6 +312,9 @@
 .admin-panel-heading-compact p { margin-bottom: var(--spacing-4); }
 .admin-panel-heading-compact + .admin-toolbar { margin-bottom: var(--spacing-4); }
 .admin-toolbar { align-items: end; display: flex; flex-wrap: wrap; gap: var(--spacing-3); margin-bottom: var(--spacing-6); }
+.admin-toolbar .admin-field-shell,
+.admin-toolbar select,
+.admin-toolbar .btn { min-height: 44px; }
 .admin-field-shell { background: var(--color-neutral-tertiary); border: 1px solid var(--color-border-default); border-radius: var(--radius-xxl); flex: 1 1 var(--spacing-72); }
 .admin-field-shell:focus-within { border-color: var(--color-brand); box-shadow: var(--focus-ring-brand); }
 .admin-workspace input, .admin-workspace select, .admin-workspace textarea { background: var(--color-neutral-tertiary); border: 1px solid var(--color-border-default); border-radius: var(--radius-xxl); color: var(--color-heading); font: var(--font-weight-normal) var(--font-size-sm)/var(--line-height-component) var(--font-family); padding: var(--spacing-2-5) var(--spacing-3); }
@@ -345,6 +348,13 @@
 .admin-id-copy { background: transparent; border: 0; color: var(--color-fg-brand); cursor: pointer; font: inherit; padding: 0; text-decoration: underline; text-underline-offset: 2px; }
 .admin-id-copy:focus-visible { outline: 2px solid var(--color-brand-medium); outline-offset: var(--spacing-1); }
 .admin-pagination { display: flex; justify-content: end; margin-top: var(--spacing-4); }
+.admin-network-workflow { border-top: 1px solid var(--color-border-default); display: grid; gap: var(--spacing-4); grid-template-columns: repeat(3, minmax(0, 1fr)); margin: var(--spacing-2) 0 var(--spacing-6); padding-top: var(--spacing-6); }
+.admin-network-workflow > div { grid-column: 1 / -1; }
+.admin-network-workflow h3, .admin-network-workflow h4 { margin: 0 0 var(--spacing-2); }
+.admin-risk-form { align-content: start; background: var(--color-neutral-secondary-soft); border: 1px solid var(--color-border-default); border-radius: var(--radius-xxl); display: grid; gap: var(--spacing-3); padding: var(--spacing-5); }
+.admin-risk-form label { color: var(--color-heading); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); }
+.admin-risk-form input, .admin-risk-form button { min-height: 44px; width: 100%; }
+.admin-risk-form p { min-height: var(--spacing-6); margin: 0; overflow-wrap: anywhere; }
 .admin-workspace .admin-section { border-top: 1px solid var(--color-border-default); margin-top: var(--spacing-6); padding: var(--spacing-6) 0 0; }
 .admin-panel > .admin-section:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
 .admin-workspace .admin-price-form { gap: var(--spacing-3); }
@@ -364,12 +374,21 @@
 .admin-detail-list dd { color: var(--color-heading); margin: 0; overflow-wrap: anywhere; }
 .admin-history-list { display: grid; gap: var(--spacing-2); margin: 0; padding-left: var(--spacing-5); }
 
+.auth-actions { align-items: stretch; display: flex; flex-wrap: wrap; gap: var(--spacing-3); }
+.auth-actions .btn { align-items: center; display: inline-flex; justify-content: center; min-height: 44px; }
+.auth-actions form { margin: 0; }
+
 @media (max-width: 640px) {
   .admin-workspace { padding: var(--spacing-8) var(--spacing-3) var(--spacing-14); }
   .admin-panel { padding: var(--spacing-4); }
   .admin-panel-heading, .admin-toolbar { align-items: stretch; flex-direction: column; }
+  .admin-toolbar .admin-field-shell { flex: 0 0 auto; width: 100%; }
   .admin-workspace select, .admin-workspace .btn { width: 100%; }
   .admin-workspace .admin-table th, .admin-workspace .admin-table td { padding: var(--spacing-3) var(--spacing-4); }
+}
+
+@media (max-width: 900px) {
+  .admin-network-workflow { grid-template-columns: 1fr; }
 }
 
 @media (max-height: 760px) and (min-width: 641px) {
@@ -379,7 +398,7 @@
   .admin-panel-heading-compact p { margin-bottom: var(--spacing-2); }
   .admin-panel-heading-compact + .admin-toolbar { margin-bottom: var(--spacing-3); }
   .admin-toolbar { gap: var(--spacing-2); margin-bottom: var(--spacing-4); }
-  .admin-toolbar .admin-field-shell, .admin-toolbar select { min-height: 40px; }
+  .admin-toolbar .admin-field-shell, .admin-toolbar select, .admin-toolbar .btn { min-height: 44px; }
 }
 
 @media (max-width: 640px) {

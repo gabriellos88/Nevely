@@ -81,6 +81,16 @@ test('support FAQ renders on a dark grouped Astra panel', async ({ page }) => {
   const mobileLink = await page.locator('.support-contact__links a').first().boundingBox();
   expect(mobileHero.height).toBeLessThan(280);
   expect(mobileLink.height).toBeGreaterThanOrEqual(44);
+  await expect(page.getByText('What can I do if my account or guest access is restricted?')).toBeVisible();
+});
+
+test('restricted guest page uses the Astra action layout and links to support', async ({ page }) => {
+  await page.goto('/guest-restricted', { waitUntil: 'domcontentloaded' });
+  await expect(page.getByRole('heading', { name: 'Guest access is limited' })).toBeVisible();
+  const support = page.getByRole('link', { name: 'Contact support' });
+  await expect(support).toHaveAttribute('href', '/support');
+  const box = await support.boundingBox();
+  expect(box.height).toBeGreaterThanOrEqual(44);
 });
 
 test('account security forms are mutually exclusive disclosures with cancel focus restoration', async ({ page }) => {

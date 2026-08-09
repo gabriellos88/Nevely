@@ -155,8 +155,8 @@ function createRuntime(options = {}) {
   app.use(csrfProtection({ publicOrigin: environment.PUBLIC_ORIGIN }));
   app.use((req, res, next) => {
     if (!req.session?.suspension) return next();
-    const allowed = (req.method === 'GET' && req.path === '/suspension')
-      || (req.method === 'POST' && (req.path === '/api/suspension/appeals' || req.path === '/logout'));
+    const allowed = (req.method === 'GET' && (req.path === '/suspension' || req.path === '/support'))
+      || (req.method === 'POST' && req.path === '/logout');
     if (allowed) return next();
     if (req.path.startsWith('/api/')) {
       return res.status(403).json({ error: uiCopy.errors.accountSuspended, code: 'ACCOUNT_SUSPENDED' });
@@ -173,6 +173,9 @@ function createRuntime(options = {}) {
   }));
   app.get('/about', (req, res) => res.render('about', { pageTitle: uiCopy.pageTitles.about }));
   app.get('/support', (req, res) => res.render('support', { pageTitle: uiCopy.pageTitles.support }));
+  app.get('/guest-restricted', (req, res) => res.status(403).render('guest-restricted', {
+    pageTitle: 'Guest access limited'
+  }));
   app.get('/privacy', (req, res) => res.render('privacy', { pageTitle: uiCopy.pageTitles.privacy }));
   app.get('/terms', (req, res) => res.render('terms', { pageTitle: uiCopy.pageTitles.terms }));
 
@@ -216,7 +219,7 @@ function createRuntime(options = {}) {
       try {
         if (await moderation.isGuestBlocked(req.session.guestPrincipalId)
           || await moderation.isGuestDeviceRestrictedForGuest(req.session.guestPrincipalId)) {
-          return res.status(403).send(uiCopy.errors.guestRestricted);
+          return res.redirect('/guest-restricted');
         }
         const guest = await findActiveGuestPrincipal(db, req.session.guestPrincipalId, { touch: false });
         guestClaimEligible = guestPassportComplete(guest);

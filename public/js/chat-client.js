@@ -1490,7 +1490,11 @@ socket.on('disconnect', () => {
   if (releaseDraining) return;
   setChatComposerState('error', chatCopy.composer.reconnecting);
 });
-socket.on('connect_error', () => {
+socket.on('connect_error', (error) => {
+  if (error?.data?.code === 'GUEST_ACCESS_RESTRICTED') {
+    window.location.assign(error.data.redirect || '/guest-restricted');
+    return;
+  }
   setChatComposerState('error', chatCopy.composer.connectionError);
 });
 socket.on('connect', () => {
@@ -1510,8 +1514,10 @@ socket.on('direct-chat-requested', () => {
   loadChatRequestsPanel();
 });
 socket.on('account-banned', () => {
-  alert(chatCopy.feedback.accountSuspended);
-  logout();
+  window.location.assign('/login');
+});
+socket.on('guest-restricted', ({ redirect = '/guest-restricted' } = {}) => {
+  window.location.assign(redirect);
 });
 
 function getPremiumFilters() {
