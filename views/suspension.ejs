@@ -1,0 +1,18 @@
+<%- include('partials/header', { hideSiteHeader: true }) %>
+  <main class="auth-page auth-page--action" aria-labelledby="suspension-title">
+    <section class="auth-shell auth-shell--action">
+      <div class="auth-entry">
+        <p class="eyebrow">Account status</p>
+        <h1 id="suspension-title">Account suspended</h1>
+        <p>Your credentials were accepted, but this account cannot use Nevely right now. Contact the support team if you need help.</p>
+        <div class="auth-actions">
+          <a class="btn btn-primary" href="/support">Contact support</a>
+          <form method="post" action="/logout">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button class="btn btn-secondary" type="submit">Log out</button>
+          </form>
+        </div>
+      </div>
+    </section>
+  </main>
+<%- include('partials/footer') %>

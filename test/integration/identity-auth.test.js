@@ -204,7 +204,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
     .set('Accept', 'application/json')
     .send(registrationPayload('email_member', 'email-member@example.test'))
     .expect(201);
-  assert.match(registration.body.user.publicId, /^nvy_[a-f0-9]{20}$/);
+  assert.match(registration.body.user.publicId, /^nvy_[a-f0-9]{12}$/);
   assert.equal(Object.hasOwn(registration.body.user, 'internalId'), false);
   assert.equal(Object.hasOwn(registration.body.user, 'id'), false);
   assert.match(
@@ -491,8 +491,8 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   assert.equal(Number((await db.query(
     'SELECT COUNT(*) AS count FROM account_identities WHERE user_id = $1',
     [deletedGoogleUser.id]
-  )).rows[0].count), 0);
-  const reusedGoogle = await request(runtime.app)
+  )).rows[0].count), 1);
+  const retainedGoogle = await request(runtime.app)
     .post('/auth/google')
     .set('Accept', 'application/json')
     .set('X-Forwarded-For', '198.51.100.51')
@@ -503,13 +503,13 @@ test('N1 email tokens, session revocation and Google identity contracts', {
       gender: 'non-binary',
       countryCode: 'ch'
     })
-    .expect(201);
-  assert.equal(reusedGoogle.body.user.email, 'google-delete-reuse@example.test');
+    .expect(403);
+  assert.equal(retainedGoogle.body.code, 'ACCOUNT_REMOVED');
   const legacyDeleted = await db.query(
     `INSERT INTO users
-       (username, email, password_hash, public_id, display_name, deleted_at)
+       (username, email, password_hash, public_id, display_name, deleted_at, retention_until, pii_purged_at)
      VALUES ('deleted_legacy_google', 'deleted-legacy@deleted.nevely.invalid', NULL,
-             'nvy_cccccccccccccccccccc', 'Deleted user', NOW())
+             'nvy_cccccccccccc', 'Deleted user', NOW(), NOW(), NOW())
      RETURNING id`
   );
   await db.query(
@@ -528,7 +528,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
       gender: 'non-binary',
       countryCode: 'ch'
     })
-    .expect(201);
+    .expect(403);
   await request(runtime.app)
     .post('/auth/google')
     .set('Accept', 'application/json')
@@ -547,7 +547,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
        (username, email, password_hash, public_id, display_alias, display_name,
         birth_date, gender, country, country_code, profile_completed_at, email_verified_at)
      VALUES ('google_banned', 'google-banned@example.test', NULL,
-             'nvy_aaaaaaaaaaaaaaaaaaaa', 'Nevely#aaaaaa', 'Google Banned',
+             'nvy_aaaaaaaaaaaa', 'Nevely#aaaaaa', 'Google Banned',
              '1990-06-15', 'non-binary', 'Switzerland', 'ch', NOW(), NOW())
      RETURNING id`
   );
@@ -574,7 +574,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
         birth_date, gender, country, country_code, profile_completed_at,
         email_verified_at, role, admin_totp_secret, admin_2fa_enabled_at)
      VALUES ('google_admin', 'google-admin@example.test', NULL,
-             'nvy_bbbbbbbbbbbbbbbbbbbb', 'Nevely#bbbbbb', 'Google Admin',
+             'nvy_bbbbbbbbbbbb', 'Nevely#bbbbbb', 'Google Admin',
              '1990-06-15', 'non-binary', 'Switzerland', 'ch', NOW(), NOW(),
              'admin', $1, NOW())
      RETURNING id`,
@@ -604,6 +604,12 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   const googleAdminPage = await adminAgent.get('/admin').expect(200);
   assert.doesNotMatch(googleAdminPage.text, /name="password"/);
   assert.match(googleAdminPage.text, /data-callback="handleAdminGoogleReauth"/);
+  assert.match(googleAdminPage.text, /High-risk actions unlocked until/);
+  await adminAgent
+    .post('/api/admin/network-ban-privacy-approvals')
+    .send({ sourceType: 'manual', cidr: '203.0.113.0/24', hours: 2,
+      reason: 'Verify the post-2FA high-risk window' })
+    .expect(201);
   await adminAgent
     .post('/api/admin/reauth')
     .send({ password: 'ArbitraryPassword123!', code: totp(adminTotpSecret) })
@@ -612,8 +618,9 @@ test('N1 email tokens, session revocation and Google identity contracts', {
     .post('/api/admin/reauth')
     .send({ credential: 'google-other-reauth', code: totp(adminTotpSecret) })
     .expect(401);
-  await adminAgent
+  const renewed = await adminAgent
     .post('/api/admin/reauth')
     .send({ credential: 'google-admin-reauth', code: totp(adminTotpSecret) })
-    .expect(204);
+    .expect(200);
+  assert.match(renewed.body.expiresAt, /^\d{4}-\d{2}-\d{2}T/);
 });

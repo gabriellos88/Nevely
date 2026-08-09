@@ -139,7 +139,7 @@ test('draining sends only a generic notice and rejects new matching work', async
   assert.equal(runtime.chat.getActiveConversationCount(), 0);
 });
 
-test('shutdown waits for active conversation persistence before closing resources', async () => {
+test('shutdown waits for active conversation persistence before closing resources', async (t) => {
   let releaseEndUpdate;
   let markEndUpdateStarted;
   const endUpdateStarted = new Promise((resolve) => {
@@ -165,7 +165,7 @@ test('shutdown waits for active conversation persistence before closing resource
       };
     },
     async query(sql) {
-      if (sql.includes('SELECT 1 FROM bans')) return { rowCount: 0, rows: [] };
+      if (sql.includes('FROM account_bans') || sql.includes('FROM network_bans')) return { rowCount: 0, rows: [] };
       if (sql.includes('UPDATE conversations SET status')) {
         markEndUpdateStarted();
         await endUpdateGate;
@@ -184,6 +184,8 @@ test('shutdown waits for active conversation persistence before closing resource
   const runtime = createRuntime({
     db,
     enforcePersistentGuestOwnership: false,
+    rateLimiter: { consume: async () => ({ allowed: true, count: 0, retryAfterSeconds: 0, escalationLevel: 0 }) },
+    rateLimitPrincipalResolver: () => ({ principalType: 'guest', principalId: 'f5e6d52b-1bb5-4a5f-a636-13b56e92df68' }),
     env: {
       NODE_ENV: 'test',
       SESSION_SECRET: 'socket-test-session-secret',
@@ -195,6 +197,11 @@ test('shutdown waits for active conversation persistence before closing resource
   const baseUrl = `http://127.0.0.1:${address.port}`;
   const first = await connectSocket(baseUrl);
   const second = await connectSocket(baseUrl);
+  t.after(async () => {
+    first.disconnect();
+    second.disconnect();
+    if (runtime.lifecycle.phase !== 'stopped') await runtime.shutdown();
+  });
 
   const waiting = eventFrom(first, 'waiting');
   first.emit('find-partner', guest('First Account'));
@@ -216,6 +223,4 @@ test('shutdown waits for active conversation persistence before closing resource
   await shutdown;
   assert.equal(databaseClosed, true);
   assert.equal(runtime.lifecycle.phase, 'stopped');
-  first.disconnect();
-  second.disconnect();
 });

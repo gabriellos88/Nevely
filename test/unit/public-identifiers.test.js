@@ -1,0 +1,32 @@
+const assert = require('node:assert/strict');
+const { test } = require('node:test');
+const {
+  createPublicId,
+  isPublicId,
+  nextAvailablePublicId
+} = require('../../lib/public-identifiers');
+
+test('canonical public IDs use the exact lowercase principal formats', () => {
+  const userId = createPublicId('user');
+  const guestId = createPublicId('guest');
+  assert.match(userId, /^nvy_[0-9a-f]{12}$/);
+  assert.match(guestId, /^gst_[0-9a-f]{12}$/);
+  assert.equal(isPublicId(userId, 'user'), true);
+  assert.equal(isPublicId(guestId, 'guest'), true);
+  assert.equal(isPublicId('nvy_ABCDEF123456', 'user'), false);
+  assert.equal(isPublicId('gst_0123456789ab', 'user'), false);
+});
+
+test('public ID allocation retries a collision before returning a free value', async () => {
+  const firstCandidate = 'nvy_000000000000';
+  const candidates = [firstCandidate, 'nvy_abcdefabcdef'];
+  const executor = {
+    async query(_sql, [value]) {
+      return { rowCount: value === firstCandidate ? 1 : 0, rows: [] };
+    }
+  };
+  const allocated = await nextAvailablePublicId(executor, 'user', {
+    generate: () => candidates.shift()
+  });
+  assert.equal(allocated, 'nvy_abcdefabcdef');
+});

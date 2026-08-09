@@ -21,7 +21,8 @@ identity and security records.
 | Google replay guards | Until token expiry | Hard-delete after expiry. |
 | Temporary bans | 24 months after the ban ended | Permanent and network bans do not inherit chat retention and are kept. |
 | Security/audit events | 24 months | Hard-delete in batches. This policy is independent of chat deletion. |
-| Active accounts and anonymized account tombstones | Not deleted by the retention worker | Account lifecycle remains an explicit identity operation. |
+| Registered accounts deleted by user/admin | Exactly 30 days from `deleted_at` | Email, username and canonical Public ID remain reserved. At expiry the worker removes PII, credentials/tokens/external identities, rotates the Public ID and retains the internal relational tombstone. Active permanent account bans pause automatic purge. |
+| Purged registered-account tombstones | Retained while internal audit, ban, report, message or security references require them | Never hard-delete the `users` row through ordinary retention. The tombstone has `pii_purged_at` and synthetic identity fields. |
 | Friendships and blocks | Until a user removes them or an account lifecycle action applies | They are not aged out as chat content. |
 | Guest principals | Active principals expire after 30 days of inactivity; claimed tombstones are retained for 30 days | N3 keeps the authorization binding in the server session and persists the guest reminder notification until claim or expiry. |
 | Capacity samples | 400 days | Old aggregate samples are deleted in batches. |
@@ -37,6 +38,12 @@ A PostgreSQL advisory lock makes only one replica perform retention at a time.
 Every statement handles at most `RETENTION_BATCH_SIZE` rows, and a policy can
 run at most `RETENTION_MAX_BATCHES_PER_POLICY` batches per cycle. The default
 cycle is six hours.
+
+Registered-account purge uses `(retention_until, id)` with `FOR UPDATE SKIP
+LOCKED`. Each batch is one transaction. A second worker pass finds no eligible
+row, so Public ID rotation and the append-only `account_pii_purged` event occur
+once. The worker clears denormalized sender display names but leaves internal
+message/report/audit references attached to the unchanged account key.
 
 The defaults are:
 
