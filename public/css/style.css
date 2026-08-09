@@ -348,13 +348,32 @@
 .admin-id-copy { background: transparent; border: 0; color: var(--color-fg-brand); cursor: pointer; font: inherit; padding: 0; text-decoration: underline; text-underline-offset: 2px; }
 .admin-id-copy:focus-visible { outline: 2px solid var(--color-brand-medium); outline-offset: var(--spacing-1); }
 .admin-pagination { display: flex; justify-content: end; margin-top: var(--spacing-4); }
-.admin-network-workflow { border-top: 1px solid var(--color-border-default); display: grid; gap: var(--spacing-4); grid-template-columns: repeat(3, minmax(0, 1fr)); margin: var(--spacing-2) 0 var(--spacing-6); padding-top: var(--spacing-6); }
-.admin-network-workflow > div { grid-column: 1 / -1; }
+.admin-network-disclosure { background: var(--color-neutral-secondary-soft); border: 1px solid var(--color-border-default); border-radius: var(--radius-xxl); margin: var(--spacing-2) 0 var(--spacing-6); }
+.admin-network-disclosure > summary { align-items: center; cursor: pointer; display: flex; gap: var(--spacing-4); justify-content: space-between; min-height: 56px; padding: var(--spacing-3) var(--spacing-5); }
+.admin-network-disclosure > summary::marker { color: var(--color-fg-brand); }
+.admin-network-disclosure > summary span:first-child { display: grid; gap: var(--spacing-1); }
+.admin-network-disclosure > summary small { color: var(--color-body-subtle); font-weight: var(--font-weight-normal); }
+.admin-network-disclosure > summary:focus-visible,
+.admin-advanced-disclosure > summary:focus-visible { border-radius: var(--radius-xxl); box-shadow: var(--focus-ring-brand); outline: none; }
+.admin-summary-action { background: var(--color-brand); border-radius: var(--radius-full); color: var(--color-heading); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); padding: var(--spacing-2-5) var(--spacing-4); }
+.admin-network-workflow { border-top: 1px solid var(--color-border-default); display: grid; gap: var(--spacing-5); grid-template-columns: minmax(280px, .8fr) minmax(360px, 1.2fr); padding: var(--spacing-5); }
+.admin-network-workflow > section { min-width: 0; }
 .admin-network-workflow h3, .admin-network-workflow h4 { margin: 0 0 var(--spacing-2); }
 .admin-risk-form { align-content: start; background: var(--color-neutral-secondary-soft); border: 1px solid var(--color-border-default); border-radius: var(--radius-xxl); display: grid; gap: var(--spacing-3); padding: var(--spacing-5); }
 .admin-risk-form label { color: var(--color-heading); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); }
 .admin-risk-form input, .admin-risk-form button { min-height: 44px; width: 100%; }
 .admin-risk-form p { min-height: var(--spacing-6); margin: 0; overflow-wrap: anywhere; }
+.admin-advanced-disclosure { border: 1px solid var(--color-border-default); border-radius: var(--radius-xl); padding: var(--spacing-3); }
+.admin-advanced-disclosure > summary { color: var(--color-fg-brand); cursor: pointer; font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); min-height: 44px; padding: var(--spacing-2); }
+.admin-advanced-disclosure[open] { display: grid; gap: var(--spacing-3); }
+.admin-pending-heading { align-items: start; display: flex; gap: var(--spacing-4); justify-content: space-between; }
+.admin-pending-reviews { display: grid; gap: var(--spacing-3); min-height: 44px; }
+.admin-pending-reviews.is-error { color: var(--color-fg-danger); }
+.admin-pending-review { background: var(--color-neutral-primary); border: 1px solid var(--color-border-default); border-radius: var(--radius-xxl); padding: var(--spacing-4); }
+.admin-review-metadata { font-size: var(--font-size-sm); margin-bottom: var(--spacing-4); }
+.admin-review-form { background: transparent; border: 0; border-radius: 0; padding: 0; }
+.admin-review-actions { display: flex; flex-wrap: wrap; gap: var(--spacing-3); }
+.admin-review-actions .btn { flex: 1 1 180px; }
 .admin-workspace .admin-section { border-top: 1px solid var(--color-border-default); margin-top: var(--spacing-6); padding: var(--spacing-6) 0 0; }
 .admin-panel > .admin-section:first-of-type { border-top: 0; margin-top: 0; padding-top: 0; }
 .admin-workspace .admin-price-form { gap: var(--spacing-3); }
@@ -399,6 +418,8 @@
   .admin-panel-heading-compact + .admin-toolbar { margin-bottom: var(--spacing-3); }
   .admin-toolbar { gap: var(--spacing-2); margin-bottom: var(--spacing-4); }
   .admin-toolbar .admin-field-shell, .admin-toolbar select, .admin-toolbar .btn { min-height: 44px; }
+  .admin-network-disclosure > summary { min-height: 48px; padding-block: var(--spacing-2); }
+  .admin-network-workflow { gap: var(--spacing-3); padding: var(--spacing-3); }
 }
 
 @media (max-width: 640px) {

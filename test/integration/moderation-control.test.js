@@ -57,7 +57,7 @@ test('PostgreSQL moderation control disconnects a user on every listening replic
   const delivered = replicaTwoEvents[0];
   assert.equal(delivered.userId, Number(user.id));
   assert.equal(delivered.event, 'account-banned');
-  assert.equal(delivered.payload.reason, 'Cross replica moderation decision');
+  assert.deepEqual(delivered.payload, {});
   assert.equal(Object.hasOwn(delivered.payload, 'network'), false);
   assert.equal(Object.hasOwn(delivered.payload, 'body'), false);
 });
@@ -99,8 +99,37 @@ test('PostgreSQL moderation control disconnects a guest on every replica without
   const delivered = replicaTwoEvents[0];
   assert.equal(delivered.guestId, guest.id);
   assert.equal(delivered.event, 'guest-restricted');
-  assert.notEqual(delivered.payload.endsAt, null);
+  assert.deepEqual(delivered.payload, {});
   assert.equal(Object.hasOwn(delivered.payload, 'reason'), false);
   assert.equal(Object.hasOwn(delivered.payload, 'name'), false);
   assert.equal(Object.hasOwn(delivered.payload, 'body'), false);
+});
+
+test('PostgreSQL moderation control disconnects matching network sockets on every replica using only HMAC scope', {
+  skip: hasDatabase ? false : 'DATABASE_URL is unavailable outside the disposable CI database'
+}, async (t) => {
+  const db = require('../../db');
+  await resetDatabase(db);
+  const deliveries = [];
+  const first = createModerationControlChannel({ db, chat: { async terminateNetwork() {} } });
+  const second = createModerationControlChannel({
+    db,
+    chat: { async terminateNetwork(control) { deliveries.push(control); } }
+  });
+  t.after(async () => { await first.stop(); await second.stop(); });
+  await first.start();
+  await second.start();
+  const control = {
+    networkFingerprint: 'b'.repeat(64),
+    addressFamily: 4,
+    prefixLength: 32
+  };
+  await first.publishNetworkTermination(control);
+  await waitFor(() => deliveries.length === 1);
+  assert.deepEqual(deliveries[0], {
+    principalType: 'network',
+    event: 'network-restricted',
+    ...control
+  });
+  assert.equal(JSON.stringify(deliveries).includes('203.0.113'), false);
 });

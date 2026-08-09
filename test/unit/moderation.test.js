@@ -6,6 +6,7 @@ const {
   fingerprintsForAddress,
   requiredReason
 } = require('../../lib/moderation');
+const { trustedClientAddress } = require('../../lib/client-address');
 
 test('network CIDRs are canonicalized without retaining the source address', () => {
   const first = canonicalNetwork('203.0.113.77/24');
@@ -25,6 +26,15 @@ test('network fingerprints support IPv4 and IPv6 prefix matching without raw IP 
   assert.equal(ipv6.length, 129);
   for (const value of [...ipv4, ...ipv6]) assert.match(value, /^[a-f0-9]{64}$/);
   assert.equal(JSON.stringify(ipv4).includes('203.0.113.77'), false);
+});
+
+test('HTTP and Socket.IO share the same one-proxy client address resolution', () => {
+  const request = {
+    headers: { 'x-forwarded-for': '203.0.113.77' },
+    socket: { remoteAddress: '127.0.0.1' }
+  };
+  assert.equal(trustedClientAddress(request), '203.0.113.77');
+  assert.equal(trustedClientAddress({ headers: {}, socket: { remoteAddress: '2001:db8::42' } }), '2001:db8::42');
 });
 
 test('sensitive moderation actions require a bounded human reason', () => {

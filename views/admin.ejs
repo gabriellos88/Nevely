@@ -55,12 +55,35 @@
     <section id="admin-panel-bans" class="admin-panel" role="tabpanel" aria-labelledby="admin-tab-bans" data-admin-panel="bans" hidden>
       <div class="admin-panel-heading"><div><h2>Bans</h2><p>Account, guest, and network restrictions remain separate controls.</p></div></div>
       <form class="admin-toolbar" data-admin-filter="bans"><label class="sr-only" for="admin-ban-scope">Ban scope</label><select id="admin-ban-scope" name="scope"><option value="">All ban scopes</option><option value="account">Account</option><option value="guest">Guest</option><option value="network">Network</option></select><button class="btn btn-primary" type="submit">Apply filter</button></form>
-      <section class="admin-network-workflow" aria-labelledby="network-ban-title">
-        <div><h3 id="network-ban-title">Create a privacy-reviewed network ban</h3><p>A second administrator must approve the exact CIDR before a temporary ban can be created.</p></div>
-        <form id="networkApprovalRequestForm" class="admin-risk-form"><h4>1. Request review</h4><label for="network-request-cidr">CIDR</label><input id="network-request-cidr" name="cidr" placeholder="203.0.113.0/24" required><label for="network-request-reason">Reason</label><textarea id="network-request-reason" name="reason" minlength="3" maxlength="500" required></textarea><button class="btn btn-secondary" type="submit">Request privacy review</button><p data-network-feedback="request" role="status" aria-live="polite"></p></form>
-        <form id="networkApprovalReviewForm" class="admin-risk-form"><h4>2. Independent approval</h4><label for="network-review-id">Approval ID</label><input id="network-review-id" name="approvalId" required><label for="network-review-reference">Review reference</label><input id="network-review-reference" name="reviewReference" maxlength="160" required><label for="network-review-reason">Review reason</label><textarea id="network-review-reason" name="reason" minlength="3" maxlength="500" required></textarea><button class="btn btn-secondary" type="submit">Approve as second admin</button><p data-network-feedback="review" role="status" aria-live="polite"></p></form>
-        <form id="networkBanCreateForm" class="admin-risk-form"><h4>3. Create temporary ban</h4><label for="network-create-cidr">Approved CIDR</label><input id="network-create-cidr" name="cidr" placeholder="203.0.113.0/24" required><label for="network-create-approval">Approval ID</label><input id="network-create-approval" name="privacyApprovalId" required><label for="network-create-hours">Duration in hours</label><input id="network-create-hours" name="hours" type="number" min="1" max="720" value="24" required><label for="network-create-reason">Reason</label><textarea id="network-create-reason" name="reason" minlength="3" maxlength="500" required></textarea><button class="btn btn-primary" type="submit">Create network ban</button><p data-network-feedback="create" role="status" aria-live="polite"></p></form>
-      </section>
+      <details class="admin-network-disclosure" id="networkBanDisclosure">
+        <summary><span><strong>Network bans</strong><small id="networkPendingCount">Loading pending reviews</small></span><span class="admin-summary-action" aria-hidden="true">Create network ban</span></summary>
+        <div class="admin-network-workflow">
+          <section aria-labelledby="network-request-title">
+            <h3 id="network-request-title">Request a network review</h3>
+            <p>Start from a recently seen banned account. A distinct administrator must approve before a temporary network ban exists.</p>
+            <form id="networkApprovalRequestForm" class="admin-risk-form">
+              <label for="network-request-public-id">Banned account Public ID</label>
+              <input id="network-request-public-id" name="publicId" pattern="nvy_[0-9a-f]{12}" placeholder="nvy_012345abcdef" autocomplete="off" required>
+              <details class="admin-advanced-disclosure" id="networkManualDisclosure">
+                <summary>Advanced: enter CIDR manually</summary>
+                <label for="network-request-cidr">Exact CIDR</label>
+                <input id="network-request-cidr" name="cidr" placeholder="203.0.113.0/24" autocomplete="off">
+                <p>Manual scopes are limited to IPv4 /24 or narrower and IPv6 /64 or narrower. The second administrator must re-enter the exact CIDR.</p>
+              </details>
+              <label for="network-request-hours">Duration in hours</label>
+              <input id="network-request-hours" name="hours" type="number" min="1" max="720" value="24" required>
+              <label for="network-request-reason">Reason</label>
+              <textarea id="network-request-reason" name="reason" minlength="3" maxlength="500" required></textarea>
+              <button class="btn btn-primary" type="submit">Request privacy review</button>
+              <p data-network-feedback="request" role="status" aria-live="polite"></p>
+            </form>
+          </section>
+          <section aria-labelledby="network-pending-title">
+            <div class="admin-pending-heading"><div><h3 id="network-pending-title">Pending network reviews</h3><p>Only minimized scope and decision metadata are shown.</p></div><button class="btn btn-secondary" id="networkReviewsRefresh" type="button">Refresh</button></div>
+            <div id="networkPendingReviews" class="admin-pending-reviews" aria-live="polite" aria-busy="true">Loading pending reviews&hellip;</div>
+          </section>
+        </div>
+      </details>
       <div class="admin-table-wrap" tabindex="0"><table class="admin-table"><caption class="sr-only">Ban results</caption><thead><tr><th scope="col">Scope</th><th scope="col">Target</th><th scope="col">Type</th><th scope="col">Reason</th><th scope="col">Expiry</th><th scope="col">State</th><th scope="col">Actions</th></tr></thead><tbody data-admin-table="bans"></tbody></table></div>
       <p class="admin-table-state" data-admin-state="bans" role="status" aria-live="polite">Open this section to load bans.</p>
       <nav class="admin-pagination" data-admin-pagination="bans" aria-label="Bans pagination" hidden><button class="btn btn-secondary" type="button" data-admin-more="bans">Load more</button></nav>

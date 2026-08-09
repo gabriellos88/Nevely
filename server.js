@@ -18,6 +18,7 @@ const { createModerationControlChannel } = require('./lib/moderation-control');
 const { createRetentionWorker } = require('./lib/retention');
 const { csrfProtection, secureHeaders } = require('./lib/security');
 const { createPrivatePreview } = require('./lib/private-preview');
+const { trustApplicationProxy, trustedClientAddress } = require('./lib/client-address');
 const safeLog = require('./lib/safe-log');
 const uiCopy = require('./public/i18n/en.json');
 
@@ -45,7 +46,7 @@ function createRuntime(options = {}) {
   let removeSignalHandlers = null;
 
   app.disable('x-powered-by');
-  app.set('trust proxy', 1);
+  app.set('trust proxy', trustApplicationProxy);
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));
   app.locals.copy = uiCopy;
@@ -196,6 +197,20 @@ function createRuntime(options = {}) {
     '/verify-email/resend',
     '/api/account/password/setup'
   ], authLimiter);
+  app.use(async (req, res, next) => {
+    if (!db.isConfigured || !moderation) return next();
+    if (req.path === '/support' || req.path === '/guest-restricted'
+        || req.path === '/logout' || req.path.startsWith('/health/')) return next();
+    try {
+      if (!await moderation.isNetworkBlocked(req.ip)) return next();
+      if (req.path.startsWith('/api/') || req.method !== 'GET') {
+        return res.status(403).json({ error: uiCopy.errors.networkBlocked, code: 'NETWORK_RESTRICTED' });
+      }
+      return res.redirect('/guest-restricted');
+    } catch (error) {
+      return next(error);
+    }
+  });
   registerAuthRoutes(app, db, {
     environment,
     googleVerifier: options.googleVerifier
@@ -249,6 +264,8 @@ function createRuntime(options = {}) {
     isNetworkBlocked: (address) => moderation?.isNetworkBlocked(address) || Promise.resolve(false),
     isGuestBlocked: (guestId) => moderation?.isGuestBlocked(guestId) || Promise.resolve(false),
     isGuestDeviceRestricted: (guestId) => moderation?.isGuestDeviceRestrictedForGuest(guestId) || Promise.resolve(false),
+    matchesNetworkControl: (address, control) => moderation?.matchesNetworkControl(address, control) || false,
+    clientAddressForSocket: (socket) => trustedClientAddress(socket.request),
     rateLimiter: options.rateLimiter,
     rateLimitPrincipalResolver: options.rateLimitPrincipalResolver,
     log
@@ -387,6 +404,7 @@ function createRuntime(options = {}) {
     server,
     io,
     chat,
+    moderation,
     moderationControl,
     outboxWorker,
     retentionWorker,
