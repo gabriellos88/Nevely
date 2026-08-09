@@ -491,8 +491,8 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   assert.equal(Number((await db.query(
     'SELECT COUNT(*) AS count FROM account_identities WHERE user_id = $1',
     [deletedGoogleUser.id]
-  )).rows[0].count), 0);
-  const reusedGoogle = await request(runtime.app)
+  )).rows[0].count), 1);
+  const retainedGoogle = await request(runtime.app)
     .post('/auth/google')
     .set('Accept', 'application/json')
     .set('X-Forwarded-For', '198.51.100.51')
@@ -503,13 +503,13 @@ test('N1 email tokens, session revocation and Google identity contracts', {
       gender: 'non-binary',
       countryCode: 'ch'
     })
-    .expect(201);
-  assert.equal(reusedGoogle.body.user.email, 'google-delete-reuse@example.test');
+    .expect(403);
+  assert.equal(retainedGoogle.body.code, 'ACCOUNT_REMOVED');
   const legacyDeleted = await db.query(
     `INSERT INTO users
-       (username, email, password_hash, public_id, display_name, deleted_at)
+       (username, email, password_hash, public_id, display_name, deleted_at, retention_until, pii_purged_at)
      VALUES ('deleted_legacy_google', 'deleted-legacy@deleted.nevely.invalid', NULL,
-             'nvy_cccccccccccc', 'Deleted user', NOW())
+             'nvy_cccccccccccc', 'Deleted user', NOW(), NOW(), NOW())
      RETURNING id`
   );
   await db.query(
@@ -528,7 +528,7 @@ test('N1 email tokens, session revocation and Google identity contracts', {
       gender: 'non-binary',
       countryCode: 'ch'
     })
-    .expect(201);
+    .expect(403);
   await request(runtime.app)
     .post('/auth/google')
     .set('Accept', 'application/json')
@@ -607,7 +607,8 @@ test('N1 email tokens, session revocation and Google identity contracts', {
   assert.match(googleAdminPage.text, /High-risk actions unlocked until/);
   await adminAgent
     .post('/api/admin/network-ban-privacy-approvals')
-    .send({ cidr: '203.0.113.0/24', reason: 'Verify the post-2FA high-risk window' })
+    .send({ sourceType: 'manual', cidr: '203.0.113.0/24', hours: 2,
+      reason: 'Verify the post-2FA high-risk window' })
     .expect(201);
   await adminAgent
     .post('/api/admin/reauth')

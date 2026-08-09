@@ -302,12 +302,18 @@ test('migrations, authentication, profile validation and authorization contracts
   await selfDelete.delete('/api/account').send({ confirmation: 'wrong value' }).expect(400);
   await selfDelete.delete('/api/account').send({ confirmation: 'DELETE' }).expect(204);
   const deletedSelf = (await db.query(
-    'SELECT username, email, deleted_at FROM users WHERE id = $1',
+    'SELECT username, email, public_id, deleted_at, retention_until, pii_purged_at FROM users WHERE id = $1',
     [selfDeleteId]
   )).rows[0];
-  assert.match(deletedSelf.username, /^deleted_\d+$/);
-  assert.match(deletedSelf.email, /^deleted_\d+@deleted\.nevely\.invalid$/);
+  assert.equal(deletedSelf.username, 'self_delete_member');
+  assert.equal(deletedSelf.email, 'self-delete-member@example.test');
+  assert.equal(deletedSelf.public_id, selfDeleteRegistration.body.user.publicId);
   assert.notEqual(deletedSelf.deleted_at, null);
+  assert.equal(deletedSelf.pii_purged_at, null);
+  assert.equal(
+    new Date(deletedSelf.retention_until).getTime() - new Date(deletedSelf.deleted_at).getTime(),
+    30 * 24 * 60 * 60 * 1000
+  );
   assert.equal((await selfDelete.get('/api/auth/me').expect(200)).body.user, null);
 
   const admin = request.agent(runtime.app);
@@ -362,8 +368,9 @@ test('migrations, authentication, profile validation and authorization contracts
   assert.match(adminWorkspace.text, /value="deleted">Deleted/);
   assert.match(adminWorkspace.text, /value="banned">Banned/);
   assert.match(adminWorkspace.text, /networkApprovalRequestForm/);
-  assert.match(adminWorkspace.text, /networkApprovalReviewForm/);
-  assert.match(adminWorkspace.text, /networkBanCreateForm/);
+  assert.match(adminWorkspace.text, /networkPendingReviews/);
+  assert.match(adminWorkspace.text, /Advanced: enter CIDR manually/);
+  assert.doesNotMatch(adminWorkspace.text, /networkBanCreateForm/);
   assert.doesNotMatch(adminWorkspace.text, />Appeals</);
   const ban = await admin
     .post(`/api/admin/users/${memberPublicId}/ban`)
@@ -466,12 +473,18 @@ test('migrations, authentication, profile validation and authorization contracts
     .send({ confirmation: 'BAN AND DELETE', reason: 'Synthetic removal test' })
     .expect(204);
   const removedByAdmin = (await db.query(
-    'SELECT username, email, deleted_at FROM users WHERE id = $1',
+    'SELECT username, email, public_id, deleted_at, retention_until, pii_purged_at FROM users WHERE id = $1',
     [adminDeleteTargetId]
   )).rows[0];
-  assert.match(removedByAdmin.username, /^deleted_\d+$/);
-  assert.match(removedByAdmin.email, /^deleted_\d+@deleted\.nevely\.invalid$/);
+  assert.equal(removedByAdmin.username, 'admin_delete_target');
+  assert.equal(removedByAdmin.email, 'admin-delete-target@example.test');
+  assert.equal(removedByAdmin.public_id, adminDeleteTargetPublicId);
   assert.notEqual(removedByAdmin.deleted_at, null);
+  assert.equal(removedByAdmin.pii_purged_at, null);
+  assert.equal(
+    new Date(removedByAdmin.retention_until).getTime() - new Date(removedByAdmin.deleted_at).getTime(),
+    30 * 24 * 60 * 60 * 1000
+  );
   assert.equal(
     Number((await db.query(
       `SELECT COUNT(*) AS count FROM audit_log
@@ -484,14 +497,18 @@ test('migrations, authentication, profile validation and authorization contracts
   const deletedUser = deletedUsers.body.users.find((item) => item.deleted_at);
   assert.notEqual(deletedUser, undefined);
   assert.match(deletedUser.public_id, /^nvy_[0-9a-f]{12}$/);
-  assert.equal(deletedUser.username, null);
+  assert.notEqual(deletedUser.username, null);
   assert.equal(deletedUser.email, null);
   assert.notEqual(deletedUser.deleted_at, null);
+  assert.notEqual(deletedUser.retention_until, null);
+  assert.equal(deletedUser.pii_purged_at, null);
   assert.equal(Object.hasOwn(deletedUser, 'id'), false);
   const deletedDetail = await admin.get(`/api/admin/users/${deletedUser.public_id}`).expect(200);
-  assert.equal(deletedDetail.body.user.username, null);
-  assert.equal(deletedDetail.body.user.email, null);
+  assert.notEqual(deletedDetail.body.user.username, null);
+  assert.notEqual(deletedDetail.body.user.email, null);
   assert.notEqual(deletedDetail.body.user.deletedAt, null);
+  assert.notEqual(deletedDetail.body.user.retentionUntil, null);
+  assert.equal(deletedDetail.body.user.piiPurgedAt, null);
 
   await db.query('UPDATE users SET role = $1 WHERE id = $2', ['user', adminId]);
   await admin.get('/admin').set('Accept', 'application/json').expect(403);

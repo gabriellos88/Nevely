@@ -41,17 +41,19 @@ async function adminApi(url, options = {}) {
   return data;
 }
 
-function text(value, fallback = '—') {
+function text(value, fallback = 'Not retained') {
+  if (value === null || value === undefined || value === '') return fallback === '' ? '' : 'Not retained';
   return value === null || value === undefined || value === '' ? fallback : String(value);
 }
 
 function dateTime(value) {
   if (!value) return 'Never';
   const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? '—' : parsed.toLocaleString();
+  if (Number.isNaN(parsed.getTime())) return 'Unavailable';
+  return parsed.toLocaleString();
 }
 
-function cell(row, value, { header = false, fallback = 'â€”' } = {}) {
+function cell(row, value, { header = false, fallback = 'Not retained' } = {}) {
   const element = document.createElement(header ? 'th' : 'td');
   if (header) element.scope = 'row';
   element.textContent = text(value, fallback);
@@ -92,17 +94,21 @@ function appendUsers(users) {
     const row = document.createElement('tr');
     const account = cell(row, '', { header: true, fallback: '' });
     const name = document.createElement('strong');
-    const displayName = user.display_name || user.username || 'Deleted user';
+    const displayName = user.display_name || (user.pii_purged_at ? 'Removed' : user.username) || 'Not retained';
     name.textContent = text(displayName);
     account.append(name);
     const idCell = cell(row, '', { fallback: '' });
     idCell.append(publicIdButton(user.public_id));
     cell(row, user.plan);
-    cell(row, user.email);
-    cell(row, user.age);
-    cell(row, user.country);
+    cell(row, user.email || (user.email_retained_in_details ? 'Retained in Details' : 'Removed'));
+    cell(row, user.age, { fallback: user.pii_purged_at ? 'Removed' : 'Not retained' });
+    cell(row, user.country, { fallback: user.pii_purged_at ? 'Removed' : 'Not retained' });
     const banCell = cell(row, '', { fallback: '' });
-    if (user.deleted_at) banCell.replaceChildren(badge(`Deleted ${dateTime(user.deleted_at)}`));
+    if (user.deleted_at && user.pii_purged_at) {
+      banCell.replaceChildren(badge(`Deleted \u00b7 personal data removed on ${dateTime(user.pii_purged_at)}`));
+    } else if (user.deleted_at) {
+      banCell.replaceChildren(badge(`Deleted \u00b7 retained until ${dateTime(user.retention_until)}`));
+    }
     else if (user.active_ban) {
       const expiry = user.active_ban_type === 'permanent' ? 'permanent' : `until ${dateTime(user.active_ban_ends_at)}`;
       banCell.replaceChildren(badge(`Banned · ${user.active_ban_type} · ${expiry}`, 'is-danger'));
@@ -254,6 +260,7 @@ function selectTab(section) {
     if (panel) panel.hidden = !active;
   });
   loadSection(section);
+  if (section === 'bans') loadNetworkReviews();
 }
 
 function openActionDialog(kind, values = {}) {
@@ -327,16 +334,24 @@ async function openAccountDetail(publicId) {
     const user = detail.user;
     const summary = document.createElement('dl');
     summary.className = 'admin-detail-list';
+    const removed = user.personalDataRemoved;
     const summaryFields = [
-      ['Public ID', user.publicId], ['Name', user.displayName], ['Username', user.username], ['Email', user.email],
+      ['Public ID', user.publicId], ['Name', user.displayName || (removed ? 'Removed' : 'Not retained')],
+      ['Username', user.username || (removed ? 'Removed' : 'Not retained')],
+      ['Email', user.email || (removed ? 'Removed' : 'Not retained')],
       ['Role', user.role], ['Plan', user.plan], ['Age', user.age], ['Country', user.country],
-      ['Email verification', user.deletedAt ? null : (user.emailVerifiedAt ? `Verified ${dateTime(user.emailVerifiedAt)}` : 'Not verified')],
+      ['Email verification', removed ? 'Removed' : (user.emailVerifiedAt ? `Verified ${dateTime(user.emailVerifiedAt)}` : 'Not verified')],
       ['Recent chats', user.recentChatCount], ['Last seen', dateTime(user.lastSeenAt)],
-      ['Active ban', user.activeBan ? `${user.activeBan.type} · ${user.activeBan.reason}` : 'None']
+      ['Active ban', user.activeBan ? `${user.activeBan.type} \u00b7 ${user.activeBan.reason}` : 'None']
     ];
     if (user.deletedAt) {
       summaryFields.push(['Deleted at', dateTime(user.deletedAt)]);
-      if (user.scheduledDeletion) summaryFields.push(['Scheduled deletion', dateTime(user.scheduledDeletion)]);
+      if (user.piiPurgedAt) {
+        summaryFields.push(['Data lifecycle', `Deleted \u00b7 personal data removed on ${dateTime(user.piiPurgedAt)}`]);
+      } else {
+        summaryFields.push(['Scheduled data removal', dateTime(user.retentionUntil)]);
+        summaryFields.push(['Data lifecycle', `Deleted \u00b7 retained until ${dateTime(user.retentionUntil)}`]);
+      }
     }
     summaryFields.forEach(([label, value]) => {
       const term = document.createElement('dt'); term.textContent = label;
@@ -351,7 +366,7 @@ async function openAccountDetail(publicId) {
     } else {
       records.forEach((record) => {
         const item = document.createElement('li');
-        item.textContent = `${dateTime(record.created_at)} · ${record.action} · ${record.reason}`;
+        item.textContent = `${dateTime(record.created_at)} \u00b7 ${record.action} \u00b7 ${record.reason}`;
         history.append(item);
       });
     }
@@ -376,7 +391,11 @@ async function openGuestDetail(guestId) {
       ['Country', guest.country], ['Created', dateTime(guest.createdAt)], ['Recent chats', guest.recentChatCount],
       ['Last seen', dateTime(guest.lastSeenAt)],
       ['Restriction', guest.activeBan ? `${guest.activeBan.type} ${guest.activeBan.endsAt ? `until ${dateTime(guest.activeBan.endsAt)}` : '(no scheduled end)'}: ${guest.activeBan.reason}` : 'None'],
-      ...(guest.status === 'deleted' && guest.deletedAt ? [['Deleted at', dateTime(guest.deletedAt)], ['Scheduled deletion', dateTime(guest.retentionUntil)]] : [])
+      ...(guest.status === 'deleted' && guest.deletedAt ? [
+        ['Deleted at', dateTime(guest.deletedAt)],
+        ['Scheduled data removal', dateTime(guest.retentionUntil)],
+        ['Data lifecycle', `Deleted \u00b7 retained until ${dateTime(guest.retentionUntil)}`]
+      ] : [])
     ].forEach(([label, value]) => {
       const term = document.createElement('dt'); term.textContent = label;
       const definition = document.createElement('dd'); definition.textContent = text(value);
@@ -496,46 +515,141 @@ document.getElementById('networkApprovalRequestForm')?.addEventListener('submit'
   const feedback = document.querySelector('[data-network-feedback="request"]');
   try {
     const values = Object.fromEntries(new FormData(event.currentTarget));
+    const manual = document.getElementById('networkManualDisclosure')?.open;
     const result = await adminApi('/api/admin/network-ban-privacy-approvals', {
-      method: 'POST', body: JSON.stringify(values)
+      method: 'POST',
+      body: JSON.stringify({
+        sourceType: manual ? 'manual' : 'account',
+        publicId: manual ? undefined : values.publicId,
+        cidr: manual ? values.cidr : undefined,
+        hours: Number(values.hours),
+        reason: values.reason
+      })
     });
-    document.getElementById('network-review-id').value = result.approvalId;
-    document.getElementById('network-create-approval').value = result.approvalId;
-    document.getElementById('network-create-cidr').value = values.cidr;
     feedback.textContent = `Review requested. Approval ID: ${result.approvalId}`;
+    event.currentTarget.reset();
+    document.getElementById('networkManualDisclosure').open = false;
+    syncNetworkSourceMode();
+    await loadNetworkReviews();
   } catch (error) {
     feedback.textContent = error.message;
   }
 });
 
-document.getElementById('networkApprovalReviewForm')?.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const feedback = document.querySelector('[data-network-feedback="review"]');
-  try {
-    const values = Object.fromEntries(new FormData(event.currentTarget));
-    const result = await adminApi(`/api/admin/network-ban-privacy-approvals/${encodeURIComponent(values.approvalId)}/approve`, {
-      method: 'POST', body: JSON.stringify({ reason: values.reason, reviewReference: values.reviewReference })
-    });
-    feedback.textContent = `Privacy review approved until ${dateTime(result.expiresAt)}.`;
-  } catch (error) {
-    feedback.textContent = error.message;
-  }
-});
+function syncNetworkSourceMode() {
+  const manual = Boolean(document.getElementById('networkManualDisclosure')?.open);
+  const publicId = document.getElementById('network-request-public-id');
+  const cidr = document.getElementById('network-request-cidr');
+  if (publicId) publicId.required = !manual;
+  if (cidr) cidr.required = manual;
+}
 
-document.getElementById('networkBanCreateForm')?.addEventListener('submit', async (event) => {
-  event.preventDefault();
-  const feedback = document.querySelector('[data-network-feedback="create"]');
+document.getElementById('networkManualDisclosure')?.addEventListener('toggle', syncNetworkSourceMode);
+
+function reviewTerm(list, label, value) {
+  const term = document.createElement('dt');
+  term.textContent = label;
+  const definition = document.createElement('dd');
+  definition.textContent = text(value);
+  list.append(term, definition);
+}
+
+function renderNetworkReviews(reviews) {
+  const container = document.getElementById('networkPendingReviews');
+  const count = document.getElementById('networkPendingCount');
+  if (!container || !count) return;
+  count.textContent = `${reviews.length} privacy review${reviews.length === 1 ? '' : 's'} pending`;
+  container.setAttribute('aria-busy', 'false');
+  if (!reviews.length) {
+    container.replaceChildren(document.createTextNode('No pending network reviews.'));
+    return;
+  }
+  const cards = reviews.map((review) => {
+    const card = document.createElement('article');
+    card.className = 'admin-pending-review';
+    const heading = document.createElement('h4');
+    heading.textContent = review.sourcePublicId || 'Manual network scope';
+    const details = document.createElement('dl');
+    details.className = 'admin-detail-list admin-review-metadata';
+    reviewTerm(details, 'Account ban', review.sourceType === 'account'
+      ? (review.sourceAccountBanActive ? 'Active' : 'No longer active') : 'Not applicable');
+    reviewTerm(details, 'Reason', review.reason);
+    reviewTerm(details, 'Proposed duration', `${review.durationHours} hours`);
+    reviewTerm(details, 'Scope', `IPv${review.addressFamily} /${review.prefixLength}`);
+    reviewTerm(details, 'Network reference', review.networkReference);
+    reviewTerm(details, 'Requested by', review.requesterPublicId);
+    reviewTerm(details, 'Review expires', dateTime(review.expiresAt));
+    const form = document.createElement('form');
+    form.className = 'admin-risk-form admin-review-form';
+    form.dataset.networkReviewId = review.id;
+    if (review.sourceType === 'manual') {
+      const label = document.createElement('label');
+      label.textContent = 'Re-enter exact CIDR';
+      const input = document.createElement('input');
+      input.name = 'cidr'; input.required = true; input.autocomplete = 'off';
+      label.append(input); form.append(label);
+    }
+    const reasonLabel = document.createElement('label');
+    reasonLabel.textContent = 'Review reason';
+    const reason = document.createElement('textarea');
+    reason.name = 'reason'; reason.required = true; reason.minLength = 3; reason.maxLength = 500;
+    reasonLabel.append(reason);
+    const actions = document.createElement('div');
+    actions.className = 'admin-review-actions';
+    const reject = document.createElement('button');
+    reject.type = 'submit'; reject.name = 'decision'; reject.value = 'reject'; reject.className = 'btn btn-secondary'; reject.textContent = 'Reject';
+    const approve = document.createElement('button');
+    approve.type = 'submit'; approve.name = 'decision'; approve.value = 'approve'; approve.className = 'btn btn-primary'; approve.textContent = 'Approve and create ban';
+    actions.append(reject, approve);
+    const feedback = document.createElement('p');
+    feedback.setAttribute('role', 'status'); feedback.setAttribute('aria-live', 'polite');
+    form.append(reasonLabel, actions, feedback);
+    card.append(heading, details, form);
+    return card;
+  });
+  container.replaceChildren(...cards);
+}
+
+async function loadNetworkReviews() {
+  const container = document.getElementById('networkPendingReviews');
+  const count = document.getElementById('networkPendingCount');
+  if (!container || !count) return;
+  container.setAttribute('aria-busy', 'true');
+  container.textContent = 'Loading pending reviews…';
   try {
-    const values = Object.fromEntries(new FormData(event.currentTarget));
-    const result = await adminApi('/api/admin/network-bans', {
-      method: 'POST', body: JSON.stringify({ ...values, hours: Number(values.hours) })
+    const result = await adminApi('/api/admin/network-ban-privacy-approvals?limit=50');
+    renderNetworkReviews(result.reviews || []);
+  } catch (error) {
+    container.setAttribute('aria-busy', 'false');
+    container.textContent = error.message;
+    container.classList.add('is-error');
+    count.textContent = 'Pending reviews unavailable';
+  }
+}
+
+document.getElementById('networkPendingReviews')?.addEventListener('submit', async (event) => {
+  event.preventDefault();
+  const form = event.target.closest('[data-network-review-id]');
+  if (!form) return;
+  const submitter = event.submitter;
+  const decision = submitter?.value === 'reject' ? 'reject' : 'approve';
+  const feedback = form.querySelector('[role="status"]');
+  try {
+    const values = Object.fromEntries(new FormData(form));
+    const result = await adminApi(`/api/admin/network-ban-privacy-approvals/${encodeURIComponent(form.dataset.networkReviewId)}/${decision}`, {
+      method: 'POST', body: JSON.stringify({ reason: values.reason, cidr: values.cidr })
     });
-    feedback.textContent = `Network ban created until ${dateTime(result.endsAt)}.`;
+    feedback.textContent = decision === 'approve'
+      ? `Network ban created until ${dateTime(result.ban?.endsAt)}.`
+      : 'Network review rejected.';
     await loadSection('bans', { reset: true });
+    await loadNetworkReviews();
   } catch (error) {
     feedback.textContent = error.message;
   }
 });
+
+document.getElementById('networkReviewsRefresh')?.addEventListener('click', loadNetworkReviews);
 
 document.getElementById('adminReauthForm')?.addEventListener('submit', async (event) => {
   event.preventDefault();

@@ -38,7 +38,10 @@ Implemented in N1:
   address, notify the old address and revoke every session.
 - `POST /api/account/identities/google`,
   `DELETE /api/account/identities/google`: explicit linking and safe unlinking.
-- `DELETE /api/account`: anonymize existing messages and delete the account. Body confirmation: `DELETE`.
+- `DELETE /api/account`: start the irreversible registered-account deletion
+  lifecycle. The transaction sets `deleted_at` and `retention_until` exactly 30
+  days later, revokes every session and preserves the canonical `nvy_...` ID
+  until purge. Body confirmation: `DELETE`.
 - `POST /api/account/avatar`: reserved endpoint; returns `501` until object storage is configured.
 - `GET /api/users/:id/profile`: public profile plus friendship/block state;
   `:id` is the opaque `nvy_` + 12 lowercase hexadecimal public identifier.
@@ -84,7 +87,9 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
   operational collections. Users support `state=active|banned|deleted`; guests
   support `status=active|banned|claimed|deleted|expired`. Both expose age,
   country, reliable last activity and the bounded recent-chat count where
-  available. Deleted accounts omit username, email and profile attributes.
+  available. Deleted accounts still inside retention expose their retained
+  administrative fields in Details; list responses omit retained email.
+  Purged tombstones return explicit lifecycle metadata and no personal fields.
   Guest cursors use `(created_at, public_id)` and
   Details/moderation routes accept only the canonical `gst_...` ID (with a
   temporary server-side legacy resolver); UUIDs are never emitted.
@@ -94,18 +99,28 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
   `permanent` restriction creates a separate server-side, HMAC-pseudonymous device
   restriction linked to the guest ban. It never creates an IP/network ban.
 - `PATCH /api/admin/guest-bans/:id/revoke`: revokes a guest restriction.
-- `POST /api/admin/network-ban-privacy-approvals`, `POST
-  /api/admin/network-ban-privacy-approvals/:id/approve`, `POST
-  /api/admin/network-bans`: request, independently approve and consume a privacy
-  review for one exact, narrowly-scoped CIDR. Network bans are always temporary
-  and are never derived from account or guest bans.
+- `GET /api/admin/network-ban-privacy-approvals`: minimized pending-review
+  queue. It returns a pseudonymous network reference, family/prefix, proposed
+  duration and internal workflow ID, never a raw IP/CIDR.
+- `POST /api/admin/network-ban-privacy-approvals`: Admin A requests a temporary
+  network review. The default input is a canonical `nvy_...` account with an
+  active account ban and a server-observed network signal no older than 24
+  hours; its scope is IPv4 `/32` or IPv6 `/128`. Advanced manual CIDR is limited
+  to IPv4 `/24` or narrower and IPv6 `/64` or narrower.
+- `POST /api/admin/network-ban-privacy-approvals/:id/approve` and `.../:id/reject`:
+  a distinct Admin B records the independent decision. Approval creates the
+  network ban and consumes the review atomically; manual review requires the
+  exact CIDR to be re-entered. Retry by the same reviewer is idempotent. The old
+  `POST /api/admin/network-bans` third step returns `410` and cannot create a ban.
+  Account, guest and network bans remain separate.
 - `GET /suspension`: after valid credentials for a suspended account, the only
   browser mode is a support-oriented suspension page and logout. The retired
   appeal API is not registered. The login JSON response uses `ACCOUNT_SUSPENDED`
   with reason, start, expiry and type only after credential validation.
 - `GET /guest-restricted`: generic Astra restriction page with a Support link;
   it does not disclose ban, device or network details.
-- `DELETE /api/admin/users/:id`: account anonymization; it never creates an IP/network ban.
+- `DELETE /api/admin/users/:id`: invokes the same 30-day account lifecycle as
+  self-delete; it never creates an IP/network ban.
 - `PATCH /api/admin/reports/:id`: resolve or dismiss a report.
 - `POST /api/admin/prices`: record a new premium price.
 
@@ -131,6 +146,8 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
 - `notification-created`: tells the client to refresh notifications.
 - `account-banned`: closes the account session after moderation action.
 - `guest-restricted`: closes a restricted guest principal session.
+- `network-restricted`: closes only sockets matching an activated HMAC network
+  scope. A conversation partner receives only `partner-left`.
 - `chat-error`: general realtime error.
 
 ## Safety and future work
@@ -139,4 +156,13 @@ The server enforces text length and a per-socket rate limit. `BANNED_WORDS` can 
 
 ## Database migrations
 
-Run `npm run db:migrate` with `DATABASE_URL` configured. The runner records applied SQL files in `schema_migrations`, removes an accidental UTF-8 BOM and applies each new migration in its own transaction. Migration 017 adds nullable `users.last_seen_at`, backfills it from conversation activity and removes legacy `account_ban` notifications. It does not delete retired appeal storage or append-only audit history. Application rollback can leave this additive column in place; restoring removed notification rows requires the pre-migration backup. Never delete audit records to perform a rollback. N2 operations, rollback and verification are documented in [`docs/operations/database-retention-and-capacity.md`](operations/database-retention-and-capacity.md). Persistent guest identity, product ownership and the verified account-claim contract are documented in [`docs/admin/guest-identity.md`](admin/guest-identity.md), [`docs/admin/guest-product-ownership.md`](admin/guest-product-ownership.md) and [`docs/admin/guest-account-claims.md`](admin/guest-account-claims.md).
+Run `npm run db:migrate` with `DATABASE_URL` configured. The runner records
+applied SQL files in `schema_migrations` and applies every migration in its own
+transaction. Migration 018 adds registered-account lifecycle columns and the
+frozen dual-control network-review references. Historical `deleted_<id>`
+tombstones are marked already purged with no invented future retention;
+non-anonymized historical deletions receive `deleted_at + INTERVAL '30 days'`.
+The rollout/rollback contract is documented in
+[`docs/admin/account-deletion-lifecycle.md`](admin/account-deletion-lifecycle.md)
+and [`docs/admin/network-ban-review.md`](admin/network-ban-review.md). Never
+delete append-only audit records to perform a rollback.

@@ -35,7 +35,10 @@ e non copiare cookie o identificativi interni nei ticket.
    logout e confermare il blocco; rinnovare soltanto dal flusso Unlock esistente.
 2. URL `/admin`, scheda Users: provare Active, Banned, Deleted e All; cercare
    un `nvy_...`; verificare Age, Country, Last seen e Recent chats. Details di
-   un account eliminato deve omettere email/username e mostrare `deleted at`.
+   un account eliminato in retention deve mostrare `Deleted at`, `Scheduled
+   data removal`, email/username solo in Details e lo stesso Public ID. Dopo un
+   purge sintetico deve mostrare `Removed`/`Not retained`, `pii_purged_at` e un
+   Public ID ruotato; il vecchio ID non deve più risolversi.
 3. URL `/admin`, scheda Guests: provare ricerca e filtro Banned; verificare
    `gst_...`, Age, Country, Last seen, chat recenti, tipo e scadenza del ban.
    Dopo la cancellazione confermare che `scheduled deletion` sia circa 30 giorni
@@ -49,18 +52,27 @@ e non copiare cookie o identificativi interni nei ticket.
 6. Bannare un account e autenticarsi con credenziali valide: ricevere
    `ACCOUNT_SUSPENDED` solo dopo la validazione. `/suspension` deve mostrare il
    link `/support` e logout, senza appeal o notifiche ban; chat e API restano negate.
-7. In Bans creare una richiesta privacy per un CIDR sintetico consentito,
-   approvarla con un secondo admin e creare un ban temporaneo. Verificare che
-   self-review, CIDR troppo ampi e creazione senza approval siano rifiutati.
+7. In Bans aprire `Network bans`. Come Admin A richiedere la review usando il
+   Public ID di un account con ban attivo e segnale visto nelle ultime 24 ore;
+   verificare `/32` IPv4 o `/128` IPv6. Come Admin B approvare dalla coda e
+   confermare che il ban nasca subito. Provare anche rifiuto, retry, self-review,
+   segnale scaduto e CIDR manuale (reinserimento esatto, limite `/24` o `/64`).
+   Un socket già connesso deve chiudersi; il partner vede solo la chiusura
+   generica. Nessuna risposta o audit deve contenere IP/CIDR raw.
 8. Verificare Reports e Audit in sola lettura e che nessuna evidenza/audit
    mostri contenuto integrale di messaggi, IP raw o device fingerprint.
 
-Rollback N4: fermare il deploy candidato e ripristinare il commit applicativo
-precedente. La colonna nullable `users.last_seen_at` può restare senza impatto;
-non cancellare audit né tabelle di moderazione. La migrazione 017 elimina solo
-le vecchie notifiche `account_ban`: per recuperarle serve il backup pre-migrazione.
-Provare ogni eventuale down SQL su un clone dello staging e ripetere readiness,
-login, guest profile, chat e admin prima di riaprire il traffico.
+Rollback N4.18: prima del rollout conservare il riferimento PITR. Se il deploy
+fallisce prima del commit della migrazione, il runner esegue `ROLLBACK` e non
+restano colonne o backfill parziali. Dopo il commit, preferire roll-forward:
+disabilitare il retention worker e bloccare temporaneamente i due endpoint
+`DELETE /api/account` e `DELETE /api/admin/users/:id` all'ingress prima di usare
+un binario pre-018, perché quel binario non implementa la retention in due fasi.
+Le colonne additive possono restare. Non cancellare tombstone, approval o audit.
+Un down SQL post-commit è ammesso solo su clone/PITR dopo avere verificato che
+non esistano righe lifecycle o approval create da 018. Ripetere migration,
+readiness, login, delete, purge, chat/socket, admin e network review prima di
+riaprire il traffico.
 
 ## Ruoli di branch
 
