@@ -29,3 +29,16 @@ test('network bans use one compact keyboard-native disclosure and no third creat
   assert.match(styles, /@media \(max-height: 760px\)/);
   assert.match(styles, /admin-network-disclosure > summary:focus-visible/);
 });
+
+test('network ban rows distinguish account-derived and manual targets and expose minimized details', () => {
+  assert.match(client, /ban\.target_label/);
+  assert.match(client, /adminNetworkDetail/);
+  assert.match(client, /Network ban details/);
+  assert.match(client, /Network reference/);
+  assert.match(client, /Source Public ID/);
+  assert.match(client, /Linked account ban/);
+  assert.match(client, /Privacy reviewer/);
+  assert.match(client, /Revocation reason/);
+  assert.equal(client.includes('networkFingerprint'), false);
+  assert.equal(client.includes('CIDR raw'), false);
+});

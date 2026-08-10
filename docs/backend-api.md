@@ -113,6 +113,12 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
   exact CIDR to be re-entered. Retry by the same reviewer is idempotent. The old
   `POST /api/admin/network-bans` third step returns `410` and cannot create a ban.
   Account, guest and network bans remain separate.
+- `GET /api/admin/network-bans/:id`: admin-only minimized detail for a network
+  restriction. It returns the pseudonymous `net_...` reference, account/manual
+  origin, current source Public ID and linked account-ban state when applicable,
+  family/prefix, requester, privacy reviewer, lifecycle and revocation metadata.
+  It never returns the network HMAC, a raw IP/CIDR, a user database key or the
+  privacy-approval identifier.
 - `GET /suspension`: after valid credentials for a suspended account, the only
   browser mode is a support-oriented suspension page and logout. The retired
   appeal API is not registered. The login JSON response uses `ACCOUNT_SUSPENDED`

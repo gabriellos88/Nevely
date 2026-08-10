@@ -150,6 +150,7 @@ test('migrations, authentication, profile validation and authorization contracts
     { method: 'get', path: `/api/admin/users/${memberPublicId}/moderation` },
     { method: 'get', path: '/api/admin/reports' },
     { method: 'get', path: '/api/admin/bans' },
+    { method: 'get', path: '/api/admin/network-bans/1' },
     { method: 'get', path: '/api/admin/audit' },
     { method: 'get', path: '/api/admin/database-capacity' },
     { method: 'post', path: `/api/admin/users/${memberPublicId}/ban`, body: { type: 'temporary', hours: 24 } },
@@ -406,9 +407,99 @@ test('migrations, authentication, profile validation and authorization contracts
   assert.equal(pagedReports.body.page.limit, 20);
   assert.equal(Object.hasOwn(pagedReports.body.reports.find((item) => Number(item.id) === reportId), 'details'), false);
 
+  const accountNetworkApproval = (await db.query(
+    `INSERT INTO network_ban_privacy_approvals
+       (requested_by, network_fingerprint, address_family, prefix_length, request_reason,
+        status, approved_by, approved_at, approval_reason, review_reference, expires_at,
+        consumed_at, consumed_by, source_type, source_user_id, source_account_ban_id,
+        proposed_duration_hours)
+     VALUES ($1, repeat('b', 64), 4, 32, 'Synthetic account-derived network review',
+             'approved', $2, NOW(), 'Synthetic independent approval', 'synthetic-account-review',
+             NOW() + INTERVAL '24 hours', NOW(), $2, 'account', $3, $4, 6)
+     RETURNING id`,
+    [adminId, primaryId, memberId, ban.body.banId]
+  )).rows[0];
+  const accountNetworkBan = (await db.query(
+    `INSERT INTO network_bans
+       (network_fingerprint, address_family, prefix_length, reason, ends_at, created_by,
+        privacy_reviewed_by, privacy_review_reference, privacy_approval_id, source_type,
+        source_user_id, source_account_ban_id)
+     VALUES (repeat('b', 64), 4, 32, 'Synthetic account-derived network review',
+             NOW() + INTERVAL '6 hours', $1, $1, 'synthetic-account-review', $2,
+             'account', $3, $4)
+     RETURNING id`,
+    [primaryId, accountNetworkApproval.id, memberId, ban.body.banId]
+  )).rows[0];
+  const manualNetworkApproval = (await db.query(
+    `INSERT INTO network_ban_privacy_approvals
+       (requested_by, network_fingerprint, address_family, prefix_length, request_reason,
+        status, approved_by, approved_at, approval_reason, review_reference, expires_at,
+        consumed_at, consumed_by, source_type, proposed_duration_hours)
+     VALUES ($1, repeat('c', 64), 6, 128, 'Synthetic manual network review',
+             'approved', $2, NOW(), 'Synthetic independent approval', 'synthetic-manual-review',
+             NOW() + INTERVAL '24 hours', NOW(), $2, 'manual', 4)
+     RETURNING id`,
+    [adminId, primaryId]
+  )).rows[0];
+  const manualNetworkBan = (await db.query(
+    `INSERT INTO network_bans
+       (network_fingerprint, address_family, prefix_length, reason, ends_at, created_by,
+        privacy_reviewed_by, privacy_review_reference, privacy_approval_id, source_type)
+     VALUES (repeat('c', 64), 6, 128, 'Synthetic manual network review',
+             NOW() + INTERVAL '4 hours', $1, $1, 'synthetic-manual-review', $2, 'manual')
+     RETURNING id`,
+    [primaryId, manualNetworkApproval.id]
+  )).rows[0];
+
   const pagedBans = await admin.get('/api/admin/bans?limit=20').expect(200);
   assert.equal(pagedBans.body.bans.some((item) => Number(item.id) === ban.body.banId), true);
   assert.equal(pagedBans.body.page.limit, 20);
+  const accountNetworkRow = pagedBans.body.bans.find((item) => item.scope === 'network'
+    && Number(item.ban_id) === Number(accountNetworkBan.id));
+  const manualNetworkRow = pagedBans.body.bans.find((item) => item.scope === 'network'
+    && Number(item.ban_id) === Number(manualNetworkBan.id));
+  assert.equal(accountNetworkRow.target_label, `Public ID ${memberPublicId}`);
+  assert.equal(manualNetworkRow.target_label, `Manual \u00b7 net_${'c'.repeat(12)}`);
+  assert.equal(Object.hasOwn(accountNetworkRow, 'network_fingerprint'), false);
+
+  const accountNetworkDetail = await admin
+    .get(`/api/admin/network-bans/${accountNetworkBan.id}`)
+    .expect(200);
+  assert.deepEqual(accountNetworkDetail.body.networkBan.sourceAccountBan, {
+    status: 'active', type: 'temporary', endsAt: accountNetworkDetail.body.networkBan.sourceAccountBan.endsAt
+  });
+  assert.equal(accountNetworkDetail.body.networkBan.networkReference, `net_${'b'.repeat(12)}`);
+  assert.equal(accountNetworkDetail.body.networkBan.sourceType, 'account');
+  assert.equal(accountNetworkDetail.body.networkBan.sourcePublicId, memberPublicId);
+  assert.equal(accountNetworkDetail.body.networkBan.addressFamily, 4);
+  assert.equal(accountNetworkDetail.body.networkBan.prefixLength, 32);
+  assert.equal(accountNetworkDetail.body.networkBan.requestedByPublicId, adminPublicId);
+  assert.equal(accountNetworkDetail.body.networkBan.privacyReviewerPublicId, primaryPublicId);
+  assert.equal(accountNetworkDetail.body.networkBan.status, 'active');
+  assert.equal(accountNetworkDetail.body.networkBan.revocation, null);
+  assert.equal(Object.hasOwn(accountNetworkDetail.body.networkBan, 'networkFingerprint'), false);
+  assert.equal(Object.hasOwn(accountNetworkDetail.body.networkBan, 'privacyApprovalId'), false);
+
+  const manualNetworkDetail = await admin
+    .get(`/api/admin/network-bans/${manualNetworkBan.id}`)
+    .expect(200);
+  assert.equal(manualNetworkDetail.body.networkBan.sourceType, 'manual');
+  assert.equal(manualNetworkDetail.body.networkBan.sourcePublicId, null);
+  assert.equal(manualNetworkDetail.body.networkBan.sourceAccountBan, null);
+  assert.equal(manualNetworkDetail.body.networkBan.addressFamily, 6);
+  assert.equal(manualNetworkDetail.body.networkBan.prefixLength, 128);
+
+  await admin
+    .patch(`/api/admin/network-bans/${accountNetworkBan.id}/revoke`)
+    .send({ reason: `Synthetic 203.0.113.77 restriction for ${memberPublicId} no longer required` })
+    .expect(200);
+  const revokedNetworkDetail = await admin
+    .get(`/api/admin/network-bans/${accountNetworkBan.id}`)
+    .expect(200);
+  assert.equal(revokedNetworkDetail.body.networkBan.status, 'revoked');
+  assert.equal(revokedNetworkDetail.body.networkBan.revocation.revokedByPublicId, adminPublicId);
+  assert.equal(revokedNetworkDetail.body.networkBan.revocation.reason, 'Synthetic [network] restriction for [principal] no longer required');
+  assert.equal(JSON.stringify(revokedNetworkDetail.body).includes('203.0.113.77'), false);
 
   await admin.get('/api/admin/appeals?status=pending&limit=20').expect(404);
 

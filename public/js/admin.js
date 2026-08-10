@@ -188,7 +188,7 @@ function appendBans(bans) {
   bans.forEach((ban) => {
     const row = document.createElement('tr');
     cell(row, ban.scope, { header: true });
-    cell(row, ban.scope === 'network' ? 'Privacy-reviewed network' : (ban.user_name || ban.user_public_id));
+    cell(row, ban.target_label || ban.user_name || ban.user_public_id);
     cell(row, ban.type);
     cell(row, ban.reason);
     cell(row, ban.type === 'permanent' ? 'Permanent' : dateTime(ban.ends_at));
@@ -196,13 +196,15 @@ function appendBans(bans) {
     state.replaceChildren(badge(ban.revoked_at ? 'Revoked' : 'Active', ban.revoked_at ? '' : 'is-danger'));
     const actions = cell(row, '', { fallback: '' });
     actions.className = 'admin-actions-cell';
+    if (ban.scope === 'account' && ban.user_public_id) {
+      actions.append(button('Details', { adminDetail: ban.user_public_id }));
+    } else if (ban.scope === 'network') {
+      actions.append(button('Details', { adminNetworkDetail: String(ban.ban_id) }));
+    }
     if (!ban.revoked_at) actions.append(button('Revoke', {
       adminRevoke: ban.scope,
       adminBanId: String(ban.ban_id)
     }, 'admin-action admin-action-danger'));
-    if (ban.scope === 'account' && ban.user_public_id) {
-      actions.prepend(button('Details', { adminDetail: ban.user_public_id }));
-    }
     body.append(row);
   });
 }
@@ -407,6 +409,52 @@ async function openGuestDetail(guestId) {
   }
 }
 
+async function openNetworkBanDetail(banId) {
+  const dialog = document.getElementById('adminDetailDialog');
+  const content = document.getElementById('adminDetailContent');
+  document.getElementById('adminDetailTitle').textContent = 'Network ban details';
+  content.replaceChildren(document.createTextNode('Loading network ban…'));
+  dialog.showModal();
+  try {
+    const { networkBan } = await adminApi(`/api/admin/network-bans/${encodeURIComponent(banId)}`);
+    const summary = document.createElement('dl');
+    summary.className = 'admin-detail-list';
+    const linkedBan = networkBan.sourceAccountBan
+      ? `${networkBan.sourceAccountBan.status} \u00b7 ${networkBan.sourceAccountBan.type}${networkBan.sourceAccountBan.endsAt ? ` \u00b7 until ${dateTime(networkBan.sourceAccountBan.endsAt)}` : ''}`
+      : 'Not applicable';
+    const fields = [
+      ['Network reference', networkBan.networkReference],
+      ['Origin', networkBan.sourceType === 'account' ? 'Account-derived' : 'Manual'],
+      ...(networkBan.sourcePublicId ? [['Source Public ID', networkBan.sourcePublicId]] : []),
+      ['Linked account ban', linkedBan],
+      ['Address family', networkBan.addressFamily === 4 ? 'IPv4' : 'IPv6'],
+      ['Prefix length', `/${networkBan.prefixLength}`],
+      ['Requested by', networkBan.requestedByPublicId || 'Not retained'],
+      ['Privacy reviewer', networkBan.privacyReviewerPublicId || 'Not retained'],
+      ['Privacy reviewed at', dateTime(networkBan.privacyReviewedAt)],
+      ['Reason', networkBan.reason],
+      ['Started', dateTime(networkBan.startsAt)],
+      ['Expires', dateTime(networkBan.endsAt)],
+      ['Status', networkBan.status]
+    ];
+    if (networkBan.revocation) {
+      fields.push(
+        ['Revoked at', dateTime(networkBan.revocation.revokedAt)],
+        ['Revoked by', networkBan.revocation.revokedByPublicId || 'Not retained'],
+        ['Revocation reason', networkBan.revocation.reason]
+      );
+    }
+    fields.forEach(([label, value]) => {
+      const term = document.createElement('dt'); term.textContent = label;
+      const definition = document.createElement('dd'); definition.textContent = text(value);
+      summary.append(term, definition);
+    });
+    content.replaceChildren(summary);
+  } catch (error) {
+    content.replaceChildren(document.createTextNode(error.message));
+  }
+}
+
 document.querySelectorAll('[data-admin-tab]').forEach((tab, index) => {
   tab.addEventListener('click', () => selectTab(tab.dataset.adminTab));
   tab.addEventListener('keydown', (event) => {
@@ -448,6 +496,8 @@ document.addEventListener('click', (event) => {
   if (detail) return openAccountDetail(detail.dataset.adminDetail);
   const guestDetail = event.target.closest('[data-admin-guest-detail]');
   if (guestDetail) return openGuestDetail(guestDetail.dataset.adminGuestDetail);
+  const networkDetail = event.target.closest('[data-admin-network-detail]');
+  if (networkDetail) return openNetworkBanDetail(networkDetail.dataset.adminNetworkDetail);
   const ban = event.target.closest('[data-admin-ban]');
   if (ban) return openActionDialog('ban', { target: ban.dataset.adminBan });
   const guestBan = event.target.closest('[data-admin-guest-ban]');

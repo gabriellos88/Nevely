@@ -3,6 +3,13 @@
 Network bans are temporary, explicit controls. They never result automatically
 from an account or guest ban and never store or emit a raw IP/CIDR.
 
+In the Bans table, an account-derived restriction is identified by its current
+canonical source Public ID. A manual restriction is identified as
+`Manual · net_<reference>`. The Details action exposes only the pseudonymous
+reference, origin, linked account-ban state, family/prefix, dual-control actors,
+reason, lifecycle and revocation metadata; the full HMAC and raw network value
+remain unavailable to the browser.
+
 ## Request by Admin A
 
 The default workflow accepts one canonical `nvy_...`. The server resolves it
