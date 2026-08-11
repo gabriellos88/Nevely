@@ -146,7 +146,9 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
 - `waiting`: user entered the matchmaking queue.
 - `matched`: includes conversation id, partner profile, shared interests and cooldown.
 - `receive-message`, `message-sent`, `message-error`: message lifecycle.
-- `partner-left`, `guest-time-expired`, `skip-cooldown`: conversation lifecycle.
+- `partner-left`, `skip-cooldown`: conversation lifecycle. Guest conversations
+  have no server-enforced duration limit; ending remains driven by participants,
+  session/disconnection, moderation, or release draining.
 - `report-submitted`, `report-error`: report lifecycle.
 - `direct-chat-requested`, `direct-chat-request-sent`, `direct-chat-error`: direct-chat lifecycle.
 - `notification-created`: tells the client to refresh notifications.
@@ -158,7 +160,11 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
 
 ## Safety and future work
 
-The server enforces text length and a per-socket rate limit. `BANNED_WORDS` can hold a comma-separated fallback list. Perspective API or an equivalent multilingual moderation provider is planned but not enabled. Photo/audio WebRTC, payment processing, email flows and production avatar storage are also planned.
+The server enforces text length and a PostgreSQL-backed, principal-scoped rate
+limit that is shared across replicas. `BANNED_WORDS` can hold a comma-separated
+fallback list. Perspective API or an equivalent multilingual moderation provider
+is planned but not enabled. Photo/audio WebRTC, payment processing, email flows
+and production avatar storage are also planned.
 
 ## Database migrations
 

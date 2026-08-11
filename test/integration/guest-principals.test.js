@@ -64,6 +64,8 @@ test('persistent guest principals are session-bound, paginated and retained', {
   assert.equal(Object.hasOwn(created.body.guest, 'id'), false);
   assert.match(created.body.guest.publicId, /^gst_[0-9a-f]{12}$/);
   assert.equal(created.body.guest.status, 'active');
+  const guestChat = await guest.get('/chat?guest=1').expect(200);
+  assert.doesNotMatch(guestChat.text, /__GUEST_DURATION__|guest-time-expired|timerBadge/);
 
   const stored = (await db.query(
     `SELECT id, public_id, status, last_seen_at, retention_until

@@ -109,6 +109,47 @@ test('two guest clients match, exchange a message, respect cooldown and observe 
   assert.equal((await partnerLeft).conversationId, null);
 });
 
+test('guest conversations remain active without a duration limit', async (t) => {
+  const runtime = createRuntime({
+    db: disabledDb(),
+    env: {
+      NODE_ENV: 'test',
+      SESSION_SECRET: 'socket-test-session-secret',
+      SHUTDOWN_GRACE_MS: '1000'
+    },
+    log: quietLog
+  });
+  const address = await runtime.start({ port: 0, host: '127.0.0.1' });
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  const first = await connectSocket(baseUrl);
+  const second = await connectSocket(baseUrl);
+
+  t.after(async () => {
+    first.disconnect();
+    second.disconnect();
+    await runtime.shutdown();
+  });
+
+  first.emit('find-partner', guest('First Guest'));
+  await eventFrom(first, 'waiting');
+  const firstMatched = eventFrom(first, 'matched');
+  const secondMatched = eventFrom(second, 'matched');
+  second.emit('find-partner', guest('Second Guest'));
+  const [firstMatch, secondMatch] = await Promise.all([firstMatched, secondMatched]);
+  assert.equal(Object.hasOwn(firstMatch, 'durationSeconds'), false);
+  assert.equal(Object.hasOwn(secondMatch, 'durationSeconds'), false);
+
+  let expired = false;
+  first.once('guest-time-expired', () => { expired = true; });
+  await new Promise((resolve) => setTimeout(resolve, 150));
+  assert.equal(expired, false);
+  assert.equal(runtime.chat.getActiveConversationCount(), 1);
+
+  const received = eventFrom(second, 'receive-message');
+  first.emit('send-message', 'guest chat continues after the former duration boundary');
+  assert.equal((await received).text, 'guest chat continues after the former duration boundary');
+});
+
 test('draining sends only a generic notice and rejects new matching work', async (t) => {
   const runtime = createRuntime({
     db: disabledDb(),

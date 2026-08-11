@@ -579,7 +579,6 @@
       "noSharedTopics": "No shared topics yet — say hello!",
       "partnerLeft": "They left the chat.",
       "chatEnded": "Chat ended",
-      "guestExpired": "Time’s up — finding someone new…",
       "messageSendError": "We couldn’t send that message. Try again.",
       "chatUnavailable": "Chat isn’t available right now. Try again in a moment.",
       "accountSuspended": "This account is suspended. You’ll be signed out.",
