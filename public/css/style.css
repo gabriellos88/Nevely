@@ -2943,24 +2943,6 @@ details summary { cursor: pointer; font-weight: 700; }
   font-size: 18px;
 }
 
-.timer-badge {
-  position: absolute;
-  top: 14px;
-  right: 18px;
-  background: #fff;
-  border: 1px solid rgba(108, 78, 228, 0.16);
-  border-radius: 999px;
-  padding: 4px 12px;
-  font-weight: 700;
-  font-size: 12.5px;
-  color: var(--accent);
-}
-
-.timer-badge.warning {
-  color: #ef4444;
-  border-color: #ef4444;
-}
-
 /* ============================================================
    Responsività: un unico breakpoint coerente per sidebar/overlay,
    più aggiustamenti fini per tablet e mobile piccolo.

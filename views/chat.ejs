@@ -375,8 +375,6 @@
           </div>
 
           <p class="status sr-only" id="statusText" aria-live="polite"><%= copy.chat.conversation.looking %></p>
-          <span class="timer-badge hidden" id="timerBadge"></span>
-
           <div class="messages" id="messages"></div>
         </section>
 
@@ -727,7 +725,6 @@
     <script nonce="<%= cspNonce %>">
       window.__COPY__ = <%- JSON.stringify(copy).replace(/</g, '\\u003c') %>;
       window.__IS_GUEST__ = <%= isGuest ? 'true' : 'false' %>;
-      window.__GUEST_DURATION__ = <%= guestDurationSeconds %>;
       window.__CURRENT_USER__ = <%- JSON.stringify(currentUser || null).replace(/</g, '\\u003c') %>;
       window.__GOOGLE_CONFIG__ = <%- JSON.stringify({
         enabled: Boolean(googleClientId),

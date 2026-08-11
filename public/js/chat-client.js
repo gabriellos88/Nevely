@@ -26,7 +26,6 @@ const chatComposerStatus = document.getElementById('chatComposerStatus');
 const chatComposer = document.getElementById('chatComposer');
 const chatCard = document.getElementById('chatCard');
 const matchSetup = document.getElementById('matchSetup');
-const timerBadge = document.getElementById('timerBadge');
 const usernameInput = document.getElementById('usernameInput');
 const ageInput = document.getElementById('ageInput');
 const countryInput = document.getElementById('countryInput');
@@ -166,7 +165,6 @@ const pendingSentMessages = [];
 const topbarCounts = { messages: 0, friends: 0, notifications: 0 };
 const defaultWaitingTimeHint = waitingTimeHint?.textContent || '';
 
-let countdownInterval = null;
 const selectedInterests = [];
 const maxInterests = 5;
 const selectedGenderFilters = new Set();
@@ -1239,7 +1237,6 @@ function startSearch() {
 
   const interests = parseInterests(interestsInput.value);
 
-  clearCountdown();
   readOnlyConversation = false;
   currentConversationId = null;
   currentPartner = null;
@@ -1320,41 +1317,6 @@ function reportUser() {
   alert(chatCopy.feedback.reportThanks);
 }
 
-function clearCountdown() {
-  if (countdownInterval) {
-    clearInterval(countdownInterval);
-    countdownInterval = null;
-  }
-  timerBadge.classList.add('hidden');
-  timerBadge.classList.remove('warning');
-}
-
-function startCountdown(seconds) {
-  clearCountdown();
-  let remaining = seconds;
-  timerBadge.classList.remove('hidden');
-  updateTimerBadge(remaining);
-
-  countdownInterval = setInterval(() => {
-    remaining -= 1;
-    updateTimerBadge(remaining);
-    if (remaining <= 0) {
-      clearCountdown();
-    }
-  }, 1000);
-}
-
-function updateTimerBadge(remaining) {
-  const mins = Math.floor(remaining / 60);
-  const secs = remaining % 60;
-  timerBadge.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
-  if (remaining <= 15) {
-    timerBadge.classList.add('warning');
-  } else {
-    timerBadge.classList.remove('warning');
-  }
-}
-
 socket.on('waiting', ({ waitingTimeSeconds } = {}) => {
   showChatView();
   statusText.textContent = waitingTimeSeconds === null
@@ -1396,11 +1358,6 @@ socket.on('matched', (data) => {
   messagesEl.innerHTML = '';
   addMessage(shared, 'system');
 
-  if (data.isGuest && data.durationSeconds) {
-    startCountdown(data.durationSeconds);
-  } else {
-    clearCountdown();
-  }
   if (data.skipCooldownSeconds) startSkipCooldown(data.skipCooldownSeconds * 1000);
 });
 
@@ -1429,20 +1386,9 @@ socket.on('partner-left', () => {
   statusText.textContent = chatCopy.feedback.partnerLeft;
   addMessage(chatCopy.feedback.partnerLeft, 'system');
   resetPartnerBar(chatCopy.feedback.chatEnded);
-  clearCountdown();
   readOnlyConversation = true;
   setChatComposerState('ended');
   loadPanel('history');
-});
-
-socket.on('guest-time-expired', () => {
-  showChatView();
-  addMessage(chatCopy.feedback.guestExpired, 'system');
-  setChatComposerState('searching');
-  clearCountdown();
-  setTimeout(() => {
-    startSearch();
-  }, 1200);
 });
 
 socket.on('message-error', (data) => {
