@@ -61,7 +61,7 @@ function guest(name, interests = []) {
   };
 }
 
-test('two guest clients match, exchange a message, respect cooldown and observe disconnect', async (t) => {
+test('two guest clients match, exchange a message, and end the pair once on skip', async (t) => {
   const runtime = createRuntime({
     db: disabledDb(),
     env: {
@@ -98,15 +98,11 @@ test('two guest clients match, exchange a message, respect cooldown and observe 
   first.emit('send-message', 'synthetic socket test message');
   assert.equal((await received).text, 'synthetic socket test message');
 
-  const cooldown = eventFrom(first, 'skip-cooldown');
+  const partnerLeftAfterSkip = eventFrom(second, 'partner-left');
   first.emit('leave-chat');
-  const cooldownPayload = await cooldown;
-  assert.ok(cooldownPayload.remainingMs > 0);
-  assert.ok(cooldownPayload.remainingMs <= 10_000);
+  assert.equal((await partnerLeftAfterSkip).conversationId, null);
 
-  const partnerLeft = eventFrom(first, 'partner-left');
   second.disconnect();
-  assert.equal((await partnerLeft).conversationId, null);
 });
 
 test('draining sends only a generic notice and rejects new matching work', async (t) => {

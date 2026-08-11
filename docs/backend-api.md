@@ -147,6 +147,13 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
 - `matched`: includes conversation id, partner profile, shared interests and cooldown.
 - `receive-message`, `message-sent`, `message-error`: message lifecycle.
 - `partner-left`, `guest-time-expired`, `skip-cooldown`: conversation lifecycle.
+- `message-error`: message delivery or temporary abuse/rate protection rejection. Its
+  optional `retryAfterSeconds` is generic; it never identifies a duplicate, link,
+  repeated-character, burst, or other server-side signal. The chat client temporarily
+  disables message submission for that generic interval; the server remains authoritative.
+  Browser sends use the Socket.IO acknowledgement for request-local success or failure,
+  so concurrent responses cannot be attached to a different optimistic message. Clients
+  without an acknowledgement continue to receive `message-sent` or `message-error`.
 - `report-submitted`, `report-error`: report lifecycle.
 - `direct-chat-requested`, `direct-chat-request-sent`, `direct-chat-error`: direct-chat lifecycle.
 - `notification-created`: tells the client to refresh notifications.
@@ -158,7 +165,12 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
 
 ## Safety and future work
 
-The server enforces text length and a per-socket rate limit. `BANNED_WORDS` can hold a comma-separated fallback list. Perspective API or an equivalent multilingual moderation provider is planned but not enabled. Photo/audio WebRTC, payment processing, email flows and production avatar storage are also planned.
+The server enforces text length and principal-scoped PostgreSQL message limits. Burst
+limits are separate from N5.2 duplicate, link-flood and repeated-character windows.
+The latter use daily-rotated HMAC bucket keys derived from a shared deployment secret;
+no message body, raw IP, device fingerprint, or derived bucket key is emitted to the
+client, logs, or audit stream. Configure `MODERATION_MESSAGE_HMAC_KEY` (or the shared
+`SESSION_SECRET`) consistently on every replica. `BANNED_WORDS` can hold a comma-separated fallback list. Perspective API or an equivalent multilingual moderation provider is planned but not enabled. Photo/audio WebRTC, payment processing, email flows and production avatar storage are also planned.
 
 ## Database migrations
 

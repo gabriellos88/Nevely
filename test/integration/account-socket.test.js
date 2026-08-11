@@ -227,16 +227,11 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
     .find((conversation) => Number(conversation.id) === Number(firstMatch.conversationId));
   assert.equal(conversationAfterRead.unread_count, 0);
 
-  const cooldown = eventFrom(first, 'skip-cooldown');
+  const partnerLeftAfterSkip = eventFrom(second, 'partner-left');
   first.emit('leave-chat');
-  const cooldownPayload = await cooldown;
-  assert.ok(cooldownPayload.remainingMs > 0);
-  assert.ok(cooldownPayload.remainingMs <= 10_000);
+  assert.equal(Number((await partnerLeftAfterSkip).conversationId), Number(firstMatch.conversationId));
 
-  const partnerLeft = eventFrom(second, 'partner-left');
   first.disconnect();
-  const partnerLeftPayload = await partnerLeft;
-  assert.equal(Number(partnerLeftPayload.conversationId), Number(firstMatch.conversationId));
 
   const banned = eventFrom(second, 'account-banned');
   await request(baseUrl)

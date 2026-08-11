@@ -142,6 +142,8 @@ let currentProfile = null;
 let readOnlyConversation = false;
 let currentConversationSaved = false;
 let skipCooldownTimer = null;
+let messageCooldownTimer = null;
+let messageCooldownUntil = 0;
 let activeDrawerConfig = null;
 let drawerRestoreFocus = null;
 let drawerTouchStart = null;
@@ -161,7 +163,6 @@ let accountSecurityState = {
   hasPassword: false
 };
 let expandedSecurityAction = null;
-const pendingSentMessages = [];
 
 const topbarCounts = { messages: 0, friends: 0, notifications: 0 };
 const defaultWaitingTimeHint = waitingTimeHint?.textContent || '';
@@ -474,10 +475,11 @@ function setChatComposerState(mode, message = '') {
   };
   const stateMessage = message || fallbackMessages[mode] || chatCopy.composer.idle;
   const isLive = mode === 'live';
+  const canSend = isLive && Date.now() >= messageCooldownUntil;
 
   chatComposerMode = mode;
-  messageInput.disabled = !isLive;
-  sendBtn.disabled = !isLive;
+  messageInput.disabled = !canSend;
+  sendBtn.disabled = !canSend;
   reportBtn.disabled = !isLive;
   messageInput.placeholder = isLive ? chatCopy.conversation.messagePlaceholder : stateMessage;
   if (chatComposerStatus) {
@@ -495,6 +497,29 @@ function setChatComposerState(mode, message = '') {
     newBtn.textContent = chatCopy.conversation.start;
     newBtn.disabled = false;
   }
+}
+
+function startMessageCooldown(retryAfterSeconds) {
+  const seconds = Number(retryAfterSeconds);
+  if (!Number.isSafeInteger(seconds) || seconds <= 0) return;
+  messageCooldownUntil = Math.max(messageCooldownUntil, Date.now() + seconds * 1000);
+  clearTimeout(messageCooldownTimer);
+  if (chatComposerMode === 'live') {
+    messageInput.disabled = true;
+    sendBtn.disabled = true;
+  }
+  const release = () => {
+    messageCooldownTimer = null;
+    if (Date.now() < messageCooldownUntil) {
+      messageCooldownTimer = setTimeout(release, messageCooldownUntil - Date.now());
+      return;
+    }
+    if (chatComposerMode === 'live') {
+      messageInput.disabled = false;
+      sendBtn.disabled = false;
+    }
+  };
+  messageCooldownTimer = setTimeout(release, Math.max(0, messageCooldownUntil - Date.now()));
 }
 
 function showChatView() {
@@ -1277,8 +1302,19 @@ function sendMessage() {
   if (readOnlyConversation) return;
   const text = messageInput.value.trim();
   if (!text) return;
-  pendingSentMessages.push(addMessage(text, 'me'));
-  socket.emit('send-message', text);
+  const pendingMessage = addMessage(text, 'me');
+  socket.emit('send-message', text, (response = {}) => {
+    if (!response.ok) {
+      pendingMessage.remove();
+      addMessage(response.message || chatCopy.feedback.messageSendError, 'system');
+      startMessageCooldown(response.retryAfterSeconds);
+      return;
+    }
+    const messageId = Number(response.id);
+    if (!Number.isSafeInteger(messageId) || messageId <= 0) return;
+    pendingMessage.dataset.messageId = String(messageId);
+    if (messageId <= lastPartnerReadMessageId) pendingMessage.dataset.read = 'true';
+  });
   messageInput.value = '';
 }
 
@@ -1390,7 +1426,6 @@ socket.on('matched', (data) => {
   readOnlyConversation = false;
   pendingReadReceipt = null;
   lastPartnerReadMessageId = 0;
-  pendingSentMessages.length = 0;
   setChatComposerState('live');
 
   messagesEl.innerHTML = '';
@@ -1409,14 +1444,6 @@ socket.on('receive-message', (message) => {
   addMessage(typeof message === 'string' ? message : message.text, 'them', messageId);
   if ((currentUser || guestProfile) && document.visibilityState !== 'visible') refreshTopbarBadges();
   queueReadReceipt(currentConversationId, messageId);
-});
-
-socket.on('message-sent', ({ id } = {}) => {
-  const message = pendingSentMessages.shift();
-  const messageId = Number(id);
-  if (!message || !Number.isSafeInteger(messageId) || messageId <= 0) return;
-  message.dataset.messageId = String(messageId);
-  if (messageId <= lastPartnerReadMessageId) message.dataset.read = 'true';
 });
 
 socket.on('message-read', ({ conversationId, upToMessageId } = {}) => {
@@ -1446,8 +1473,8 @@ socket.on('guest-time-expired', () => {
 });
 
 socket.on('message-error', (data) => {
-  pendingSentMessages.shift();
   addMessage(data.message || chatCopy.feedback.messageSendError, 'system');
+  startMessageCooldown(data.retryAfterSeconds);
 });
 socket.on('chat-error', (data) => {
   const message = data.message || chatCopy.feedback.chatUnavailable;
@@ -1504,7 +1531,10 @@ socket.on('connect', () => {
     setChatComposerState('idle');
   }
 });
-socket.on('skip-cooldown', ({ remainingMs }) => startSkipCooldown(remainingMs));
+socket.on('skip-cooldown', ({ retryAfterSeconds }) => {
+  const seconds = Number(retryAfterSeconds);
+  if (Number.isSafeInteger(seconds) && seconds > 0) startSkipCooldown(seconds * 1000);
+});
 socket.on('notification-created', ({ type } = {}) => {
   loadNotificationsPanel();
   if (type === 'friend_request') loadFriendRequestsPanel();

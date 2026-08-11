@@ -112,6 +112,9 @@ function createRuntime(options = {}) {
   if (isProduction && (!environment.SESSION_SECRET || environment.SESSION_SECRET.length < 32)) {
     throw new Error('SESSION_SECRET with at least 32 characters must be configured in production.');
   }
+  if (environment.MODERATION_MESSAGE_HMAC_KEY && environment.MODERATION_MESSAGE_HMAC_KEY.length < 16) {
+    throw new Error('MODERATION_MESSAGE_HMAC_KEY must contain at least 16 characters when configured.');
+  }
   if (isProduction && !environment.ADMIN_TOTP_ENCRYPTION_KEY) {
     throw new Error('ADMIN_TOTP_ENCRYPTION_KEY must be configured in production.');
   }
@@ -268,6 +271,8 @@ function createRuntime(options = {}) {
     clientAddressForSocket: (socket) => trustedClientAddress(socket.request),
     rateLimiter: options.rateLimiter,
     rateLimitPrincipalResolver: options.rateLimitPrincipalResolver,
+    messageAbuseProtector: options.messageAbuseProtector,
+    messageAbuseHmacSecret: environment.MODERATION_MESSAGE_HMAC_KEY || environment.SESSION_SECRET,
     log
   });
   const moderationControl = createModerationControlChannel({ db, chat, log });
