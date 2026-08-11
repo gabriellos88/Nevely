@@ -353,15 +353,24 @@
           </section>
         </div>
 
-        <section class="live-chat-card hidden" id="chatCard">
-          <div class="chat-partner-bar">
+        <section class="live-chat-card hidden" id="chatCard" data-state="idle" aria-label="<%= copy.chat.conversation.workspaceAria %>">
+          <header class="chat-partner-bar">
             <button class="partner-info partner-profile-trigger" id="partnerProfileBtn" type="button">
               <span class="partner-avatar" id="partnerAvatar"><i data-lucide="user" aria-hidden="true"></i></span>
               <span class="partner-name" id="partnerName"><%= copy.chat.conversation.looking %></span>
             </button>
+            <div class="conversation-state" aria-label="<%= copy.chat.conversation.statusAria %>">
+              <span class="conversation-state-dot" aria-hidden="true"></span>
+              <p class="status" id="statusText" aria-live="polite"><%= copy.chat.conversation.looking %></p>
+              <span class="timer-badge hidden" id="timerBadge"></span>
+            </div>
             <div class="partner-actions">
               <button type="button" class="partner-action-btn premium-camera" aria-label="<%= copy.chat.conversation.photoAria %>" title="<%= copy.chat.conversation.photoComingSoon %>" disabled>
                 <i data-lucide="image" aria-hidden="true"></i><span class="premium-dot">P</span>
+              </button>
+              <button class="report-btn" id="reportBtn" type="button" disabled>
+                <i data-lucide="flag" aria-hidden="true"></i>
+                <span><%= copy.chat.conversation.reportShort %></span>
               </button>
               <button type="button" class="partner-action-btn" id="conversationMenuBtn" aria-label="<%= copy.chat.conversation.moreOptions %>" title="<%= copy.chat.conversation.moreOptions %>">
                 <i data-lucide="ellipsis-vertical" aria-hidden="true"></i>
@@ -372,25 +381,27 @@
                 <button type="button" class="danger" id="deleteConversationBtn"><%= copy.chat.conversation.deleteForEveryone %></button>
               </div>
             </div>
+          </header>
+
+          <div class="messages" id="messages" tabindex="0" aria-label="<%= copy.chat.conversation.messagesAria %>"></div>
+
+          <div class="chat-composer-shell hidden" id="chatComposer">
+            <div class="chat-input-bar">
+              <button class="end-chat-btn" id="endChatBtn" type="button" disabled>
+                <i data-lucide="square" aria-hidden="true"></i>
+                <span><%= copy.chat.conversation.end %></span>
+              </button>
+              <input id="messageInput" type="text" maxlength="1000" autocomplete="off" placeholder="<%= copy.chat.composer.idle %>" disabled>
+              <button class="send-btn" id="sendBtn" type="button" aria-label="<%= copy.chat.conversation.send %>" disabled>
+                <i data-lucide="send" aria-hidden="true"></i>
+              </button>
+              <button class="skip-btn" id="newBtn" type="button">
+                <span><%= copy.chat.conversation.next %></span>
+                <i data-lucide="skip-forward" aria-hidden="true"></i>
+              </button>
+            </div>
           </div>
-
-          <p class="status sr-only" id="statusText" aria-live="polite"><%= copy.chat.conversation.looking %></p>
-          <span class="timer-badge hidden" id="timerBadge"></span>
-
-          <div class="messages" id="messages"></div>
         </section>
-
-        <div class="chat-composer-shell hidden" id="chatComposer">
-          <p class="chat-composer-status" id="chatComposerStatus" role="status" aria-live="polite"><%= copy.chat.composer.idle %></p>
-          <div class="chat-input-bar">
-            <button class="skip-btn" id="newBtn" type="button"><%= copy.chat.conversation.start %></button>
-            <button class="report-btn" id="reportBtn" type="button" aria-label="<%= copy.chat.conversation.report %>" title="<%= copy.chat.conversation.report %>" disabled><i data-lucide="flag" aria-hidden="true"></i></button>
-            <input id="messageInput" type="text" placeholder="<%= copy.chat.composer.idle %>" disabled>
-            <button class="send-btn" id="sendBtn" type="button" aria-label="<%= copy.chat.conversation.send %>" disabled>
-              <i data-lucide="send" aria-hidden="true"></i>
-            </button>
-          </div>
-        </div>
       </main>
 
       <button id="startBtnBottom" class="floating-start-button" type="button">
@@ -722,6 +733,31 @@
           <button class="btn btn-outline" id="profileBlockBtn" type="button"><%= copy.common.block %></button>
         </div>
       </div>
+    </div>
+
+    <div class="app-modal hidden" id="reportModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="reportModalTitle" aria-describedby="reportModalDescription" inert>
+      <form class="app-modal-card report-modal-card" id="reportForm">
+        <button class="modal-close" id="reportModalClose" type="button" aria-label="<%= copy.common.close %>"><i data-lucide="x" aria-hidden="true"></i></button>
+        <span class="report-modal-icon" aria-hidden="true"><i data-lucide="flag"></i></span>
+        <h2 id="reportModalTitle"><%= copy.chat.report.title %></h2>
+        <p id="reportModalDescription"><%= copy.chat.report.description %></p>
+        <label for="reportReason"><%= copy.chat.report.reasonLabel %></label>
+        <select id="reportReason" name="reason" required>
+          <option value=""><%= copy.chat.report.chooseReason %></option>
+          <option value="spam"><%= copy.chat.report.spam %></option>
+          <option value="harassment"><%= copy.chat.report.harassment %></option>
+          <option value="sexual_content"><%= copy.chat.report.sexualContent %></option>
+          <option value="hate_or_violence"><%= copy.chat.report.hateOrViolence %></option>
+          <option value="other"><%= copy.chat.report.other %></option>
+        </select>
+        <label for="reportDetails"><%= copy.chat.report.detailsLabel %></label>
+        <textarea id="reportDetails" name="details" maxlength="1000" rows="4" placeholder="<%= copy.chat.report.detailsPlaceholder %>"></textarea>
+        <p class="report-feedback" id="reportFeedback" role="status" aria-live="polite"></p>
+        <div class="report-modal-actions">
+          <button class="btn btn-outline" id="reportCancel" type="button"><%= copy.chat.report.cancel %></button>
+          <button class="btn btn-danger" id="reportSubmit" type="submit"><%= copy.chat.report.submit %></button>
+        </div>
+      </form>
     </div>
 
     <script nonce="<%= cspNonce %>">

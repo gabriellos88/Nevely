@@ -61,6 +61,18 @@ function guest(name, interests = []) {
   };
 }
 
+function emitWithAck(socket, eventName, payload) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error(`Timed out waiting for ${eventName} acknowledgement`)), 3_000);
+    const acknowledge = (response) => {
+      clearTimeout(timeout);
+      resolve(response);
+    };
+    if (payload === undefined) socket.emit(eventName, acknowledge);
+    else socket.emit(eventName, payload, acknowledge);
+  });
+}
+
 test('two guest clients match, exchange a message, and end the pair once on skip', async (t) => {
   const runtime = createRuntime({
     db: disabledDb(),
@@ -98,8 +110,13 @@ test('two guest clients match, exchange a message, and end the pair once on skip
   first.emit('send-message', 'synthetic socket test message');
   assert.equal((await received).text, 'synthetic socket test message');
 
+  const reportSubmitted = eventFrom(first, 'report-submitted');
+  first.emit('report', { reason: 'spam', details: 'Synthetic test context' });
+  assert.deepEqual(await reportSubmitted, { stored: false });
+
   const partnerLeftAfterSkip = eventFrom(second, 'partner-left');
-  first.emit('leave-chat');
+  const leaveResult = await emitWithAck(first, 'leave-chat');
+  assert.deepEqual(leaveResult, { ok: true, ended: true });
   assert.equal((await partnerLeftAfterSkip).conversationId, null);
 
   second.disconnect();

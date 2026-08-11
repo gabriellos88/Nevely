@@ -136,7 +136,11 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
 
 - `find-partner`: starts random matching with profile, interests and premium filters.
 - `send-message`: sends one text message, maximum 1,000 characters.
-- `leave-chat`: leaves the active conversation, subject to skip cooldown.
+- `leave-chat`: leaves the active conversation, subject to skip cooldown. An
+  optional Socket.IO acknowledgement returns `{ ok: true, ended }` only after
+  the server transition completes, or `{ ok: false, retryAfterSeconds }` for a
+  generic cooldown. The existing `skip-cooldown` event remains available for
+  older clients; neither response discloses thresholds or abuse signals.
 - `report`: reports the active partner with optional `reason` and `details`.
 - `direct-chat-request`: requests a direct chat with a friend.
 - `direct-chat-response`: accepts or declines a direct-chat request.
@@ -154,7 +158,9 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
   Browser sends use the Socket.IO acknowledgement for request-local success or failure,
   so concurrent responses cannot be attached to a different optimistic message. Clients
   without an acknowledgement continue to receive `message-sent` or `message-error`.
-- `report-submitted`, `report-error`: report lifecycle.
+- `report-submitted`, `report-error`: report lifecycle. The browser shows
+  success only after `report-submitted`; report reasons and details are never
+  copied into application logs or audit metadata.
 - `direct-chat-requested`, `direct-chat-request-sent`, `direct-chat-error`: direct-chat lifecycle.
 - `notification-created`: tells the client to refresh notifications.
 - `account-banned`: closes the account session after moderation action.
