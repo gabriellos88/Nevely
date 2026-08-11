@@ -5,7 +5,7 @@
 }(typeof globalThis !== 'undefined' ? globalThis : this, function createGuestProfileStore(root) {
   const uiCopy = root?.__COPY__ || (typeof require === 'function' ? require('../i18n/en.json') : {});
   const STORAGE_KEY = 'nevely.guestPassport.v1';
-  const PROFILE_VERSION = 1;
+  const PROFILE_VERSION = 2;
   const GENDERS = Object.freeze([
     { value: 'any', label: uiCopy.common.anyone },
     { value: 'male', label: uiCopy.common.male },
@@ -25,8 +25,7 @@
   ]);
   const genderValues = new Set(GENDERS.map(({ value }) => value));
   const avatarIds = new Set(AVATAR_PRESETS.map(({ id }) => id));
-  const GUEST_ID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
-  const GUEST_ALIAS_PATTERN = /^gst_[0-9a-f]{10}$/i;
+  const GUEST_PUBLIC_ID_PATTERN = /^gst_[0-9a-f]{12}$/;
 
   function normalizeName(value) {
     return typeof value === 'string' ? value.trim().replace(/\s+/g, ' ').slice(0, 24) : '';
@@ -38,11 +37,8 @@
     const gender = genderValues.has(value.gender) ? value.gender : '';
     const age = Number(value.age);
     const avatarId = avatarIds.has(value.avatarId) ? value.avatarId : '';
-    const guestId = typeof value.guestId === 'string' && GUEST_ID_PATTERN.test(value.guestId)
-      ? value.guestId
-      : null;
-    const displayAlias = typeof value.displayAlias === 'string' && GUEST_ALIAS_PATTERN.test(value.displayAlias)
-      ? value.displayAlias
+    const publicId = typeof value.publicId === 'string' && GUEST_PUBLIC_ID_PATTERN.test(value.publicId)
+      ? value.publicId
       : null;
     const nameChanges = Number(value.nameChanges) >= 1 ? 1 : 0;
     const accountNotificationRead = value.accountNotificationRead === true;
@@ -68,8 +64,7 @@
       age,
       country,
       avatarId,
-      guestId,
-      displayAlias,
+      publicId,
       nameChanges,
       accountNotificationRead
     };

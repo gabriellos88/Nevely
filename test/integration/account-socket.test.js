@@ -150,12 +150,6 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
     .send({ code: totp(setup.body.secret) })
     .expect(204);
   adminAccount.cookie = cookieFrom(confirmed);
-  await request(baseUrl)
-    .post('/api/admin/reauth')
-    .set('Cookie', adminAccount.cookie)
-    .send({ password: 'SyntheticPassword123!', code: totp(setup.body.secret) })
-    .expect(204);
-
   const first = await connectAccount(baseUrl, firstAccount.cookie);
   const second = await connectAccount(baseUrl, secondAccount.cookie);
   const revoked = await connectAccount(baseUrl, revokedAccount.cookie);
@@ -251,7 +245,5 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
     .send({ type: 'temporary', hours: 24, reason: 'Synthetic socket ban test' })
     .expect(201);
   const banPayload = await banned;
-  assert.deepEqual(Object.keys(banPayload).sort(), ['hours', 'type']);
-  assert.equal(banPayload.type, 'temporary');
-  assert.equal(banPayload.hours, 24);
+  assert.deepEqual(banPayload, {});
 });

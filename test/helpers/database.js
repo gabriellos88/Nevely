@@ -2,6 +2,15 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 
 const tables = [
+  'report_evidence_access_log',
+  'network_ban_privacy_approvals',
+  'moderation_appeals',
+  'moderation_rate_windows',
+  'network_bans',
+  'account_bans',
+  'guest_bans',
+  'guest_device_restrictions',
+  'audit_log',
   'database_capacity_snapshots',
   'retention_runs',
   'guest_account_claims',

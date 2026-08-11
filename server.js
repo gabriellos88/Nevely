@@ -13,9 +13,12 @@ const { registerApiRoutes } = require('./lib/api');
 const { registerChat } = require('./lib/chat');
 const { findActiveGuestPrincipal, guestPassportComplete } = require('./lib/guest-principals');
 const { createPresence } = require('./lib/presence');
+const { createModerationService } = require('./lib/moderation');
+const { createModerationControlChannel } = require('./lib/moderation-control');
 const { createRetentionWorker } = require('./lib/retention');
 const { csrfProtection, secureHeaders } = require('./lib/security');
 const { createPrivatePreview } = require('./lib/private-preview');
+const { trustApplicationProxy, trustedClientAddress } = require('./lib/client-address');
 const safeLog = require('./lib/safe-log');
 const uiCopy = require('./public/i18n/en.json');
 
@@ -43,7 +46,7 @@ function createRuntime(options = {}) {
   let removeSignalHandlers = null;
 
   app.disable('x-powered-by');
-  app.set('trust proxy', 1);
+  app.set('trust proxy', trustApplicationProxy);
   app.set('view engine', 'ejs');
   app.set('views', path.join(__dirname, 'views'));
   app.locals.copy = uiCopy;
@@ -112,6 +115,9 @@ function createRuntime(options = {}) {
   if (isProduction && !environment.ADMIN_TOTP_ENCRYPTION_KEY) {
     throw new Error('ADMIN_TOTP_ENCRYPTION_KEY must be configured in production.');
   }
+  if (isProduction && !environment.NETWORK_BAN_HMAC_KEY) {
+    throw new Error('NETWORK_BAN_HMAC_KEY must be configured in production.');
+  }
   if (isProduction && environment.EMAIL_DELIVERY_MODE === 'live') {
     if (!environment.RESEND_API_KEY) {
       throw new Error('RESEND_API_KEY must be configured for live email delivery.');
@@ -148,6 +154,16 @@ function createRuntime(options = {}) {
   app.use(express.static(path.join(__dirname, 'public')));
   app.use(sessionMiddleware);
   app.use(csrfProtection({ publicOrigin: environment.PUBLIC_ORIGIN }));
+  app.use((req, res, next) => {
+    if (!req.session?.suspension) return next();
+    const allowed = (req.method === 'GET' && (req.path === '/suspension' || req.path === '/support'))
+      || (req.method === 'POST' && req.path === '/logout');
+    if (allowed) return next();
+    if (req.path.startsWith('/api/')) {
+      return res.status(403).json({ error: uiCopy.errors.accountSuspended, code: 'ACCOUNT_SUSPENDED' });
+    }
+    return res.redirect('/suspension');
+  });
   io.engine.use(sessionMiddleware);
   privatePreview.registerHttp(app);
   privatePreview.registerSocket(io);
@@ -158,6 +174,9 @@ function createRuntime(options = {}) {
   }));
   app.get('/about', (req, res) => res.render('about', { pageTitle: uiCopy.pageTitles.about }));
   app.get('/support', (req, res) => res.render('support', { pageTitle: uiCopy.pageTitles.support }));
+  app.get('/guest-restricted', (req, res) => res.status(403).render('guest-restricted', {
+    pageTitle: 'Guest access limited'
+  }));
   app.get('/privacy', (req, res) => res.render('privacy', { pageTitle: uiCopy.pageTitles.privacy }));
   app.get('/terms', (req, res) => res.render('terms', { pageTitle: uiCopy.pageTitles.terms }));
 
@@ -178,25 +197,30 @@ function createRuntime(options = {}) {
     '/verify-email/resend',
     '/api/account/password/setup'
   ], authLimiter);
+  app.use(async (req, res, next) => {
+    if (!db.isConfigured || !moderation) return next();
+    if (req.path === '/support' || req.path === '/guest-restricted'
+        || req.path === '/logout' || req.path.startsWith('/health/')) return next();
+    try {
+      if (!await moderation.isNetworkBlocked(req.ip)) return next();
+      if (req.path.startsWith('/api/') || req.method !== 'GET') {
+        return res.status(403).json({ error: uiCopy.errors.networkBlocked, code: 'NETWORK_RESTRICTED' });
+      }
+      return res.redirect('/guest-restricted');
+    } catch (error) {
+      return next(error);
+    }
+  });
   registerAuthRoutes(app, db, {
     environment,
     googleVerifier: options.googleVerifier
   });
 
+  let moderation;
   app.get('/chat', async (req, res, next) => {
     if (db.isConfigured) {
       try {
-        const ipBan = await db.query(
-          `SELECT 1 FROM bans
-           WHERE type = 'ip'
-             AND ip_address = $1
-             AND starts_at <= NOW()
-             AND (ends_at IS NULL OR ends_at > NOW())
-           ORDER BY starts_at DESC, id DESC
-           LIMIT 1`,
-          [req.ip]
-        );
-        if (ipBan.rowCount) return res.status(403).send(uiCopy.errors.networkBlocked);
+        if (await moderation.isNetworkBlocked(req.ip)) return res.status(403).send(uiCopy.errors.networkBlocked);
       } catch (error) {
         return next(error);
       }
@@ -208,6 +232,10 @@ function createRuntime(options = {}) {
     let guestClaimEligible = false;
     if (isGuest && db.isConfigured && req.session.guestPrincipalId) {
       try {
+        if (await moderation.isGuestBlocked(req.session.guestPrincipalId)
+          || await moderation.isGuestDeviceRestrictedForGuest(req.session.guestPrincipalId)) {
+          return res.redirect('/guest-restricted');
+        }
         const guest = await findActiveGuestPrincipal(db, req.session.guestPrincipalId, { touch: false });
         guestClaimEligible = guestPassportComplete(guest);
       } catch (error) {
@@ -230,12 +258,21 @@ function createRuntime(options = {}) {
   });
 
   const presence = createPresence(io);
-  registerApiRoutes(app, db, presence, { environment });
   const chat = registerChat(io, db, presence, {
     guestDurationSeconds: GUEST_CHAT_DURATION_SECONDS,
     enforcePersistentGuestOwnership: options.enforcePersistentGuestOwnership,
+    isNetworkBlocked: (address) => moderation?.isNetworkBlocked(address) || Promise.resolve(false),
+    isGuestBlocked: (guestId) => moderation?.isGuestBlocked(guestId) || Promise.resolve(false),
+    isGuestDeviceRestricted: (guestId) => moderation?.isGuestDeviceRestrictedForGuest(guestId) || Promise.resolve(false),
+    matchesNetworkControl: (address, control) => moderation?.matchesNetworkControl(address, control) || false,
+    clientAddressForSocket: (socket) => trustedClientAddress(socket.request),
+    rateLimiter: options.rateLimiter,
+    rateLimitPrincipalResolver: options.rateLimitPrincipalResolver,
     log
   });
+  const moderationControl = createModerationControlChannel({ db, chat, log });
+  moderation = createModerationService({ db, presence, chat, controlChannel: moderationControl, environment });
+  registerApiRoutes(app, db, presence, { environment, moderation });
   const outboxWorker = createOutboxWorker({
     db,
     environment,
@@ -271,6 +308,8 @@ function createRuntime(options = {}) {
   async function start({ port = Number(environment.PORT) || 3000, host = '0.0.0.0' } = {}) {
     if (server.listening) return server.address();
     lifecycle.phase = 'starting';
+    const controlStarted = await moderationControl.start();
+    if (isProduction && !controlStarted) throw new Error('PostgreSQL moderation control channel must be available in production.');
     await new Promise((resolve, reject) => {
       const handleError = (error) => {
         server.off('listening', handleListening);
@@ -320,6 +359,7 @@ function createRuntime(options = {}) {
 
       await waitForIdleOrDeadline();
       await chat.stop();
+      await moderationControl.stop();
       await retentionWorker.stop();
       await outboxWorker.stop();
       server.closeIdleConnections?.();
@@ -364,6 +404,8 @@ function createRuntime(options = {}) {
     server,
     io,
     chat,
+    moderation,
+    moderationControl,
     outboxWorker,
     retentionWorker,
     privatePreview,

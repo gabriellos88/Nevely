@@ -35,7 +35,7 @@ test('first administrator bootstrap is transactional, audited and single-use', {
         birth_date, gender, country, country_code, profile_completed_at,
         email_verified_at)
      VALUES
-       ('bootstrap_admin', $1, $2, 'nvy_cccccccccccccccccccc',
+       ('bootstrap_admin', $1, $2, 'nvy_cccccccccccc',
         'Nevely#cccccc', 'Bootstrap Admin', '1990-01-01',
         'prefer-not-to-say', 'Switzerland', 'ch', NOW(), NOW())
      RETURNING id, session_version`,

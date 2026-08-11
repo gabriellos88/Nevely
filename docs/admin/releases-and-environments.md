@@ -57,7 +57,8 @@ Se staging fallisce, non promuovere: correggere il branch e ripetere il flusso.
   `Verify <noreply@notifications.nevely.app>`; staging usa test delivery.
 - staging e produzione usano `GOOGLE_CLIENT_ID` differenti e origini
   autorizzate esatte, senza wildcard.
-- dopo una migrazione N1, verificare che gli ID pubblici abbiano forma
-  `nvy_` + 20 caratteri esadecimali e che le API non restituiscano `users.id`.
+- dopo la migrazione 014, verificare che gli account usino `nvy_` + 12
+  caratteri esadecimali lowercase e i guest `gst_` + 12; le API non devono
+  restituire chiavi interne.
 - almeno un amministratore di emergenza ha email verificata e TOTP attivo
   prima di rendere obbligatoria la console amministrativa.

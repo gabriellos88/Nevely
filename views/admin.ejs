@@ -1,87 +1,140 @@
-<%- include('partials/header') %>
-<main class="admin-page">
+<%- include('partials/header', { hideSiteHeader: true }) %>
+<main class="admin-page admin-workspace">
   <div class="admin-wrap">
-    <h1><%= copy.admin.title %></h1>
-    <section class="admin-section">
-      <h2><%= copy.admin.reauthenticateTitle %></h2>
-      <p><%= adminReauthMethod === 'google'
-        ? copy.admin.reauthenticateGoogleBody
-        : copy.admin.reauthenticateBody %></p>
-      <% if (adminReauthMethod !== 'unavailable') { %>
-      <form class="admin-price-form" id="adminReauthForm"
-            data-reauth-method="<%= adminReauthMethod %>">
-        <% if (adminReauthMethod === 'password') { %>
-          <input name="password" type="password" autocomplete="current-password" required
-                 placeholder="<%= copy.common.password %>">
-        <% } %>
-        <input name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6"
-               autocomplete="one-time-code" required placeholder="<%= copy.auth.twoFactorCode %>">
-        <% if (adminReauthMethod === 'password') { %>
-          <button class="btn btn-primary" type="submit"><%= copy.admin.reauthenticateAction %></button>
-        <% } %>
+    <header class="admin-session-header" aria-label="Admin session controls">
+      <form method="post" action="/logout"><input type="hidden" name="_csrf" value="<%= csrfToken %>"><button class="btn btn-secondary" type="submit">Log out</button></form>
+      <button class="btn btn-primary" type="button" data-admin-unlock>Unlock high-risk actions</button>
+      <p id="adminReauthState" role="status" data-unlocked="<%= adminReauthActive ? 'true' : 'false' %>"><%= adminReauthActive ? `High-risk actions unlocked until ${new Date(adminReauthExpiresAt).toLocaleTimeString()}` : 'High-risk actions locked' %></p>
+    </header>
+    <header class="admin-workspace-header">
+      <h1>Moderation workspace</h1>
+    </header>
+
+    <nav class="admin-tabs" role="tablist" aria-label="Moderation sections">
+      <button id="admin-tab-users" class="admin-tab" type="button" role="tab" aria-selected="true" aria-controls="admin-panel-users" data-admin-tab="users">Users</button>
+      <button id="admin-tab-guests" class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-guests" data-admin-tab="guests">Guests</button>
+      <button id="admin-tab-reports" class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-reports" data-admin-tab="reports">Reports</button>
+      <button id="admin-tab-bans" class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-bans" data-admin-tab="bans">Bans</button>
+      <button id="admin-tab-audit" class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-audit" data-admin-tab="audit">Audit</button>
+      <button id="admin-tab-controls" class="admin-tab" type="button" role="tab" aria-selected="false" aria-controls="admin-panel-controls" data-admin-tab="controls">Controls</button>
+    </nav>
+    <p id="adminCopyFeedback" class="admin-copy-feedback" role="status" aria-live="polite"></p>
+
+    <section id="admin-panel-users" class="admin-panel" role="tabpanel" aria-labelledby="admin-tab-users" data-admin-panel="users">
+      <div class="admin-panel-heading admin-panel-heading-compact">
+        <div><h2>Accounts</h2><p>Search by username, email address, or public ID.</p></div>
+      </div>
+      <form class="admin-toolbar" data-admin-filter="users" role="search">
+        <label class="sr-only" for="admin-user-search">Search accounts</label>
+        <div class="admin-field-shell"><input id="admin-user-search" name="q" type="search" maxlength="100" placeholder="Username, email, or public ID"></div>
+        <label class="sr-only" for="admin-user-state">Account state</label>
+        <select id="admin-user-state" name="state"><option value="">All account states</option><option value="active">Active</option><option value="banned">Banned</option><option value="deleted">Deleted</option></select>
+        <button class="btn btn-primary" type="submit">Search</button>
       </form>
-      <% if (adminReauthMethod === 'google') { %>
-        <div id="g_id_onload"
-             data-client_id="<%= googleClientId %>"
-             data-callback="handleAdminGoogleReauth"
-             data-nonce="<%= adminGoogleNonce %>"
-             data-auto_prompt="false"
-             data-cancel_on_tap_outside="true"></div>
-        <div class="g_id_signin"
-             data-type="standard"
-             data-shape="pill"
-             data-theme="filled_black"
-             data-text="continue_with"
-             data-size="large"
-             data-logo_alignment="left"></div>
-      <% } %>
-      <% } else { %>
-        <p role="alert"><%= copy.admin.reauthenticateUnavailable %></p>
-      <% } %>
-      <p id="adminReauthFeedback" role="status" aria-live="polite"></p>
+      <div class="admin-table-wrap" tabindex="0"><table class="admin-table"><caption class="sr-only">User account results</caption><thead><tr><th scope="col">Name</th><th scope="col">ID</th><th scope="col">Plan</th><th scope="col">Email</th><th scope="col">Age</th><th scope="col">Country</th><th scope="col">State / ban</th><th scope="col">Recent chats</th><th scope="col">Last seen</th><th scope="col">Actions</th></tr></thead><tbody data-admin-table="users"></tbody></table></div>
+      <p class="admin-table-state" data-admin-state="users" role="status" aria-live="polite">Loading accounts…</p>
+      <nav class="admin-pagination" data-admin-pagination="users" aria-label="Users pagination" hidden><button class="btn btn-secondary" type="button" data-admin-more="users">Load more</button></nav>
     </section>
-    <section class="admin-section">
-      <h2><%= copy.admin.reports %></h2>
-      <div class="admin-table-wrap">
-        <table class="admin-table">
-          <thead><tr><th><%= copy.admin.date %></th><th><%= copy.admin.reporter %></th><th><%= copy.admin.reported %></th><th><%= copy.admin.reason %></th><th><%= copy.admin.status %></th><th><%= copy.admin.actions %></th></tr></thead>
-          <tbody>
-            <% reports.forEach((report) => { %>
-              <tr><td><%= new Date(report.created_at).toLocaleString() %></td><td><%= report.reporter_name || copy.common.guest %></td><td><%= report.reported_name || copy.common.guest %></td><td><%= report.reason %></td><td><%= report.status %></td><td><% if (report.status === 'pending') { %><button class="admin-action" data-report-action="resolve" data-id="<%= report.id %>"><%= copy.admin.resolve %></button><button class="admin-action" data-report-action="dismiss" data-id="<%= report.id %>"><%= copy.admin.dismiss %></button><% } %></td></tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
+
+    <section id="admin-panel-guests" class="admin-panel" role="tabpanel" aria-labelledby="admin-tab-guests" data-admin-panel="guests" hidden>
+      <div class="admin-panel-heading admin-panel-heading-compact"><div><h2>Guests</h2><p>Search a guest principal by name or public ID.</p></div></div>
+      <form class="admin-toolbar" data-admin-filter="guests" role="search"><label class="sr-only" for="admin-guest-search">Search guest principals</label><div class="admin-field-shell"><input id="admin-guest-search" name="q" type="search" maxlength="100" placeholder="Name or guest public ID"></div><label class="sr-only" for="admin-guest-state">Guest state</label><select id="admin-guest-state" name="status"><option value="">All guest states</option><option value="active">Active</option><option value="banned">Banned</option><option value="claimed">Claimed</option><option value="expired">Expired</option><option value="deleted">Deleted</option></select><button class="btn btn-primary" type="submit">Search</button></form>
+      <div class="admin-table-wrap" tabindex="0"><table class="admin-table"><caption class="sr-only">Guest principal results</caption><thead><tr><th scope="col">Name</th><th scope="col">ID</th><th scope="col">Age</th><th scope="col">Country</th><th scope="col">State / ban</th><th scope="col">Recent chats</th><th scope="col">Last seen</th><th scope="col">Actions</th></tr></thead><tbody data-admin-table="guests"></tbody></table></div>
+      <p class="admin-table-state" data-admin-state="guests" role="status" aria-live="polite">Open this section to load guests.</p>
+      <nav class="admin-pagination" data-admin-pagination="guests" aria-label="Guests pagination" hidden><button class="btn btn-secondary" type="button" data-admin-more="guests">Load more</button></nav>
     </section>
-    <section class="admin-section">
-      <h2><%= copy.admin.users %></h2>
-      <div class="admin-table-wrap">
-        <table class="admin-table">
-          <thead><tr><th><%= copy.admin.id %></th><th><%= copy.admin.name %></th><th><%= copy.admin.email %></th><th><%= copy.admin.role %></th><th><%= copy.admin.plan %></th><th><%= copy.admin.actions %></th></tr></thead>
-          <tbody>
-            <% users.forEach((user) => { %>
-              <tr><td><%= user.public_id %></td><td><%= user.display_name %></td><td><%= user.email %></td><td><%= user.role %></td><td><%= user.plan %></td><td><button class="admin-action" data-ban="temporary" data-id="<%= user.public_id %>"><%= copy.admin.banDay %></button><button class="admin-action danger" data-ban="permanent" data-id="<%= user.public_id %>"><%= copy.admin.banPermanent %></button><button class="admin-action danger" data-delete-user data-id="<%= user.public_id %>"><%= copy.admin.banDelete %></button></td></tr>
-            <% }) %>
-          </tbody>
-        </table>
-      </div>
+
+    <section id="admin-panel-reports" class="admin-panel" role="tabpanel" aria-labelledby="admin-tab-reports" data-admin-panel="reports" hidden>
+      <div class="admin-panel-heading"><div><h2>Reports</h2><p>Only report metadata is listed here; evidence is reviewed through the limited evidence flow.</p></div></div>
+      <form class="admin-toolbar" data-admin-filter="reports"><label class="sr-only" for="admin-report-state">Report state</label><select id="admin-report-state" name="status"><option value="">All report states</option><option value="pending">Pending</option><option value="resolved">Resolved</option><option value="dismissed">Dismissed</option></select><button class="btn btn-primary" type="submit">Apply filter</button></form>
+      <div class="admin-table-wrap" tabindex="0"><table class="admin-table"><caption class="sr-only">Report results</caption><thead><tr><th scope="col">Created</th><th scope="col">Reporter</th><th scope="col">Reported principal</th><th scope="col">Reason</th><th scope="col">State</th><th scope="col">Evidence</th></tr></thead><tbody data-admin-table="reports"></tbody></table></div>
+      <p class="admin-table-state" data-admin-state="reports" role="status" aria-live="polite">Open this section to load reports.</p>
+      <nav class="admin-pagination" data-admin-pagination="reports" aria-label="Reports pagination" hidden><button class="btn btn-secondary" type="button" data-admin-more="reports">Load more</button></nav>
     </section>
-    <section class="admin-section">
-      <h2><%= copy.admin.premiumPlan %></h2>
-      <p><%= copy.admin.currentPrice %>: <strong><%= price ? (price.price_cents / 100).toFixed(2) + ' ' + price.currency : '0.00 USD' %></strong></p>
-      <form class="admin-price-form" id="adminPriceForm"><input name="price" type="number" min="0" step="0.01" value="<%= price ? (price.price_cents / 100).toFixed(2) : '0.00' %>"><select name="currency"><option>USD</option><option>EUR</option><option>CHF</option></select><button class="btn btn-primary" type="submit"><%= copy.admin.savePrice %></button></form>
+
+    <section id="admin-panel-bans" class="admin-panel" role="tabpanel" aria-labelledby="admin-tab-bans" data-admin-panel="bans" hidden>
+      <div class="admin-panel-heading"><div><h2>Bans</h2><p>Account, guest, and network restrictions remain separate controls.</p></div></div>
+      <form class="admin-toolbar" data-admin-filter="bans"><label class="sr-only" for="admin-ban-scope">Ban scope</label><select id="admin-ban-scope" name="scope"><option value="">All ban scopes</option><option value="account">Account</option><option value="guest">Guest</option><option value="network">Network</option></select><button class="btn btn-primary" type="submit">Apply filter</button></form>
+      <details class="admin-network-disclosure" id="networkBanDisclosure">
+        <summary><span><strong>Network bans</strong><small id="networkPendingCount">Loading pending reviews</small></span><span class="admin-summary-action" aria-hidden="true">Create network ban</span></summary>
+        <div class="admin-network-workflow">
+          <section aria-labelledby="network-request-title">
+            <h3 id="network-request-title">Request a network review</h3>
+            <p>Start from a recently seen banned account. A distinct administrator must approve before a temporary network ban exists.</p>
+            <form id="networkApprovalRequestForm" class="admin-risk-form">
+              <label for="network-request-public-id">Banned account Public ID</label>
+              <input id="network-request-public-id" name="publicId" pattern="nvy_[0-9a-f]{12}" placeholder="nvy_012345abcdef" autocomplete="off" required>
+              <details class="admin-advanced-disclosure" id="networkManualDisclosure">
+                <summary>Advanced: enter CIDR manually</summary>
+                <label for="network-request-cidr">Exact CIDR</label>
+                <input id="network-request-cidr" name="cidr" placeholder="203.0.113.0/24" autocomplete="off">
+                <p>Manual scopes are limited to IPv4 /24 or narrower and IPv6 /64 or narrower. The second administrator must re-enter the exact CIDR.</p>
+              </details>
+              <label for="network-request-hours">Duration in hours</label>
+              <input id="network-request-hours" name="hours" type="number" min="1" max="720" value="24" required>
+              <label for="network-request-reason">Reason</label>
+              <textarea id="network-request-reason" name="reason" minlength="3" maxlength="500" required></textarea>
+              <button class="btn btn-primary" type="submit">Request privacy review</button>
+              <p data-network-feedback="request" role="status" aria-live="polite"></p>
+            </form>
+          </section>
+          <section aria-labelledby="network-pending-title">
+            <div class="admin-pending-heading"><div><h3 id="network-pending-title">Pending network reviews</h3><p>Only minimized scope and decision metadata are shown.</p></div><button class="btn btn-secondary" id="networkReviewsRefresh" type="button">Refresh</button></div>
+            <div id="networkPendingReviews" class="admin-pending-reviews" aria-live="polite" aria-busy="true">Loading pending reviews&hellip;</div>
+          </section>
+        </div>
+      </details>
+      <div class="admin-table-wrap" tabindex="0"><table class="admin-table"><caption class="sr-only">Ban results</caption><thead><tr><th scope="col">Scope</th><th scope="col">Target</th><th scope="col">Type</th><th scope="col">Reason</th><th scope="col">Expiry</th><th scope="col">State</th><th scope="col">Actions</th></tr></thead><tbody data-admin-table="bans"></tbody></table></div>
+      <p class="admin-table-state" data-admin-state="bans" role="status" aria-live="polite">Open this section to load bans.</p>
+      <nav class="admin-pagination" data-admin-pagination="bans" aria-label="Bans pagination" hidden><button class="btn btn-secondary" type="button" data-admin-more="bans">Load more</button></nav>
+    </section>
+
+    <section id="admin-panel-audit" class="admin-panel" role="tabpanel" aria-labelledby="admin-tab-audit" data-admin-panel="audit" hidden>
+      <div class="admin-panel-heading"><div><h2>Audit log</h2><p>Append-only moderation records. Message content is never copied into the audit log.</p></div></div>
+      <form class="admin-toolbar" data-admin-filter="audit"><label class="sr-only" for="admin-audit-target">Target public ID</label><div class="admin-field-shell"><input id="admin-audit-target" name="target" maxlength="40" placeholder="Target public ID"></div><label class="sr-only" for="admin-audit-action">Action</label><div class="admin-field-shell"><input id="admin-audit-action" name="action" maxlength="80" placeholder="Action, e.g. account_banned"></div><button class="btn btn-primary" type="submit">Apply filter</button></form>
+      <div class="admin-table-wrap" tabindex="0"><table class="admin-table"><caption class="sr-only">Audit log records</caption><thead><tr><th scope="col">When</th><th scope="col">Actor</th><th scope="col">Target</th><th scope="col">Action</th><th scope="col">Reason</th></tr></thead><tbody data-admin-table="audit"></tbody></table></div>
+      <p class="admin-table-state" data-admin-state="audit" role="status" aria-live="polite">Open this section to load audit records.</p>
+      <nav class="admin-pagination" data-admin-pagination="audit" aria-label="Audit pagination" hidden><button class="btn btn-secondary" type="button" data-admin-more="audit">Load more</button></nav>
+    </section>
+
+    <section id="admin-panel-controls" class="admin-panel" role="tabpanel" aria-labelledby="admin-tab-controls" data-admin-panel="controls" hidden>
+      <div class="admin-panel-heading"><div><h2>Security and service controls</h2><p>Re-authenticate before sensitive changes and maintain the service plan.</p></div></div>
+      <section class="admin-section">
+        <h2><%= copy.admin.reauthenticateTitle %></h2>
+        <p><%= adminReauthMethod === 'google' ? copy.admin.reauthenticateGoogleBody : copy.admin.reauthenticateBody %></p>
+        <% if (adminReauthMethod !== 'unavailable') { %>
+          <form class="admin-price-form" id="adminReauthForm" data-reauth-method="<%= adminReauthMethod %>">
+            <% if (adminReauthMethod === 'password') { %><label class="sr-only" for="admin-password"><%= copy.common.password %></label><input id="admin-password" name="password" type="password" autocomplete="current-password" required placeholder="<%= copy.common.password %>"><% } %>
+            <label class="sr-only" for="admin-reauth-code"><%= copy.auth.twoFactorCode %></label><input id="admin-reauth-code" name="code" inputmode="numeric" pattern="[0-9]{6}" maxlength="6" autocomplete="one-time-code" required placeholder="<%= copy.auth.twoFactorCode %>">
+            <% if (adminReauthMethod === 'password') { %><button class="btn btn-primary" type="submit"><%= copy.admin.reauthenticateAction %></button><% } %>
+          </form>
+          <% if (adminReauthMethod === 'google') { %><div id="g_id_onload" data-client_id="<%= googleClientId %>" data-callback="handleAdminGoogleReauth" data-nonce="<%= adminGoogleNonce %>" data-auto_prompt="false" data-cancel_on_tap_outside="true"></div><div class="g_id_signin" data-type="standard" data-shape="pill" data-theme="filled_black" data-text="continue_with" data-size="large" data-logo_alignment="left"></div><% } %>
+        <% } else { %><p role="alert"><%= copy.admin.reauthenticateUnavailable %></p><% } %>
+        <p id="adminReauthFeedback" role="status" aria-live="polite"></p>
+      </section>
+      <section class="admin-section">
+        <h2><%= copy.admin.premiumPlan %></h2>
+        <p><%= copy.admin.currentPrice %>: <strong><%= price ? (price.price_cents / 100).toFixed(2) + ' ' + price.currency : '0.00 USD' %></strong></p>
+        <form class="admin-price-form" id="adminPriceForm"><label class="sr-only" for="admin-price">Price</label><input id="admin-price" name="price" type="number" min="0" step="0.01" value="<%= price ? (price.price_cents / 100).toFixed(2) : '0.00' %>"><label class="sr-only" for="admin-currency">Currency</label><select id="admin-currency" name="currency"><option>USD</option><option>EUR</option><option>CHF</option></select><button class="btn btn-primary" type="submit"><%= copy.admin.savePrice %></button></form>
+      </section>
     </section>
   </div>
 </main>
+
+<dialog id="adminActionDialog" class="admin-dialog" aria-labelledby="adminActionTitle">
+  <form method="dialog" class="admin-dialog-form" id="adminActionForm">
+    <header><h2 id="adminActionTitle">Moderation action</h2><button class="admin-dialog-close" type="button" data-admin-dialog-close aria-label="Close">×</button></header>
+    <div class="admin-dialog-body"><p id="adminActionDescription"></p><input id="adminActionTarget" name="target" type="hidden"><input id="adminActionBanId" name="banId" type="hidden"><label for="adminActionReason">Reason</label><textarea id="adminActionReason" name="reason" rows="4" minlength="3" maxlength="500" required aria-describedby="adminActionReasonHint"></textarea><p id="adminActionReasonHint">A specific reason is required and will be recorded in the audit log.</p><label id="adminActionTypeLabel" for="adminActionType">Ban type</label><select id="adminActionType" name="type"><option value="temporary">Temporary</option><option value="permanent">Permanent</option></select><label id="adminActionHoursLabel" for="adminActionHours">Duration in hours</label><input id="adminActionHours" name="hours" type="number" min="1" max="8760" value="24"></div>
+    <footer><button class="btn btn-secondary" type="button" data-admin-dialog-close>Cancel</button><button class="btn btn-primary" id="adminActionSubmit" type="submit">Confirm</button></footer>
+  </form>
+</dialog>
+
+<dialog id="adminDetailDialog" class="admin-dialog" aria-labelledby="adminDetailTitle"><div class="admin-dialog-form"><header><h2 id="adminDetailTitle">Account detail</h2><button class="admin-dialog-close" type="button" data-admin-dialog-close aria-label="Close">×</button></header><div class="admin-dialog-body" id="adminDetailContent" aria-live="polite">Loading account…</div><footer><button class="btn btn-secondary" type="button" data-admin-dialog-close>Close</button></footer></div></dialog>
+
 <script nonce="<%= cspNonce %>">
   window.__COPY__ = <%- JSON.stringify(copy).replace(/</g, '\\u003c') %>;
-  window.__ADMIN_CONFIG__ = <%- JSON.stringify({
-    csrfToken,
-    reauthMethod: adminReauthMethod
-  }).replace(/</g, '\\u003c') %>;
+  window.__ADMIN_CONFIG__ = <%- JSON.stringify({ csrfToken, reauthMethod: adminReauthMethod, reauthExpiresAt: adminReauthExpiresAt }).replace(/</g, '\\u003c') %>;
 </script>
 <script src="/js/admin.js"></script>
-<% if (adminReauthMethod === 'google') { %>
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
-<% } %>
+<% if (adminReauthMethod === 'google') { %><script src="https://accounts.google.com/gsi/client" async defer></script><% } %>
 <%- include('partials/footer') %>

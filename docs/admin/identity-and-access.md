@@ -5,8 +5,9 @@ Google e protezione amministratori.
 
 ## Modello operativo
 
-- L'ID pubblico è opaco: prefisso `nvy_` e 80 bit casuali. L'ID numerico
-  PostgreSQL resta interno e non entra in HTML, JSON o eventi Socket.IO.
+- L'ID pubblico di un account è opaco: `nvy_` + 12 caratteri esadecimali
+  lowercase (48 bit casuali). La chiave primaria PostgreSQL resta interna e
+  non entra in HTML, JSON o eventi Socket.IO.
 - Il vecchio `Nevely#xxxxxx` resta, quando presente, solo come alias visivo.
 - La data di nascita è la sorgente dell'età corrente. Non salvare una nuova
   età numerica e non correggere la nascita dal normale pannello profilo.
