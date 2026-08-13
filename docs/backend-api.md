@@ -134,20 +134,45 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
 
 ### Client to server
 
-- `find-partner`: starts random matching with profile, interests and premium filters.
+- `find-partner`: starts continuous random matching with profile, interests and
+  premium filters. Without interests the socket enters the general queue
+  immediately. With interests, `waitingTimeSeconds` (5–30) bounds only the
+  initial shared-topic preference; the server then relaxes that requirement in
+  place and keeps the socket queued. Filters, blocks, bans, authorization and
+  rate limits remain active throughout. The client is not told the active phase.
+- `cancel-search`: removes the current socket from matchmaking. Its optional
+  acknowledgement contains only `{ ok, cancelled }` and no queue or presence data.
 - `send-message`: sends one text message, maximum 1,000 characters.
-- `leave-chat`: leaves the active conversation, subject to skip cooldown.
+- `leave-chat`: leaves the active conversation, subject to skip cooldown. An
+  optional Socket.IO acknowledgement returns `{ ok: true, ended }` only after
+  the server transition completes, or `{ ok: false, retryAfterSeconds }` for a
+  generic cooldown. The existing `skip-cooldown` event remains available for
+  older clients; neither response discloses thresholds or abuse signals.
 - `report`: reports the active partner with optional `reason` and `details`.
 - `direct-chat-request`: requests a direct chat with a friend.
 - `direct-chat-response`: accepts or declines a direct-chat request.
 
 ### Server to client
 
-- `waiting`: user entered the matchmaking queue.
+- `waiting`: user entered the matchmaking queue. Payload is the generic
+  `{ status: "searching" }`; it contains no timeout, phase, presence or matching
+  criteria. Search does not normally emit a terminal timeout.
+- `search-cancelled`: the server removed this socket from matchmaking, either
+  after explicit cancellation or because another socket for the same principal
+  replaced the search.
 - `matched`: includes conversation id, partner profile, shared interests and cooldown.
 - `receive-message`, `message-sent`, `message-error`: message lifecycle.
 - `partner-left`, `guest-time-expired`, `skip-cooldown`: conversation lifecycle.
-- `report-submitted`, `report-error`: report lifecycle.
+- `message-error`: message delivery or temporary abuse/rate protection rejection. Its
+  optional `retryAfterSeconds` is generic; it never identifies a duplicate, link,
+  repeated-character, burst, or other server-side signal. The chat client temporarily
+  disables message submission for that generic interval; the server remains authoritative.
+  Browser sends use the Socket.IO acknowledgement for request-local success or failure,
+  so concurrent responses cannot be attached to a different optimistic message. Clients
+  without an acknowledgement continue to receive `message-sent` or `message-error`.
+- `report-submitted`, `report-error`: report lifecycle. The browser shows
+  success only after `report-submitted`; report reasons and details are never
+  copied into application logs or audit metadata.
 - `direct-chat-requested`, `direct-chat-request-sent`, `direct-chat-error`: direct-chat lifecycle.
 - `notification-created`: tells the client to refresh notifications.
 - `account-banned`: closes the account session after moderation action.
@@ -158,7 +183,12 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
 
 ## Safety and future work
 
-The server enforces text length and a per-socket rate limit. `BANNED_WORDS` can hold a comma-separated fallback list. Perspective API or an equivalent multilingual moderation provider is planned but not enabled. Photo/audio WebRTC, payment processing, email flows and production avatar storage are also planned.
+The server enforces text length and principal-scoped PostgreSQL message limits. Burst
+limits are separate from N5.2 duplicate, link-flood and repeated-character windows.
+The latter use daily-rotated HMAC bucket keys derived from a shared deployment secret;
+no message body, raw IP, device fingerprint, or derived bucket key is emitted to the
+client, logs, or audit stream. Configure `MODERATION_MESSAGE_HMAC_KEY` (or the shared
+`SESSION_SECRET`) consistently on every replica. `BANNED_WORDS` can hold a comma-separated fallback list. Perspective API or an equivalent multilingual moderation provider is planned but not enabled. Photo/audio WebRTC, payment processing, email flows and production avatar storage are also planned.
 
 ## Database migrations
 

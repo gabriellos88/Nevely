@@ -195,27 +195,27 @@ deferred N1.12 transactional-email polish is now tracked unchanged as N9.6.
 - [ ] **N4.6 — Add an append-only admin audit log.** Record actor, target, action, reason, before/after state, request correlation ID and timestamp without copying sensitive message content unnecessarily.
 - [ ] **N4.7 — Add safer role management.** Require re-authentication, 2FA and audit logging for grants/revocations; invalidate affected sessions.
 
-### N5. Matching and chat correctness
+### N5. Chat experience and abuse resistance
 
-- [ ] **N5.1 — Replace the current hard waiting timeout with two-phase topic matching.**
-  - No selected topics: enter the general queue immediately without a topic countdown.
-  - Selected topics: first require at least one normalized common topic.
-  - At timeout, keep the user queued and relax only the common-topic requirement.
-  - Keep premium filters, blocks, bans and safety rules active in both phases.
-  - Preserve the unlimited option as an explicit strict-wait choice.
-- [ ] **N5.2 — Expose one authoritative waiting state.**
-  - Remove duplicate “Looking for up to …” messages.
-  - Distinguish strict-topic and relaxed-general search in one visible status with one accessible live announcement.
-  - Add cancellation and reconnection behavior.
-- [ ] **N5.3 — Fix the chat viewport layout.**
-  - Keep the partner/header panel and composer fixed within the chat workspace.
-  - Make only the message list scrollable with `min-height: 0` and contained scroll anchoring.
-  - Verify desktop, mobile viewport changes, on-screen keyboards and safe-area insets.
-- [ ] **N5.4 — Strengthen cooldown and spam controls.**
-  - Keep the existing message and skip limits but key them to account/guest identity.
-  - Add burst and sustained limits with clear retry timing.
-  - Cover reconnect and multi-tab bypasses in tests.
-- [ ] **N5.5 — Decide whether the separate 120-second guest conversation duration remains fixed or becomes configurable.** Do not conflate it with topic waiting time.
+- [x] **N5.1 — Audit the anti-spam baseline before changing enforcement.**
+  - Document principal and event limits, cross-replica persistence, reconnect behavior, feedback and privacy boundaries.
+  - Keep message content, raw IPs and device fingerprints out of logs and audit metadata.
+- [x] **N5.2 — Add progressive, distributed abuse controls.**
+  - Normalize duplicate comparison server-side and use pseudonymous shared signal buckets.
+  - Separate tolerant skip UX from queue churn/flood and stricter message enforcement.
+  - Cover cross-replica, reconnect, concurrent rematch, flood and bypass behavior with PostgreSQL and Socket.IO tests.
+- [x] **N5.3 — Refine the desktop chat workspace.**
+  - Keep partner/status and composer fixed inside the conversation workspace; only messages scroll.
+  - Keep Send attached to the message field; separate Next visually and spatially while End remains destructive.
+  - Use the topic slider only for the initial strict phase, then relax server-side without leaving the queue.
+  - Provide an explicit server-authoritative Cancel search action and prevent duplicate socket/principal queue entries.
+  - Separate Report, End and Next actions and wait for authoritative Socket.IO results.
+  - Cover loading, match, reconnect, error, report and end states with keyboard-visible focus and 44px targets.
+  - Verify Playwright at `1366×768` and `768×1024` with captured screenshots.
+- [ ] **N5.4 — Refine the mobile chat workspace.**
+  - Verify `390×844`, portrait/landscape transitions, on-screen keyboard and safe-area insets.
+  - Stabilize the composer, drawers, modals, touch targets and message/command overflow.
+- [ ] **N5.5 — Land the isolated guest-duration removal.** Keep the dedicated draft PR separate from N5.1–N5.4 and retain anti-abuse, retention, session, report and disconnect controls.
 
 ---
 

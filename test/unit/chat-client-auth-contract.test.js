@@ -26,3 +26,20 @@ test('chat client redirects revoked sessions and renders authoritative Google un
     /api\('\/api\/account'\)[\s\S]*renderAccountSecurity\(account\.user\)/
   );
 });
+
+test('chat client applies only the generic server retry interval to message controls', () => {
+  assert.match(
+    source,
+    /socket\.on\('message-error',[\s\S]*startMessageCooldown\(data\.retryAfterSeconds\)/
+  );
+  assert.match(
+    source,
+    /const canSend = isLive && Date\.now\(\) >= messageCooldownUntil;[\s\S]*messageInput\.disabled = !canSend;[\s\S]*sendBtn\.disabled = !canSend;/
+  );
+  assert.match(
+    source,
+    /const pendingMessage = addMessage\(text, 'me'\);[\s\S]*socket\.emit\('send-message', text, \(response = \{\}\) => \{[\s\S]*pendingMessage\.remove\(\)/
+  );
+  assert.doesNotMatch(source, /pendingSentMessages/);
+  assert.doesNotMatch(source, /data\.(?:signal|threshold|normalized|counter)/);
+});

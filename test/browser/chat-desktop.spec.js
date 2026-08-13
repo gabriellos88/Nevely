@@ -1,0 +1,197 @@
+const { expect, test } = require('@playwright/test');
+
+async function completeGuestPassport(page, name = 'Synthetic Desktop Guest') {
+  await page.goto('/chat?guest=1', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#guestPassportModal')).toBeVisible();
+  await page.locator('#usernameInput').fill(name);
+  await page.locator('#ageInput').selectOption('28');
+  await page.locator('#guestCountrySearch').fill('Switzerland');
+  await page.locator('#guestCountrySuggestions').getByRole('option', { name: 'Switzerland' }).click();
+  await page.locator('#tosInput').check();
+  await page.locator('#guestPassportForm button[type="submit"]').click();
+  await expect(page.locator('#guestPassportModal')).toBeHidden();
+}
+
+async function renderSyntheticConversation(page) {
+  await page.evaluate(() => {
+    showChatView();
+    setChatComposerState('live');
+    const card = document.querySelector('#chatCard');
+    const name = document.querySelector('#partnerName');
+    const avatar = document.querySelector('#partnerAvatar');
+    const status = document.querySelector('#statusText');
+    const messages = document.querySelector('#messages');
+    card.dataset.state = 'live';
+    name.textContent = 'Astra Guest';
+    avatar.textContent = 'A';
+    status.textContent = 'Connected. You both like astronomy.';
+    messages.replaceChildren();
+    addMessage('You both like astronomy. Say hello!', 'system');
+    for (let index = 0; index < 24; index += 1) {
+      addMessage(
+        index % 2
+          ? `A reply that keeps the conversation readable at message ${index + 1}.`
+          : `A keyboard-friendly sample message ${index + 1} with enough text to wrap naturally.`,
+        index % 2 ? 'them' : 'me',
+        index + 1
+      );
+    }
+    messages.scrollTop = 0;
+  });
+  await expect(page.locator('#chatCard')).toBeVisible();
+}
+
+async function expectContainedWorkspace(page) {
+  const measurements = await page.evaluate(() => {
+    const main = document.querySelector('.chat-main');
+    const card = document.querySelector('#chatCard');
+    const messages = document.querySelector('#messages');
+    const header = document.querySelector('.chat-partner-bar');
+    const composer = document.querySelector('#chatComposer');
+    const input = document.querySelector('#messageInput');
+    const send = document.querySelector('#sendBtn');
+    const next = document.querySelector('#newBtn');
+    const end = document.querySelector('#endChatBtn');
+    const headerBefore = header.getBoundingClientRect();
+    const composerBefore = composer.getBoundingClientRect();
+    messages.scrollTop = messages.scrollHeight;
+    const headerAfter = header.getBoundingClientRect();
+    const composerAfter = composer.getBoundingClientRect();
+    const cardBox = card.getBoundingClientRect();
+    const inputBox = input.getBoundingClientRect();
+    const sendBox = send.getBoundingClientRect();
+    const nextBox = next.getBoundingClientRect();
+    return {
+      mainOverflowY: getComputedStyle(main).overflowY,
+      messagesOverflowY: getComputedStyle(messages).overflowY,
+      mainContained: main.scrollHeight <= main.clientHeight + 1,
+      cardContained: cardBox.top >= 0 && cardBox.bottom <= window.innerHeight + 1,
+      headerStayed: Math.abs(headerBefore.top - headerAfter.top) < 1,
+      composerStayed: Math.abs(composerBefore.bottom - composerAfter.bottom) < 1,
+      messageListScrolls: messages.scrollHeight > messages.clientHeight && messages.scrollTop > 0,
+      sendTouchesField: Math.abs(inputBox.right - sendBox.left) < 1,
+      nextSeparation: nextBox.left - sendBox.right,
+      sendBackground: getComputedStyle(send).backgroundColor,
+      nextBackground: getComputedStyle(next).backgroundColor,
+      endBackground: getComputedStyle(end).backgroundColor
+    };
+  });
+  expect(measurements).toEqual({
+    mainOverflowY: 'hidden',
+    messagesOverflowY: 'auto',
+    mainContained: true,
+    cardContained: true,
+    headerStayed: true,
+    composerStayed: true,
+    messageListScrolls: true,
+    sendTouchesField: true,
+    nextSeparation: measurements.nextSeparation,
+    sendBackground: measurements.sendBackground,
+    nextBackground: measurements.nextBackground,
+    endBackground: measurements.endBackground
+  });
+  expect(measurements.nextSeparation).toBeGreaterThanOrEqual(24);
+  expect(measurements.sendBackground).not.toBe(measurements.nextBackground);
+  expect(measurements.endBackground).not.toBe(measurements.nextBackground);
+  await expect(page.locator('#newBtn span')).toBeVisible();
+  await expect(page.locator('#newBtn span')).toHaveText('Next');
+
+  for (const selector of ['#reportBtn', '#endChatBtn', '#sendBtn', '#newBtn']) {
+    const box = await page.locator(selector).boundingBox();
+    expect(box.width).toBeGreaterThanOrEqual(44);
+    expect(box.height).toBeGreaterThanOrEqual(44);
+  }
+
+  await page.locator('#messageInput').focus();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('#sendBtn')).toBeFocused();
+  const focusShadow = await page.locator('#sendBtn').evaluate((element) => getComputedStyle(element).boxShadow);
+  expect(focusShadow).not.toBe('none');
+}
+
+test('desktop chat keeps one contained scroll surface and accessible controls', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await completeGuestPassport(page);
+  await renderSyntheticConversation(page);
+  await expectContainedWorkspace(page);
+
+  await page.locator('#reportBtn').click();
+  await expect(page.locator('#reportModal')).toBeVisible();
+  await expect(page.locator('#reportModal')).toHaveAttribute('aria-hidden', 'false');
+  await expect(page.locator('#reportReason')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#reportModal')).toBeHidden();
+  await expect(page.locator('#reportBtn')).toBeFocused();
+
+  const desktopScreenshot = testInfo.outputPath('n5.3-chat-1366x768.png');
+  await page.screenshot({ path: desktopScreenshot });
+  await testInfo.attach('N5.3 chat 1366x768', { path: desktopScreenshot, contentType: 'image/png' });
+
+  await page.setViewportSize({ width: 768, height: 1024 });
+  await expectContainedWorkspace(page);
+  const tabletScreenshot = testInfo.outputPath('n5.3-chat-768x1024.png');
+  await page.screenshot({ path: tabletScreenshot });
+  await testInfo.attach('N5.3 chat 768x1024', { path: tabletScreenshot, contentType: 'image/png' });
+});
+
+test('report feedback waits for the server response and stays generic', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await completeGuestPassport(page);
+  await renderSyntheticConversation(page);
+  await page.locator('#reportBtn').click();
+  await page.locator('#reportReason').selectOption('spam');
+  await page.locator('#reportForm button[type="submit"]').click();
+
+  await expect(page.locator('#reportFeedback')).not.toHaveText('Submitting…');
+  await expect(page.locator('#reportFeedback')).not.toBeEmpty();
+  await expect(page.locator('#reportForm button[type="submit"]')).toBeEnabled();
+});
+
+test('live report and end controls follow Socket.IO confirmation', async ({ browser }) => {
+  test.setTimeout(35_000);
+  const firstContext = await browser.newContext({ viewport: { width: 1366, height: 768 } });
+  const secondContext = await browser.newContext({ viewport: { width: 1366, height: 768 } });
+  const first = await firstContext.newPage();
+  const second = await secondContext.newPage();
+  try {
+    await completeGuestPassport(first, 'First Desktop Guest');
+    await completeGuestPassport(second, 'Second Desktop Guest');
+    await first.locator('#waitingTimeRange').fill('30');
+    await second.locator('#waitingTimeRange').fill('30');
+
+    await first.locator('#startBtnBottom').click();
+    await expect(first.locator('#chatCard')).toHaveAttribute('data-state', 'searching');
+    await second.locator('#startBtnBottom').click();
+    await expect(first.locator('#chatCard')).toHaveAttribute('data-state', 'live');
+    await expect(second.locator('#chatCard')).toHaveAttribute('data-state', 'live');
+
+    await first.locator('#reportBtn').click();
+    await first.locator('#reportReason').selectOption('spam');
+    await first.locator('#reportForm button[type="submit"]').click();
+    await expect(first.locator('#reportFeedback')).toHaveText(/review your report/i);
+    await expect(first.locator('#reportForm button[type="submit"]')).toBeHidden();
+    await first.locator('#reportCancel').click();
+
+    await first.locator('#endChatBtn').click();
+    await expect(first.locator('#statusText')).toHaveText(/You ended the chat/i);
+    await expect(first.locator('#messageInput')).toBeDisabled();
+    await expect(second.locator('#statusText')).toHaveText(/They left the chat/i);
+    await expect(second.locator('#messageInput')).toBeDisabled();
+  } finally {
+    await firstContext.close();
+    await secondContext.close();
+  }
+});
+
+test('cancel search waits for the server and returns to the match composer', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await completeGuestPassport(page, 'Cancel Search Guest');
+  await page.locator('#startBtnBottom').click();
+  await expect(page.locator('#chatCard')).toHaveAttribute('data-state', 'searching');
+  await expect(page.locator('#cancelSearchBtn')).toBeVisible();
+  await expect(page.locator('#cancelSearchBtn')).toBeEnabled();
+  await page.locator('#cancelSearchBtn').click();
+  await expect(page.locator('#matchSetup')).toBeVisible();
+  await expect(page.locator('#chatCard')).toBeHidden();
+  await expect(page.locator('#waitingTimeHint')).toHaveText('Search cancelled.');
+});
