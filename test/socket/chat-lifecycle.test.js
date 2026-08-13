@@ -96,7 +96,7 @@ test('two guest clients match, exchange a message, and end the pair once on skip
 
   const waiting = eventFrom(first, 'waiting');
   first.emit('find-partner', guest('First Guest', ['astronomy']));
-  assert.deepEqual(await waiting, { waitingTimeSeconds: null });
+  assert.deepEqual(await waiting, { status: 'searching' });
 
   const firstMatched = eventFrom(first, 'matched');
   const secondMatched = eventFrom(second, 'matched');
@@ -120,6 +120,75 @@ test('two guest clients match, exchange a message, and end the pair once on skip
   assert.equal((await partnerLeftAfterSkip).conversationId, null);
 
   second.disconnect();
+});
+
+test('general search remains queued beyond the slider and cancel removes it server-side', async (t) => {
+  const runtime = createRuntime({
+    db: disabledDb(),
+    strictPhaseDelayMs: () => 40,
+    env: { NODE_ENV: 'test', SESSION_SECRET: 'socket-test-session-secret', SHUTDOWN_GRACE_MS: '1000' },
+    log: quietLog
+  });
+  const address = await runtime.start({ port: 0, host: '127.0.0.1' });
+  const socket = await connectSocket(`http://127.0.0.1:${address.port}`);
+  t.after(async () => {
+    socket.disconnect();
+    await runtime.shutdown();
+  });
+
+  let timedOut = false;
+  socket.once('waiting-timeout', () => { timedOut = true; });
+  const waiting = eventFrom(socket, 'waiting');
+  socket.emit('find-partner', { ...guest('General Guest'), waitingTimeSeconds: 5 });
+  assert.deepEqual(await waiting, { status: 'searching' });
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(timedOut, false);
+
+  const cancelled = eventFrom(socket, 'search-cancelled');
+  assert.deepEqual(await emitWithAck(socket, 'cancel-search'), { ok: true, cancelled: true });
+  await cancelled;
+  assert.deepEqual(await emitWithAck(socket, 'cancel-search'), { ok: true, cancelled: false });
+});
+
+test('topic matching is strict first and relaxes in place without leaving the queue', async (t) => {
+  const runtime = createRuntime({
+    db: disabledDb(),
+    strictPhaseDelayMs: () => 60,
+    env: { NODE_ENV: 'test', SESSION_SECRET: 'socket-test-session-secret', SHUTDOWN_GRACE_MS: '1000' },
+    log: quietLog
+  });
+  const address = await runtime.start({ port: 0, host: '127.0.0.1' });
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  const strictFirst = await connectSocket(baseUrl);
+  const strictSecond = await connectSocket(baseUrl);
+  const relaxedFirst = await connectSocket(baseUrl);
+  const relaxedSecond = await connectSocket(baseUrl);
+  const sockets = [strictFirst, strictSecond, relaxedFirst, relaxedSecond];
+  t.after(async () => {
+    sockets.forEach((socket) => socket.disconnect());
+    await runtime.shutdown();
+  });
+
+  const strictWaiting = eventFrom(strictFirst, 'waiting');
+  strictFirst.emit('find-partner', { ...guest('Strict First', ['astronomy']), waitingTimeSeconds: 5 });
+  await strictWaiting;
+  const strictMatches = Promise.all([eventFrom(strictFirst, 'matched'), eventFrom(strictSecond, 'matched')]);
+  strictSecond.emit('find-partner', { ...guest('Strict Second', ['astronomy']), waitingTimeSeconds: 5 });
+  const [strictMatch] = await strictMatches;
+  assert.deepEqual(strictMatch.sharedInterests, ['astronomy']);
+
+  const relaxedWaiting = eventFrom(relaxedFirst, 'waiting');
+  relaxedFirst.emit('find-partner', { ...guest('Relaxed First', ['astronomy']), waitingTimeSeconds: 5 });
+  await relaxedWaiting;
+  const secondWaiting = eventFrom(relaxedSecond, 'waiting');
+  const relaxedMatches = Promise.all([
+    eventFrom(relaxedFirst, 'matched'),
+    eventFrom(relaxedSecond, 'matched')
+  ]);
+  relaxedSecond.emit('find-partner', { ...guest('Relaxed Second', ['literature']), waitingTimeSeconds: 5 });
+  await secondWaiting;
+  const [relaxedMatch] = await relaxedMatches;
+  assert.deepEqual(relaxedMatch.sharedInterests, []);
 });
 
 test('draining sends only a generic notice and rejects new matching work', async (t) => {

@@ -44,6 +44,18 @@ function eventsFrom(socket, eventName, count, timeoutMs = 4_000) {
   });
 }
 
+function emitWithAck(socket, eventName, payload) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error(`Timed out waiting for ${eventName} acknowledgement`)), 4_000);
+    const acknowledge = (response) => {
+      clearTimeout(timeout);
+      resolve(response);
+    };
+    if (payload === undefined) socket.emit(eventName, acknowledge);
+    else socket.emit(eventName, payload, acknowledge);
+  });
+}
+
 function cookieFrom(response) {
   return (response.headers['set-cookie'] || []).map((value) => value.split(';')[0]).join('; ');
 }
@@ -282,6 +294,106 @@ test('Socket.IO serializes concurrent rematch transitions without duplicate queu
   const fourthWaiting = eventFrom(sockets[3], 'waiting');
   sockets[3].emit('find-partner', matchPayload(guests[3].guest.name));
   await fourthWaiting;
+
+  const active = await db.query("SELECT COUNT(*)::integer AS count FROM conversations WHERE status = 'active'");
+  assert.equal(active.rows[0].count, 1);
+});
+
+test('Socket.IO keeps general search queued, relaxes topic search and replaces same-principal tabs', {
+  skip: hasDatabase ? false : 'DATABASE_URL is unavailable outside the disposable CI database'
+}, async (t) => {
+  const db = require('../../db');
+  await resetDatabase(db);
+  const runtime = createRuntime({
+    db,
+    closeDatabaseOnShutdown: false,
+    strictPhaseDelayMs: () => 80,
+    env: { ...process.env, NODE_ENV: 'test', SESSION_SECRET: 'socket-matching-integration-secret' },
+    log: quietLog
+  });
+  const address = await runtime.start({ port: 0, host: '127.0.0.1' });
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  const generalGuest = await createGuest(baseUrl, 'General Queue Guest', 'astra');
+  const reconnectProbeGuest = await createGuest(baseUrl, 'Reconnect Probe Guest', 'orion');
+  const topicGuest = await createGuest(baseUrl, 'Topic Queue Guest', 'nova');
+  const otherGuest = await createGuest(baseUrl, 'Other Topic Guest', 'lyra');
+  const general = await connectGuest(baseUrl, generalGuest.cookie);
+  const firstTopicTab = await connectGuest(baseUrl, topicGuest.cookie);
+  const secondTopicTab = await connectGuest(baseUrl, topicGuest.cookie);
+  const otherTopic = await connectGuest(baseUrl, otherGuest.cookie);
+  const sockets = [general, firstTopicTab, secondTopicTab, otherTopic];
+  t.after(async () => {
+    sockets.forEach((socket) => socket.disconnect());
+    await runtime.shutdown();
+  });
+
+  let timedOut = false;
+  general.once('waiting-timeout', () => { timedOut = true; });
+  const generalWaiting = eventFrom(general, 'waiting');
+  general.emit('find-partner', {
+    interests: [],
+    profile: { username: generalGuest.guest.name },
+    waitingTimeSeconds: 5
+  });
+  await generalWaiting;
+  await new Promise((resolve) => setTimeout(resolve, 160));
+  assert.equal(timedOut, false);
+
+  general.disconnect();
+  await new Promise((resolve) => setTimeout(resolve, 80));
+  const reconnectedGeneral = await connectGuest(baseUrl, generalGuest.cookie);
+  sockets.push(reconnectedGeneral);
+  const reconnectedWaiting = eventFrom(reconnectedGeneral, 'waiting');
+  reconnectedGeneral.emit('find-partner', {
+    interests: [],
+    profile: { username: generalGuest.guest.name },
+    waitingTimeSeconds: 5
+  });
+  await reconnectedWaiting;
+  const generalCancelled = eventFrom(reconnectedGeneral, 'search-cancelled');
+  assert.deepEqual(await emitWithAck(reconnectedGeneral, 'cancel-search'), { ok: true, cancelled: true });
+  await generalCancelled;
+
+  const reconnectProbe = await connectGuest(baseUrl, reconnectProbeGuest.cookie);
+  sockets.push(reconnectProbe);
+  const probeWaiting = eventFrom(reconnectProbe, 'waiting');
+  reconnectProbe.emit('find-partner', {
+    interests: [],
+    profile: { username: reconnectProbeGuest.guest.name },
+    waitingTimeSeconds: 5
+  });
+  await probeWaiting;
+  assert.deepEqual(await emitWithAck(reconnectProbe, 'cancel-search'), { ok: true, cancelled: true });
+
+  const firstWaiting = eventFrom(firstTopicTab, 'waiting');
+  firstTopicTab.emit('find-partner', {
+    interests: ['astronomy'],
+    profile: { username: topicGuest.guest.name },
+    waitingTimeSeconds: 5
+  });
+  await firstWaiting;
+  const replaced = eventFrom(firstTopicTab, 'search-cancelled');
+  const secondWaiting = eventFrom(secondTopicTab, 'waiting');
+  secondTopicTab.emit('find-partner', {
+    interests: ['astronomy'],
+    profile: { username: topicGuest.guest.name },
+    waitingTimeSeconds: 5
+  });
+  await Promise.all([replaced, secondWaiting]);
+
+  const otherWaiting = eventFrom(otherTopic, 'waiting');
+  const relaxedMatches = Promise.all([
+    eventFrom(secondTopicTab, 'matched'),
+    eventFrom(otherTopic, 'matched')
+  ]);
+  otherTopic.emit('find-partner', {
+    interests: ['literature'],
+    profile: { username: otherGuest.guest.name },
+    waitingTimeSeconds: 5
+  });
+  await otherWaiting;
+  const [topicMatch] = await relaxedMatches;
+  assert.deepEqual(topicMatch.sharedInterests, []);
 
   const active = await db.query("SELECT COUNT(*)::integer AS count FROM conversations WHERE status = 'active'");
   assert.equal(active.rows[0].count, 1);

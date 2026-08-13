@@ -206,6 +206,9 @@ deferred N1.12 transactional-email polish is now tracked unchanged as N9.6.
   - Cover cross-replica, reconnect, concurrent rematch, flood and bypass behavior with PostgreSQL and Socket.IO tests.
 - [x] **N5.3 — Refine the desktop chat workspace.**
   - Keep partner/status and composer fixed inside the conversation workspace; only messages scroll.
+  - Keep Send attached to the message field; separate Next visually and spatially while End remains destructive.
+  - Use the topic slider only for the initial strict phase, then relax server-side without leaving the queue.
+  - Provide an explicit server-authoritative Cancel search action and prevent duplicate socket/principal queue entries.
   - Separate Report, End and Next actions and wait for authoritative Socket.IO results.
   - Cover loading, match, reconnect, error, report and end states with keyboard-visible focus and 44px targets.
   - Verify Playwright at `1366×768` and `768×1024` with captured screenshots.

@@ -13,6 +13,7 @@ const startBtnSidebar = document.getElementById('startBtnSidebar');
 const startBtnBottom = document.getElementById('startBtnBottom');
 const newBtn = document.getElementById('newBtn');
 const endChatBtn = document.getElementById('endChatBtn');
+const cancelSearchBtn = document.getElementById('cancelSearchBtn');
 const reportBtn = document.getElementById('reportBtn');
 const sendBtn = document.getElementById('sendBtn');
 const addInterestBtn = document.getElementById('addInterestBtn');
@@ -163,7 +164,6 @@ let accountModalRestoreFocus = null;
 let reportModalRestoreFocus = null;
 let reportPending = false;
 let nextSearchPending = false;
-let nextSearchPreviousStatus = '';
 let guestCountryActiveIndex = -1;
 let chatComposerMode = 'idle';
 let releaseDraining = false;
@@ -306,6 +306,7 @@ if (startBtnSidebar) startBtnSidebar.addEventListener('click', startSearch);
 if (startBtnBottom) startBtnBottom.addEventListener('click', startSearch);
 newBtn.addEventListener('click', startSearch);
 endChatBtn?.addEventListener('click', endConversation);
+cancelSearchBtn?.addEventListener('click', cancelSearch);
 sendBtn.addEventListener('click', sendMessage);
 reportBtn.addEventListener('click', reportUser);
 reportForm?.addEventListener('submit', submitReport);
@@ -502,6 +503,7 @@ function setChatComposerState(mode, message = '') {
   };
   const stateMessage = message || fallbackMessages[mode] || chatCopy.composer.idle;
   const isLive = mode === 'live';
+  const isSearching = mode === 'searching';
   const canSend = isLive && Date.now() >= messageCooldownUntil;
 
   chatComposerMode = mode;
@@ -509,6 +511,13 @@ function setChatComposerState(mode, message = '') {
   sendBtn.disabled = !canSend;
   reportBtn.disabled = !isLive;
   if (endChatBtn) endChatBtn.disabled = !isLive;
+  endChatBtn?.classList.toggle('hidden', isSearching);
+  newBtn.classList.toggle('hidden', isSearching);
+  cancelSearchBtn?.classList.toggle('hidden', !isSearching);
+  if (cancelSearchBtn) {
+    cancelSearchBtn.disabled = !isSearching;
+    cancelSearchBtn.toggleAttribute('aria-busy', false);
+  }
   messageInput.placeholder = isLive ? chatCopy.conversation.messagePlaceholder : stateMessage;
   chatCard?.setAttribute('data-state', mode);
   if (mode === 'searching' || mode === 'ending') {
@@ -1267,12 +1276,12 @@ function updateAgeRangeControl(changedHandle = '') {
 function selectedWaitingTimeSeconds() {
   if (!waitingTimeRange) return 10;
   const value = Number(waitingTimeRange.value);
-  return value >= 35 ? null : Math.min(Math.max(Math.round(value / 5) * 5, 5), 30);
+  return Math.min(Math.max(Math.round(value / 5) * 5, 5), 30);
 }
 
 function updateWaitingTimeControl() {
   const seconds = selectedWaitingTimeSeconds();
-  const label = seconds === null ? chatCopy.match.noLimit : `${seconds} ${chatCopy.match.secondsShort}`;
+  const label = `${seconds} ${chatCopy.match.secondsShort}`;
   if (waitingTimeOutput) waitingTimeOutput.textContent = label;
   if (waitingTimeRange) waitingTimeRange.setAttribute('aria-valuetext', label);
   if (waitingTimeHint) waitingTimeHint.textContent = defaultWaitingTimeHint;
@@ -1292,29 +1301,16 @@ function startSearch() {
 
   const interests = parseInterests(interestsInput.value);
   const replacingActiveConversation = chatComposerMode === 'live' && !readOnlyConversation;
+  if (waitingTimeHint) waitingTimeHint.textContent = defaultWaitingTimeHint;
 
   nextSearchPending = true;
   newBtn.disabled = true;
   newBtn.setAttribute('aria-busy', 'true');
   if (replacingActiveConversation) {
-    nextSearchPreviousStatus = statusText.textContent;
-    statusText.textContent = chatCopy.composer.nextPending;
-    chatCard?.setAttribute('data-state', 'searching');
     messageInput.disabled = true;
     sendBtn.disabled = true;
     reportBtn.disabled = true;
     if (endChatBtn) endChatBtn.disabled = true;
-  } else {
-    clearCountdown();
-    readOnlyConversation = false;
-    currentConversationId = null;
-    currentPartner = null;
-    currentConversationSaved = false;
-    setChatComposerState('searching');
-    statusText.textContent = chatCopy.conversation.looking;
-    resetPartnerBar(chatCopy.conversation.looking);
-    showWaitingState(chatCopy.composer.searching);
-    showChatView();
   }
   closeActiveDrawer({ restoreFocus: false });
 
@@ -1440,6 +1436,21 @@ function submitReport(event) {
   });
 }
 
+function cancelSearch() {
+  if (chatComposerMode !== 'searching' || cancelSearchBtn?.disabled) return;
+  cancelSearchBtn.disabled = true;
+  cancelSearchBtn.setAttribute('aria-busy', 'true');
+  socket.timeout(6000).emit('cancel-search', (error, response = {}) => {
+    if (!error && response.ok && response.cancelled) return;
+    cancelSearchBtn.disabled = false;
+    cancelSearchBtn.removeAttribute('aria-busy');
+    if (error || !response.ok) {
+      statusText.textContent = chatCopy.feedback.cancelSearchError;
+      setChatComposerState('searching', chatCopy.feedback.cancelSearchError);
+    }
+  });
+}
+
 function handleReportModalKeydown(event) {
   if (!reportModal || reportModal.classList.contains('hidden')) return;
   if (event.key === 'Escape') {
@@ -1527,33 +1538,29 @@ function updateTimerBadge(remaining) {
   }
 }
 
-socket.on('waiting', ({ waitingTimeSeconds } = {}) => {
+socket.on('waiting', () => {
   nextSearchPending = false;
-  nextSearchPreviousStatus = '';
   currentConversationId = null;
   currentPartner = null;
   currentConversationSaved = false;
   showChatView();
-  statusText.textContent = waitingTimeSeconds === null
-    ? chatCopy.composer.searching
-    : formatCopy(chatCopy.dynamic.waitingSeconds, { seconds: waitingTimeSeconds });
-  setChatComposerState('searching', statusText.textContent);
+  statusText.textContent = chatCopy.composer.searching;
+  setChatComposerState('searching');
   resetPartnerBar(chatCopy.conversation.looking);
   showWaitingState(chatCopy.composer.searching);
 });
 
-socket.on('waiting-timeout', ({ seconds } = {}) => {
+socket.on('search-cancelled', () => {
   nextSearchPending = false;
-  nextSearchPreviousStatus = '';
+  clearCountdown();
   showSetupView();
-  statusText.textContent = chatCopy.feedback.noMatch;
-  setChatComposerState('ended', chatCopy.feedback.tryLonger);
-  if (waitingTimeHint) waitingTimeHint.textContent = chatCopy.feedback.tryLonger;
+  statusText.textContent = chatCopy.feedback.searchCancelled;
+  setChatComposerState('idle');
+  if (waitingTimeHint) waitingTimeHint.textContent = chatCopy.feedback.searchCancelled;
 });
 
 socket.on('matched', (data) => {
   nextSearchPending = false;
-  nextSearchPreviousStatus = '';
   if (reportModal && !reportModal.classList.contains('hidden') && !reportPending) closeReportModal();
   showChatView();
   closeActiveDrawer({ restoreFocus: false });
@@ -1599,7 +1606,6 @@ socket.on('message-read', ({ conversationId, upToMessageId } = {}) => {
 
 socket.on('partner-left', () => {
   nextSearchPending = false;
-  nextSearchPreviousStatus = '';
   showChatView();
   statusText.textContent = chatCopy.feedback.partnerLeft;
   addMessage(chatCopy.feedback.partnerLeft, 'system');
@@ -1651,11 +1657,16 @@ socket.on('report-error', (data = {}) => {
 });
 socket.on('chat-error', (data) => {
   nextSearchPending = false;
-  nextSearchPreviousStatus = '';
   const message = data.message || chatCopy.feedback.chatUnavailable;
   statusText.textContent = message;
   addMessage(message, 'system');
-  setChatComposerState('error', message);
+  if (currentConversationId && !readOnlyConversation) {
+    setChatComposerState('live');
+  } else {
+    showChatView();
+    resetPartnerBar(chatCopy.feedback.chatEnded);
+    setChatComposerState('error', message);
+  }
 });
 socket.on('release-draining', ({ retryAfterSeconds = 0 } = {}) => {
   releaseDraining = true;
@@ -1692,7 +1703,6 @@ socket.on('auth-required', () => {
 socket.on('disconnect', () => {
   if (releaseDraining) return;
   nextSearchPending = false;
-  nextSearchPreviousStatus = '';
   if (reportPending) {
     reportPending = false;
     reportSubmit.disabled = false;
@@ -1722,8 +1732,6 @@ socket.on('connect', () => {
 socket.on('skip-cooldown', ({ retryAfterSeconds }) => {
   nextSearchPending = false;
   newBtn.removeAttribute('aria-busy');
-  if (nextSearchPreviousStatus) statusText.textContent = nextSearchPreviousStatus;
-  nextSearchPreviousStatus = '';
   setChatComposerState('live');
   const seconds = Number(retryAfterSeconds);
   if (Number.isSafeInteger(seconds) && seconds > 0) startSkipCooldown(seconds * 1000);

@@ -272,6 +272,7 @@ function createRuntime(options = {}) {
     rateLimiter: options.rateLimiter,
     rateLimitPrincipalResolver: options.rateLimitPrincipalResolver,
     messageAbuseProtector: options.messageAbuseProtector,
+    strictPhaseDelayMs: options.strictPhaseDelayMs,
     messageAbuseHmacSecret: environment.MODERATION_MESSAGE_HMAC_KEY || environment.SESSION_SECRET,
     log
   });

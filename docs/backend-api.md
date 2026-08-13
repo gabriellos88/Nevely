@@ -134,7 +134,14 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
 
 ### Client to server
 
-- `find-partner`: starts random matching with profile, interests and premium filters.
+- `find-partner`: starts continuous random matching with profile, interests and
+  premium filters. Without interests the socket enters the general queue
+  immediately. With interests, `waitingTimeSeconds` (5–30) bounds only the
+  initial shared-topic preference; the server then relaxes that requirement in
+  place and keeps the socket queued. Filters, blocks, bans, authorization and
+  rate limits remain active throughout. The client is not told the active phase.
+- `cancel-search`: removes the current socket from matchmaking. Its optional
+  acknowledgement contains only `{ ok, cancelled }` and no queue or presence data.
 - `send-message`: sends one text message, maximum 1,000 characters.
 - `leave-chat`: leaves the active conversation, subject to skip cooldown. An
   optional Socket.IO acknowledgement returns `{ ok: true, ended }` only after
@@ -147,7 +154,12 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
 
 ### Server to client
 
-- `waiting`: user entered the matchmaking queue.
+- `waiting`: user entered the matchmaking queue. Payload is the generic
+  `{ status: "searching" }`; it contains no timeout, phase, presence or matching
+  criteria. Search does not normally emit a terminal timeout.
+- `search-cancelled`: the server removed this socket from matchmaking, either
+  after explicit cancellation or because another socket for the same principal
+  replaced the search.
 - `matched`: includes conversation id, partner profile, shared interests and cooldown.
 - `receive-message`, `message-sent`, `message-error`: message lifecycle.
 - `partner-left`, `guest-time-expired`, `skip-cooldown`: conversation lifecycle.

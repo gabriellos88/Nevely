@@ -48,12 +48,19 @@ async function expectContainedWorkspace(page) {
     const messages = document.querySelector('#messages');
     const header = document.querySelector('.chat-partner-bar');
     const composer = document.querySelector('#chatComposer');
+    const input = document.querySelector('#messageInput');
+    const send = document.querySelector('#sendBtn');
+    const next = document.querySelector('#newBtn');
+    const end = document.querySelector('#endChatBtn');
     const headerBefore = header.getBoundingClientRect();
     const composerBefore = composer.getBoundingClientRect();
     messages.scrollTop = messages.scrollHeight;
     const headerAfter = header.getBoundingClientRect();
     const composerAfter = composer.getBoundingClientRect();
     const cardBox = card.getBoundingClientRect();
+    const inputBox = input.getBoundingClientRect();
+    const sendBox = send.getBoundingClientRect();
+    const nextBox = next.getBoundingClientRect();
     return {
       mainOverflowY: getComputedStyle(main).overflowY,
       messagesOverflowY: getComputedStyle(messages).overflowY,
@@ -61,7 +68,12 @@ async function expectContainedWorkspace(page) {
       cardContained: cardBox.top >= 0 && cardBox.bottom <= window.innerHeight + 1,
       headerStayed: Math.abs(headerBefore.top - headerAfter.top) < 1,
       composerStayed: Math.abs(composerBefore.bottom - composerAfter.bottom) < 1,
-      messageListScrolls: messages.scrollHeight > messages.clientHeight && messages.scrollTop > 0
+      messageListScrolls: messages.scrollHeight > messages.clientHeight && messages.scrollTop > 0,
+      sendTouchesField: Math.abs(inputBox.right - sendBox.left) < 1,
+      nextSeparation: nextBox.left - sendBox.right,
+      sendBackground: getComputedStyle(send).backgroundColor,
+      nextBackground: getComputedStyle(next).backgroundColor,
+      endBackground: getComputedStyle(end).backgroundColor
     };
   });
   expect(measurements).toEqual({
@@ -71,8 +83,18 @@ async function expectContainedWorkspace(page) {
     cardContained: true,
     headerStayed: true,
     composerStayed: true,
-    messageListScrolls: true
+    messageListScrolls: true,
+    sendTouchesField: true,
+    nextSeparation: measurements.nextSeparation,
+    sendBackground: measurements.sendBackground,
+    nextBackground: measurements.nextBackground,
+    endBackground: measurements.endBackground
   });
+  expect(measurements.nextSeparation).toBeGreaterThanOrEqual(24);
+  expect(measurements.sendBackground).not.toBe(measurements.nextBackground);
+  expect(measurements.endBackground).not.toBe(measurements.nextBackground);
+  await expect(page.locator('#newBtn span')).toBeVisible();
+  await expect(page.locator('#newBtn span')).toHaveText('Next');
 
   for (const selector of ['#reportBtn', '#endChatBtn', '#sendBtn', '#newBtn']) {
     const box = await page.locator(selector).boundingBox();
@@ -134,8 +156,8 @@ test('live report and end controls follow Socket.IO confirmation', async ({ brow
   try {
     await completeGuestPassport(first, 'First Desktop Guest');
     await completeGuestPassport(second, 'Second Desktop Guest');
-    await first.locator('#waitingTimeRange').fill('35');
-    await second.locator('#waitingTimeRange').fill('35');
+    await first.locator('#waitingTimeRange').fill('30');
+    await second.locator('#waitingTimeRange').fill('30');
 
     await first.locator('#startBtnBottom').click();
     await expect(first.locator('#chatCard')).toHaveAttribute('data-state', 'searching');
@@ -159,4 +181,17 @@ test('live report and end controls follow Socket.IO confirmation', async ({ brow
     await firstContext.close();
     await secondContext.close();
   }
+});
+
+test('cancel search waits for the server and returns to the match composer', async ({ page }) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await completeGuestPassport(page, 'Cancel Search Guest');
+  await page.locator('#startBtnBottom').click();
+  await expect(page.locator('#chatCard')).toHaveAttribute('data-state', 'searching');
+  await expect(page.locator('#cancelSearchBtn')).toBeVisible();
+  await expect(page.locator('#cancelSearchBtn')).toBeEnabled();
+  await page.locator('#cancelSearchBtn').click();
+  await expect(page.locator('#matchSetup')).toBeVisible();
+  await expect(page.locator('#chatCard')).toBeHidden();
+  await expect(page.locator('#waitingTimeHint')).toHaveText('Search cancelled.');
 });
