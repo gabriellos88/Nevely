@@ -85,7 +85,10 @@ evidence window for 24 months.
   accounts and blocks before creating both friendship directions atomically.
 - `DELETE /api/friend-requests/:id`: cancel an outgoing pending request;
   repeated cancellation is idempotent.
-- `GET /api/chat-requests`: list pending direct-chat requests.
+- `GET /api/chat-requests`: list pending incoming direct-chat requests using
+  opaque `crq_...` IDs and public-ID keyset cursors. Use
+  `?direction=outgoing` for requests created by the current account. Expired
+  requests are transitioned in PostgreSQL and omitted from both directions.
 - `GET /api/notifications`: list non-dismissed product notifications using
   opaque `ntf_...` IDs and public-ID keyset cursors. Ban notifications are not
   returned; suspension state is authoritative server state. JSON `data` is
@@ -113,6 +116,12 @@ public ID and the generic status `removed` or `blocked`.
 Notification read/dismiss mutations publish `notification-updated` after the
 database write with only `{ notificationId, status }`. Account tabs refetch the
 authoritative list; reconnect also reads the persisted state.
+Chat-request send, response and cancellation lock the account pair and request
+row, commit a compare-and-set terminal state, then publish only
+`{ requestId, status }`. Same-direction sends and repeated matching terminal
+actions are idempotent. Send, response and cancellation use separate
+principal-scoped PostgreSQL rate windows shared by replicas; the client sees
+only generic feedback and an optional `retryAfterSeconds`.
 
 ### Operations
 
@@ -185,8 +194,13 @@ authoritative list; reconnect also reads the persisted state.
   generic cooldown. The existing `skip-cooldown` event remains available for
   older clients; neither response discloses thresholds or abuse signals.
 - `report`: reports the active partner with optional `reason` and `details`.
-- `direct-chat-request`: requests a direct chat with a friend.
-- `direct-chat-response`: accepts or declines a direct-chat request.
+- `direct-chat-request`: requests a direct chat with a friend using only the
+  friend’s public account ID. Its acknowledgement is `{ ok, requestId, status }`
+  or generic `{ ok: false, error, retryAfterSeconds? }`.
+- `direct-chat-response`: accepts or declines an incoming request using its
+  opaque public ID. Repeated matching terminal actions are idempotent.
+- `direct-chat-cancel`: cancels an outgoing pending request; repeated
+  cancellation is idempotent.
 
 ### Server to client
 
@@ -215,7 +229,11 @@ authoritative list; reconnect also reads the persisted state.
 - `report-submitted`, `report-error`: report lifecycle. The browser shows
   success only after `report-submitted`; report reasons and details are never
   copied into application logs or audit metadata.
-- `direct-chat-requested`, `direct-chat-request-sent`, `direct-chat-error`: direct-chat lifecycle.
+- `direct-chat-requested`, `direct-chat-request-sent`,
+  `direct-chat-request-updated`, `direct-chat-error`: minimized direct-chat
+  request invalidations. The browser refetches persisted incoming and outgoing
+  state; payloads do not include blocks, presence, internal IDs or limiter
+  signals.
 - `notification-created`: tells the client to refresh notifications.
 - `account-banned`: closes the account session after moderation action.
 - `guest-restricted`: closes a restricted guest principal session.

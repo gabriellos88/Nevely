@@ -1720,6 +1720,9 @@ socket.on('friendship-updated', () => {
 socket.on('direct-chat-requested', () => {
   loadChatRequestsPanel();
 });
+socket.on('direct-chat-request-updated', () => {
+  loadChatRequestsPanel();
+});
 socket.on('account-banned', () => {
   window.location.assign('/login');
 });
@@ -1922,6 +1925,29 @@ async function respondToChatRequest(requestId, action) {
   await loadChatRequestsPanel();
 }
 
+async function cancelChatRequest(requestId) {
+  await new Promise((resolve, reject) => {
+    socket.timeout(6000).emit('direct-chat-cancel', { requestId }, (error, response = {}) => {
+      if (error) return reject(new Error(chatCopy.feedback.chatRequestTimeout));
+      if (!response.ok) return reject(new Error(response.error || chatCopy.feedback.chatRequestUpdateError));
+      resolve(response);
+    });
+  });
+  await loadChatRequestsPanel();
+}
+
+async function sendDirectChatRequest(publicId) {
+  const response = await new Promise((resolve, reject) => {
+    socket.timeout(6000).emit('direct-chat-request', { publicId }, (error, result = {}) => {
+      if (error) return reject(new Error(chatCopy.feedback.chatRequestTimeout));
+      if (!result.ok) return reject(new Error(result.error || chatCopy.feedback.chatRequestUpdateError));
+      resolve(result);
+    });
+  });
+  await loadChatRequestsPanel();
+  return response;
+}
+
 async function loadChatRequestsPanel() {
   const { list } = listElements('chatRequests');
   if (!list) return;
@@ -1931,19 +1957,41 @@ async function loadChatRequestsPanel() {
     chatRequestsSection?.classList.add('hidden');
     return showListState('chatRequests', false);
   }
-  const data = await api('/api/chat-requests');
-  const pendingCount = data.pendingCount == null ? data.requests.length : Number(data.pendingCount);
-  const hasRequests = pendingCount > 0 && data.requests.length > 0;
-  updateChatRequestBadge(pendingCount);
+  const [incoming, outgoing] = await Promise.all([
+    api('/api/chat-requests'),
+    api('/api/chat-requests?direction=outgoing')
+  ]);
+  const incomingCount = incoming.pendingCount == null
+    ? incoming.requests.length
+    : Number(incoming.pendingCount);
+  const requests = [
+    ...incoming.requests.map((request) => ({ ...request, direction: 'incoming' })),
+    ...outgoing.requests.map((request) => ({ ...request, direction: 'outgoing' }))
+  ];
+  const hasRequests = requests.length > 0;
+  updateChatRequestBadge(incomingCount);
   chatRequestsSection?.classList.toggle('hidden', !hasRequests);
-  data.requests.forEach((request) => {
-    const row = makeListItem(request.display_name, chatCopy.feedback.wantsToChat, null);
+  requests.forEach((request) => {
+    const isOutgoing = request.direction === 'outgoing';
+    const row = makeListItem(
+      request.display_name,
+      isOutgoing ? chatCopy.feedback.chatRequestPending : chatCopy.feedback.wantsToChat,
+      null
+    );
     const actions = document.createElement('span');
     actions.className = 'panel-inline-actions';
-    actions.append(
-      actionButton(chatCopy.feedback.acceptChatRequest, () => respondToChatRequest(request.id, 'accept'), 'check'),
-      actionButton(chatCopy.feedback.declineChatRequest, () => respondToChatRequest(request.id, 'decline'), 'x')
-    );
+    if (isOutgoing) {
+      actions.append(actionButton(
+        chatCopy.feedback.cancelChatRequest,
+        () => cancelChatRequest(request.id),
+        'x'
+      ));
+    } else {
+      actions.append(
+        actionButton(chatCopy.feedback.acceptChatRequest, () => respondToChatRequest(request.id, 'accept'), 'check'),
+        actionButton(chatCopy.feedback.declineChatRequest, () => respondToChatRequest(request.id, 'decline'), 'x')
+      );
+    }
     row.appendChild(actions);
     list.appendChild(row);
   });
@@ -2016,9 +2064,11 @@ function makeFriendListItem(friend) {
   const capabilities = friend.capabilities || {};
   const actions = [];
   if (capabilities.canStartDirectChat === true) {
-    actions.push(friendMenuAction(chatCopy.feedback.startDirectChat, 'message-circle', () => {
-      socket.emit('direct-chat-request', { publicId: friend.public_id });
-    }));
+    actions.push(friendMenuAction(
+      chatCopy.feedback.startDirectChat,
+      'message-circle',
+      () => sendDirectChatRequest(friend.public_id)
+    ));
   }
   if (capabilities.canRemoveFriend === true) {
     actions.push(friendMenuAction(uiCopy.common.removeFriend, 'user-minus', async () => {

@@ -213,3 +213,110 @@ test('notifications appear, become read and dismiss without deleting the UI shel
   await expect(page.locator('#notificationsPanelEmpty')).toBeVisible();
   await expect(page.locator('.notification-list-item')).toHaveCount(0);
 });
+
+test('chat requests stay hidden when empty and render incoming and outgoing actions responsively', async ({ page }, testInfo) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, '__CURRENT_USER__', {
+      configurable: false,
+      writable: false,
+      value: {
+        publicId: 'nvy_aabbccddeeff',
+        displayName: 'Synthetic Account',
+        emailVerified: true,
+        role: 'user',
+        plan: 'free'
+      }
+    });
+  });
+  let incoming = [];
+  let outgoing = [];
+  await page.route('**/api/chat-requests**', (route) => {
+    const direction = new URL(route.request().url()).searchParams.get('direction') === 'outgoing'
+      ? 'outgoing'
+      : 'incoming';
+    const requests = direction === 'outgoing' ? outgoing : incoming;
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        requests,
+        direction,
+        pendingCount: requests.length,
+        page: { limit: 30, hasMore: false, nextCursor: null }
+      })
+    });
+  });
+  await page.route('**/api/conversations**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ conversations: [], unreadCount: 0, page: { hasMore: false } })
+  }));
+  await page.route('**/api/friend-requests**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ requests: [], pendingCount: 0, page: { hasMore: false } })
+  }));
+  await page.route('**/api/notifications**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ notifications: [], unreadCount: 0, page: { hasMore: false } })
+  }));
+
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.goto('/chat?guest=1', { waitUntil: 'domcontentloaded' });
+  await expect(page.locator('#guestPassportModal')).toBeHidden();
+  await page.locator('#messagesToggle').click();
+  await expect(page.locator('#chatRequestsSection')).toBeHidden();
+
+  incoming = [{
+    id: 'crq_0123456789abcdef01234567',
+    public_id: 'crq_0123456789abcdef01234567',
+    person_public_id: 'nvy_0123456789ab',
+    display_name: 'Incoming Friend',
+    expires_at: new Date(Date.now() + 60_000).toISOString()
+  }];
+  outgoing = [{
+    id: 'crq_89abcdef0123456701234567',
+    public_id: 'crq_89abcdef0123456701234567',
+    person_public_id: 'nvy_89abcdef0123',
+    display_name: 'Outgoing Friend',
+    expires_at: new Date(Date.now() + 60_000).toISOString()
+  }];
+  await page.evaluate(() => loadChatRequestsPanel());
+  await expect(page.locator('#chatRequestsSection')).toBeVisible();
+  await expect(page.locator('#chatRequestsPanelList')).toContainText('Wants to chat');
+  await expect(page.locator('#chatRequestsPanelList')).toContainText('Chat request pending');
+  const accept = page.getByRole('button', { name: 'Accept chat request' });
+  const decline = page.getByRole('button', { name: 'Decline chat request' });
+  const cancel = page.getByRole('button', { name: 'Cancel chat request' });
+  for (const action of [accept, decline, cancel]) {
+    const bounds = await action.boundingBox();
+    expect(bounds.width).toBeGreaterThanOrEqual(44);
+    expect(bounds.height).toBeGreaterThanOrEqual(44);
+  }
+  await accept.focus();
+  await expect(accept).toBeFocused();
+
+  for (const viewport of [
+    { width: 1366, height: 768 },
+    { width: 1366, height: 640 },
+    { width: 768, height: 1024 },
+    { width: 390, height: 844 }
+  ]) {
+    await page.setViewportSize(viewport);
+    const screenshot = testInfo.outputPath(`n5.3.2-chat-requests-${viewport.width}x${viewport.height}.png`);
+    await page.screenshot({ path: screenshot });
+    await testInfo.attach(`N5.3.2 chat requests ${viewport.width}x${viewport.height}`, {
+      path: screenshot,
+      contentType: 'image/png'
+    });
+    const drawer = await page.locator('#messagesDrawer').boundingBox();
+    expect(drawer.x).toBeGreaterThanOrEqual(0);
+    expect(drawer.x + drawer.width).toBeLessThanOrEqual(viewport.width + 1);
+  }
+
+  incoming = [];
+  outgoing = [];
+  await page.evaluate(() => loadChatRequestsPanel());
+  await expect(page.locator('#chatRequestsSection')).toBeHidden();
+});
