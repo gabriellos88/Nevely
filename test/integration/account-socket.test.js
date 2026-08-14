@@ -190,6 +190,32 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
   const [firstMatch, secondMatch] = await Promise.all([firstMatched, secondMatched]);
   assert.equal(firstMatch.conversationId, secondMatch.conversationId);
   assert.equal(Number.isSafeInteger(firstMatch.conversationId), true);
+  assert.equal(firstMatch.canAddFriend, true);
+  assert.equal(secondMatch.canAddFriend, true);
+
+  const createdFriendRequest = await request(baseUrl)
+    .post('/api/friend-requests')
+    .set('Cookie', firstAccount.cookie)
+    .send({ publicId: secondAccount.user.publicId })
+    .expect(201);
+  const repeatedFriendRequest = await request(baseUrl)
+    .post('/api/friend-requests')
+    .set('Cookie', firstAccount.cookie)
+    .send({ publicId: secondAccount.user.publicId })
+    .expect(200);
+  assert.equal(repeatedFriendRequest.body.requestId, createdFriendRequest.body.requestId);
+  await request(baseUrl)
+    .post('/api/friend-requests')
+    .set('Cookie', secondAccount.cookie)
+    .send({ publicId: firstAccount.user.publicId })
+    .expect(409);
+  const friendNotifications = await db.query(
+    `SELECT COUNT(*)::integer AS count FROM notifications
+     WHERE user_id = (SELECT id FROM users WHERE public_id = $1)
+       AND type = 'friend_request'`,
+    [secondAccount.user.publicId]
+  );
+  assert.equal(friendNotifications.rows[0].count, 1);
 
   const received = eventFrom(second, 'receive-message');
   const sent = eventFrom(first, 'message-sent');
@@ -230,6 +256,24 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
   const partnerLeftAfterSkip = eventFrom(second, 'partner-left');
   first.emit('leave-chat');
   assert.equal(Number((await partnerLeftAfterSkip).conversationId), Number(firstMatch.conversationId));
+
+  await request(baseUrl)
+    .put(`/api/conversations/${firstMatch.conversationId}/saved`)
+    .set('Cookie', secondAccount.cookie)
+    .send({})
+    .expect(201);
+  await request(baseUrl)
+    .put(`/api/conversations/${firstMatch.conversationId}/saved`)
+    .set('Cookie', secondAccount.cookie)
+    .send({})
+    .expect(200);
+  const savedAfterPartnerLeft = await db.query(
+    `SELECT COUNT(*)::integer AS count FROM saved_chats
+     WHERE conversation_id = $1
+       AND user_id = (SELECT id FROM users WHERE public_id = $2)`,
+    [firstMatch.conversationId, secondAccount.user.publicId]
+  );
+  assert.equal(savedAfterPartnerLeft.rows[0].count, 1);
 
   first.disconnect();
 

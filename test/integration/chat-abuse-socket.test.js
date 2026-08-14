@@ -330,12 +330,14 @@ test('Socket.IO keeps general search queued, relaxes topic search and replaces s
   let timedOut = false;
   general.once('waiting-timeout', () => { timedOut = true; });
   const generalWaiting = eventFrom(general, 'waiting');
+  const generalState = eventFrom(general, 'search-state');
   general.emit('find-partner', {
     interests: [],
     profile: { username: generalGuest.guest.name },
     waitingTimeSeconds: 5
   });
   await generalWaiting;
+  assert.deepEqual(await generalState, { phase: 'general' });
   await new Promise((resolve) => setTimeout(resolve, 160));
   assert.equal(timedOut, false);
 
@@ -366,22 +368,27 @@ test('Socket.IO keeps general search queued, relaxes topic search and replaces s
   assert.deepEqual(await emitWithAck(reconnectProbe, 'cancel-search'), { ok: true, cancelled: true });
 
   const firstWaiting = eventFrom(firstTopicTab, 'waiting');
+  const firstStrictState = eventFrom(firstTopicTab, 'search-state');
   firstTopicTab.emit('find-partner', {
     interests: ['astronomy'],
     profile: { username: topicGuest.guest.name },
     waitingTimeSeconds: 5
   });
   await firstWaiting;
+  assert.deepEqual(await firstStrictState, { phase: 'topic-preference' });
   const replaced = eventFrom(firstTopicTab, 'search-cancelled');
   const secondWaiting = eventFrom(secondTopicTab, 'waiting');
+  const secondStrictState = eventFrom(secondTopicTab, 'search-state');
   secondTopicTab.emit('find-partner', {
     interests: ['astronomy'],
     profile: { username: topicGuest.guest.name },
     waitingTimeSeconds: 5
   });
   await Promise.all([replaced, secondWaiting]);
+  assert.deepEqual(await secondStrictState, { phase: 'topic-preference' });
 
   const otherWaiting = eventFrom(otherTopic, 'waiting');
+  const otherStrictState = eventFrom(otherTopic, 'search-state');
   const relaxedMatches = Promise.all([
     eventFrom(secondTopicTab, 'matched'),
     eventFrom(otherTopic, 'matched')
@@ -392,6 +399,12 @@ test('Socket.IO keeps general search queued, relaxes topic search and replaces s
     waitingTimeSeconds: 5
   });
   await otherWaiting;
+  assert.deepEqual(await otherStrictState, { phase: 'topic-preference' });
+  const generalizedStates = Promise.all([
+    eventFrom(secondTopicTab, 'search-state'),
+    eventFrom(otherTopic, 'search-state')
+  ]);
+  assert.deepEqual(await generalizedStates, [{ phase: 'general' }, { phase: 'general' }]);
   const [topicMatch] = await relaxedMatches;
   assert.deepEqual(topicMatch.sharedInterests, []);
 

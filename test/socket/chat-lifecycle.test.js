@@ -95,8 +95,10 @@ test('two guest clients match, exchange a message, and end the pair once on skip
   });
 
   const waiting = eventFrom(first, 'waiting');
+  const searchState = eventFrom(first, 'search-state');
   first.emit('find-partner', guest('First Guest', ['astronomy']));
   assert.deepEqual(await waiting, { status: 'searching' });
+  assert.deepEqual(await searchState, { phase: 'topic-preference' });
 
   const firstMatched = eventFrom(first, 'matched');
   const secondMatched = eventFrom(second, 'matched');
@@ -105,6 +107,10 @@ test('two guest clients match, exchange a message, and end the pair once on skip
   assert.deepEqual(firstMatch.sharedInterests, ['astronomy']);
   assert.deepEqual(secondMatch.sharedInterests, ['astronomy']);
   assert.equal(firstMatch.isGuest, true);
+  assert.equal(firstMatch.canAddFriend, false);
+  assert.equal(Object.hasOwn(firstMatch, 'durationSeconds'), false);
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(runtime.chat.getActiveConversationCount(), 1);
 
   const received = eventFrom(second, 'receive-message');
   first.emit('send-message', 'synthetic socket test message');
@@ -139,8 +145,10 @@ test('general search remains queued beyond the slider and cancel removes it serv
   let timedOut = false;
   socket.once('waiting-timeout', () => { timedOut = true; });
   const waiting = eventFrom(socket, 'waiting');
+  const searchState = eventFrom(socket, 'search-state');
   socket.emit('find-partner', { ...guest('General Guest'), waitingTimeSeconds: 5 });
   assert.deepEqual(await waiting, { status: 'searching' });
+  assert.deepEqual(await searchState, { phase: 'general' });
   await new Promise((resolve) => setTimeout(resolve, 100));
   assert.equal(timedOut, false);
 
@@ -170,23 +178,33 @@ test('topic matching is strict first and relaxes in place without leaving the qu
   });
 
   const strictWaiting = eventFrom(strictFirst, 'waiting');
+  const strictState = eventFrom(strictFirst, 'search-state');
   strictFirst.emit('find-partner', { ...guest('Strict First', ['astronomy']), waitingTimeSeconds: 5 });
   await strictWaiting;
+  assert.deepEqual(await strictState, { phase: 'topic-preference' });
   const strictMatches = Promise.all([eventFrom(strictFirst, 'matched'), eventFrom(strictSecond, 'matched')]);
   strictSecond.emit('find-partner', { ...guest('Strict Second', ['astronomy']), waitingTimeSeconds: 5 });
   const [strictMatch] = await strictMatches;
   assert.deepEqual(strictMatch.sharedInterests, ['astronomy']);
 
   const relaxedWaiting = eventFrom(relaxedFirst, 'waiting');
+  const relaxedFirstStrict = eventFrom(relaxedFirst, 'search-state');
   relaxedFirst.emit('find-partner', { ...guest('Relaxed First', ['astronomy']), waitingTimeSeconds: 5 });
   await relaxedWaiting;
+  assert.deepEqual(await relaxedFirstStrict, { phase: 'topic-preference' });
+  const relaxedFirstGeneral = eventFrom(relaxedFirst, 'search-state');
   const secondWaiting = eventFrom(relaxedSecond, 'waiting');
+  const relaxedSecondStrict = eventFrom(relaxedSecond, 'search-state');
   const relaxedMatches = Promise.all([
     eventFrom(relaxedFirst, 'matched'),
     eventFrom(relaxedSecond, 'matched')
   ]);
   relaxedSecond.emit('find-partner', { ...guest('Relaxed Second', ['literature']), waitingTimeSeconds: 5 });
   await secondWaiting;
+  assert.deepEqual(await relaxedSecondStrict, { phase: 'topic-preference' });
+  const relaxedSecondGeneral = eventFrom(relaxedSecond, 'search-state');
+  assert.deepEqual(await relaxedFirstGeneral, { phase: 'general' });
+  assert.deepEqual(await relaxedSecondGeneral, { phase: 'general' });
   const [relaxedMatch] = await relaxedMatches;
   assert.deepEqual(relaxedMatch.sharedInterests, []);
 });

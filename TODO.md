@@ -206,16 +206,21 @@ deferred N1.12 transactional-email polish is now tracked unchanged as N9.6.
   - Cover cross-replica, reconnect, concurrent rematch, flood and bypass behavior with PostgreSQL and Socket.IO tests.
 - [x] **N5.3 — Refine the desktop chat workspace.**
   - Keep partner/status and composer fixed inside the conversation workspace; only messages scroll.
-  - Keep Send attached to the message field; separate Next visually and spatially while End remains destructive.
+  - Keep Send attached to the message field and separate Next visually and spatially.
   - Use the topic slider only for the initial strict phase, then relax server-side without leaving the queue.
   - Provide an explicit server-authoritative Cancel search action and prevent duplicate socket/principal queue entries.
-  - Separate Report, End and Next actions and wait for authoritative Socket.IO results.
+  - Keep Report in the conversation menu, Next as the only rematch action and wait for authoritative Socket.IO results.
   - Cover loading, match, reconnect, error, report and end states with keyboard-visible focus and 44px targets.
   - Verify Playwright at `1366×768` and `768×1024` with captured screenshots.
+- [x] **N5.3.1 — Separate search and conversation lifecycle surfaces.**
+  - Render a dedicated Astra search card from server-authoritative topic/general states.
+  - Keep only Next beside the joined message field and preserve the ended partner identity and Save action.
+  - Hide empty Chat requests, gate Add friend from the server and keep the message list above the in-flow composer.
+  - Verify Playwright at `1366×768`, `1366×640` and `768×1024`.
 - [ ] **N5.4 — Refine the mobile chat workspace.**
   - Verify `390×844`, portrait/landscape transitions, on-screen keyboard and safe-area insets.
   - Stabilize the composer, drawers, modals, touch targets and message/command overflow.
-- [ ] **N5.5 — Land the isolated guest-duration removal.** Keep the dedicated draft PR separate from N5.1–N5.4 and retain anti-abuse, retention, session, report and disconnect controls.
+- [x] **N5.5 — Remove the guest conversation duration limit.** Retain anti-abuse, retention, session, report and disconnect controls.
 
 ---
 

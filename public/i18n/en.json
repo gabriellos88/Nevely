@@ -510,6 +510,14 @@
       "send": "Send message",
       "start": "Start a chat"
     },
+    "search": {
+      "eyebrow": "Matching",
+      "title": "Looking for someone",
+      "topics": "Your topics",
+      "topicPreference": "Prioritizing someone who shares at least one of your topics.",
+      "general": "Looking more broadly. Your search will continue until you cancel it.",
+      "anyTopic": "Any topic"
+    },
     "composer": {
       "idle": "Start a chat to send a message.",
       "searching": "Looking for someone…",
@@ -606,8 +614,7 @@
       "noSharedTopics": "No shared topics yet — say hello!",
       "partnerLeft": "They left the chat.",
       "endedByYou": "You ended the chat.",
-      "chatEnded": "Chat ended",
-      "guestExpired": "Time’s up — finding someone new…",
+      "chatEnded": "Conversation ended",
       "messageSendError": "We couldn’t send that message. Try again.",
       "chatUnavailable": "Chat isn’t available right now. Try again in a moment.",
       "accountSuspended": "This account is suspended. You’ll be signed out.",

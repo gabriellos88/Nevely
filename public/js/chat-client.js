@@ -12,7 +12,6 @@ const startBtn = document.getElementById('startBtn');
 const startBtnSidebar = document.getElementById('startBtnSidebar');
 const startBtnBottom = document.getElementById('startBtnBottom');
 const newBtn = document.getElementById('newBtn');
-const endChatBtn = document.getElementById('endChatBtn');
 const cancelSearchBtn = document.getElementById('cancelSearchBtn');
 const reportBtn = document.getElementById('reportBtn');
 const sendBtn = document.getElementById('sendBtn');
@@ -26,9 +25,11 @@ const releaseNotice = document.getElementById('releaseNotice');
 const releaseNoticeBody = document.getElementById('releaseNoticeBody');
 const chatComposer = document.getElementById('chatComposer');
 const chatCard = document.getElementById('chatCard');
+const searchCard = document.getElementById('searchCard');
+const searchPhaseStatus = document.getElementById('searchPhaseStatus');
+const searchTopicList = document.getElementById('searchTopicList');
 const chatMain = document.querySelector('.chat-main');
 const matchSetup = document.getElementById('matchSetup');
-const timerBadge = document.getElementById('timerBadge');
 const usernameInput = document.getElementById('usernameInput');
 const ageInput = document.getElementById('ageInput');
 const countryInput = document.getElementById('countryInput');
@@ -67,6 +68,7 @@ const drawerCloseButtons = document.querySelectorAll('[data-drawer-close]');
 const messagesBadge = document.getElementById('messagesBadge');
 const friendsBadge = document.getElementById('friendsBadge');
 const notificationsBadge = document.getElementById('notificationsBadge');
+const chatRequestsSection = document.getElementById('chatRequestsSection');
 const guestClaimAccountButton = document.getElementById('guestClaimAccountButton');
 const partnerAvatar = document.getElementById('partnerAvatar');
 const partnerName = document.getElementById('partnerName');
@@ -139,6 +141,7 @@ const reportReason = document.getElementById('reportReason');
 const reportFeedback = document.getElementById('reportFeedback');
 const conversationMenuBtn = document.getElementById('conversationMenuBtn');
 const conversationMenu = document.getElementById('conversationMenu');
+const addFriendMenuBtn = document.getElementById('addFriendMenuBtn');
 const saveConversationBtn = document.getElementById('saveConversationBtn');
 const blockPartnerBtn = document.getElementById('blockPartnerBtn');
 const deleteConversationBtn = document.getElementById('deleteConversationBtn');
@@ -164,6 +167,7 @@ let accountModalRestoreFocus = null;
 let reportModalRestoreFocus = null;
 let reportPending = false;
 let nextSearchPending = false;
+let pendingSearchTopics = [];
 let guestCountryActiveIndex = -1;
 let chatComposerMode = 'idle';
 let releaseDraining = false;
@@ -179,7 +183,6 @@ let expandedSecurityAction = null;
 const topbarCounts = { messages: 0, friends: 0, notifications: 0 };
 const defaultWaitingTimeHint = waitingTimeHint?.textContent || '';
 
-let countdownInterval = null;
 const selectedInterests = [];
 const maxInterests = 5;
 const selectedGenderFilters = new Set();
@@ -305,7 +308,6 @@ if (startBtn) startBtn.addEventListener('click', startSearch);
 if (startBtnSidebar) startBtnSidebar.addEventListener('click', startSearch);
 if (startBtnBottom) startBtnBottom.addEventListener('click', startSearch);
 newBtn.addEventListener('click', startSearch);
-endChatBtn?.addEventListener('click', endConversation);
 cancelSearchBtn?.addEventListener('click', cancelSearch);
 sendBtn.addEventListener('click', sendMessage);
 reportBtn.addEventListener('click', reportUser);
@@ -323,6 +325,7 @@ accountTabButtons.forEach((button) => {
   button.addEventListener('keydown', handleAccountTabKeydown);
 });
 if (conversationMenuBtn) conversationMenuBtn.addEventListener('click', () => conversationMenu.classList.toggle('hidden'));
+if (addFriendMenuBtn) addFriendMenuBtn.addEventListener('click', addCurrentPartnerFriend);
 if (saveConversationBtn) saveConversationBtn.addEventListener('click', saveCurrentConversation);
 if (blockPartnerBtn) blockPartnerBtn.addEventListener('click', blockCurrentPartner);
 if (deleteConversationBtn) deleteConversationBtn.addEventListener('click', deleteCurrentConversation);
@@ -510,24 +513,18 @@ function setChatComposerState(mode, message = '') {
   messageInput.disabled = !canSend;
   sendBtn.disabled = !canSend;
   reportBtn.disabled = !isLive;
-  if (endChatBtn) endChatBtn.disabled = !isLive;
-  endChatBtn?.classList.toggle('hidden', isSearching);
-  newBtn.classList.toggle('hidden', isSearching);
-  cancelSearchBtn?.classList.toggle('hidden', !isSearching);
   if (cancelSearchBtn) {
     cancelSearchBtn.disabled = !isSearching;
     cancelSearchBtn.toggleAttribute('aria-busy', false);
   }
   messageInput.placeholder = isLive ? chatCopy.conversation.messagePlaceholder : stateMessage;
   chatCard?.setAttribute('data-state', mode);
+  setControlLabel(newBtn, chatCopy.conversation.next);
   if (mode === 'searching' || mode === 'ending') {
-    setControlLabel(newBtn, chatCopy.conversation.next);
     newBtn.disabled = true;
   } else if (mode === 'live') {
-    setControlLabel(newBtn, chatCopy.conversation.next);
     newBtn.disabled = nextSearchPending;
   } else {
-    setControlLabel(newBtn, chatCopy.conversation.start);
     newBtn.disabled = false;
   }
   newBtn.toggleAttribute('aria-busy', nextSearchPending);
@@ -563,10 +560,12 @@ function showChatView() {
   if (chatCard) {
     chatCard.classList.remove('hidden');
   }
+  searchCard?.classList.add('hidden');
   if (startBtnBottom) {
     startBtnBottom.classList.add('hidden');
   }
   chatMain?.classList.add('is-conversation-active');
+  chatMain?.classList.remove('is-search-active');
   chatComposer?.classList.remove('hidden');
 }
 
@@ -577,10 +576,22 @@ function showSetupView() {
   if (matchSetup) {
     matchSetup.classList.remove('hidden');
   }
+  searchCard?.classList.add('hidden');
   if (startBtnBottom) {
     startBtnBottom.classList.remove('hidden');
   }
   chatMain?.classList.remove('is-conversation-active');
+  chatMain?.classList.remove('is-search-active');
+  chatComposer?.classList.add('hidden');
+}
+
+function showSearchView() {
+  matchSetup?.classList.add('hidden');
+  chatCard?.classList.add('hidden');
+  searchCard?.classList.remove('hidden');
+  startBtnBottom?.classList.add('hidden');
+  chatMain?.classList.remove('is-conversation-active');
+  chatMain?.classList.add('is-search-active');
   chatComposer?.classList.add('hidden');
 }
 
@@ -1241,6 +1252,17 @@ function showWaitingState(label) {
   messagesEl.appendChild(wrap);
 }
 
+function renderSearchTopics(topics) {
+  if (!searchTopicList) return;
+  const values = Array.isArray(topics) && topics.length ? topics : [chatCopy.search.anyTopic];
+  searchTopicList.replaceChildren(...values.map((topic) => {
+    const item = document.createElement('span');
+    item.setAttribute('role', 'listitem');
+    item.textContent = topic;
+    return item;
+  }));
+}
+
 function resetPartnerBar(label) {
   partnerAvatar.innerHTML = '<i data-lucide="user" aria-hidden="true"></i>';
   partnerName.textContent = label;
@@ -1300,6 +1322,7 @@ function startSearch() {
   }
 
   const interests = parseInterests(interestsInput.value);
+  pendingSearchTopics = [...interests];
   const replacingActiveConversation = chatComposerMode === 'live' && !readOnlyConversation;
   if (waitingTimeHint) waitingTimeHint.textContent = defaultWaitingTimeHint;
 
@@ -1310,7 +1333,6 @@ function startSearch() {
     messageInput.disabled = true;
     sendBtn.disabled = true;
     reportBtn.disabled = true;
-    if (endChatBtn) endChatBtn.disabled = true;
   }
   closeActiveDrawer({ restoreFocus: false });
 
@@ -1445,7 +1467,7 @@ function cancelSearch() {
     cancelSearchBtn.disabled = false;
     cancelSearchBtn.removeAttribute('aria-busy');
     if (error || !response.ok) {
-      statusText.textContent = chatCopy.feedback.cancelSearchError;
+      if (searchPhaseStatus) searchPhaseStatus.textContent = chatCopy.feedback.cancelSearchError;
       setChatComposerState('searching', chatCopy.feedback.cancelSearchError);
     }
   });
@@ -1472,87 +1494,28 @@ function handleReportModalKeydown(event) {
   }
 }
 
-function endConversation() {
-  if (chatComposerMode !== 'live') return;
-  const previousStatus = statusText.textContent;
-  setChatComposerState('ending');
-  statusText.textContent = chatCopy.composer.ending;
-  socket.timeout(6000).emit('leave-chat', (error, response = {}) => {
-    if (error) {
-      statusText.textContent = chatCopy.composer.connectionError;
-      setChatComposerState('error', chatCopy.composer.connectionError);
-      return;
-    }
-    if (!response.ok) {
-      statusText.textContent = previousStatus;
-      setChatComposerState('live');
-      const seconds = Number(response.retryAfterSeconds);
-      if (Number.isSafeInteger(seconds) && seconds > 0) startSkipCooldown(seconds * 1000);
-      return;
-    }
-    statusText.textContent = chatCopy.feedback.endedByYou;
-    addMessage(chatCopy.feedback.endedByYou, 'system');
-    resetPartnerBar(chatCopy.feedback.chatEnded);
-    clearCountdown();
-    currentConversationId = null;
-    currentPartner = null;
-    currentConversationSaved = false;
-    readOnlyConversation = true;
-    setChatComposerState('ended', chatCopy.feedback.endedByYou);
-    loadPanel('history');
-  });
-}
-
-function clearCountdown() {
-  if (countdownInterval) {
-    clearInterval(countdownInterval);
-    countdownInterval = null;
-  }
-  timerBadge.classList.add('hidden');
-  timerBadge.classList.remove('warning');
-}
-
-function startCountdown(seconds) {
-  clearCountdown();
-  let remaining = seconds;
-  timerBadge.classList.remove('hidden');
-  updateTimerBadge(remaining);
-
-  countdownInterval = setInterval(() => {
-    remaining -= 1;
-    updateTimerBadge(remaining);
-    if (remaining <= 0) {
-      clearCountdown();
-    }
-  }, 1000);
-}
-
-function updateTimerBadge(remaining) {
-  const mins = Math.floor(remaining / 60);
-  const secs = remaining % 60;
-  timerBadge.textContent = `${mins}:${String(secs).padStart(2, '0')}`;
-  if (remaining <= 15) {
-    timerBadge.classList.add('warning');
-  } else {
-    timerBadge.classList.remove('warning');
-  }
-}
-
 socket.on('waiting', () => {
+  nextSearchPending = false;
+});
+
+socket.on('search-state', ({ phase } = {}) => {
+  if (phase !== 'topic-preference' && phase !== 'general') return;
   nextSearchPending = false;
   currentConversationId = null;
   currentPartner = null;
   currentConversationSaved = false;
-  showChatView();
-  statusText.textContent = chatCopy.composer.searching;
+  addFriendMenuBtn?.classList.add('hidden');
+  showSearchView();
   setChatComposerState('searching');
-  resetPartnerBar(chatCopy.conversation.looking);
-  showWaitingState(chatCopy.composer.searching);
+  searchPhaseStatus.textContent = phase === 'topic-preference'
+    ? chatCopy.search.topicPreference
+    : chatCopy.search.general;
+  renderSearchTopics(pendingSearchTopics);
 });
 
 socket.on('search-cancelled', () => {
   nextSearchPending = false;
-  clearCountdown();
+  pendingSearchTopics = [];
   showSetupView();
   statusText.textContent = chatCopy.feedback.searchCancelled;
   setChatComposerState('idle');
@@ -1573,6 +1536,11 @@ socket.on('matched', (data) => {
   currentConversationId = data.conversationId || null;
   currentPartner = data.partner || null;
   currentConversationSaved = false;
+  addFriendMenuBtn?.classList.toggle('hidden', !data.canAddFriend);
+  if (addFriendMenuBtn) {
+    addFriendMenuBtn.disabled = !data.canAddFriend;
+    addFriendMenuBtn.removeAttribute('aria-busy');
+  }
   saveConversationBtn.textContent = chatCopy.conversation.saveChat;
   partnerAvatar.textContent = (data.partner?.displayName || fallbackName).charAt(0).toUpperCase();
   partnerName.textContent = data.partner?.displayName || fallbackName;
@@ -1584,11 +1552,6 @@ socket.on('matched', (data) => {
   messagesEl.innerHTML = '';
   addMessage(shared, 'system');
 
-  if (data.isGuest && data.durationSeconds) {
-    startCountdown(data.durationSeconds);
-  } else {
-    clearCountdown();
-  }
   if (data.skipCooldownSeconds) startSkipCooldown(data.skipCooldownSeconds * 1000);
 });
 
@@ -1604,29 +1567,19 @@ socket.on('message-read', ({ conversationId, upToMessageId } = {}) => {
   markOutgoingMessagesRead(upToMessageId);
 });
 
-socket.on('partner-left', () => {
+socket.on('partner-left', ({ conversationId } = {}) => {
   nextSearchPending = false;
   showChatView();
-  statusText.textContent = chatCopy.feedback.partnerLeft;
+  statusText.textContent = chatCopy.feedback.chatEnded;
   addMessage(chatCopy.feedback.partnerLeft, 'system');
-  resetPartnerBar(chatCopy.feedback.chatEnded);
-  clearCountdown();
-  currentConversationId = null;
-  currentPartner = null;
-  currentConversationSaved = false;
+  const endedConversationId = Number(conversationId);
+  if (Number.isSafeInteger(endedConversationId) && endedConversationId > 0) {
+    currentConversationId = endedConversationId;
+  }
+  addFriendMenuBtn?.classList.add('hidden');
   readOnlyConversation = true;
   setChatComposerState('ended');
   loadPanel('history');
-});
-
-socket.on('guest-time-expired', () => {
-  showChatView();
-  addMessage(chatCopy.feedback.guestExpired, 'system');
-  setChatComposerState('searching');
-  clearCountdown();
-  setTimeout(() => {
-    startSearch();
-  }, 1200);
 });
 
 socket.on('message-error', (data) => {
@@ -1656,8 +1609,16 @@ socket.on('report-error', (data = {}) => {
   window.requestAnimationFrame(() => reportSubmit?.focus());
 });
 socket.on('chat-error', (data) => {
+  const searchWasPending = nextSearchPending || chatComposerMode === 'searching';
   nextSearchPending = false;
   const message = data.message || chatCopy.feedback.chatUnavailable;
+  if (searchWasPending) {
+    pendingSearchTopics = [];
+    showSetupView();
+    setChatComposerState('idle');
+    if (waitingTimeHint) waitingTimeHint.textContent = message;
+    return;
+  }
   statusText.textContent = message;
   addMessage(message, 'system');
   if (currentConversationId && !readOnlyConversation) {
@@ -1923,12 +1884,14 @@ async function loadChatRequestsPanel() {
   list.innerHTML = '';
   if (!currentUser) {
     updateChatRequestBadge(0);
+    chatRequestsSection?.classList.add('hidden');
     return showListState('chatRequests', false);
   }
   const data = await api('/api/chat-requests');
-  updateChatRequestBadge(
-    data.pendingCount == null ? data.requests.length : Number(data.pendingCount)
-  );
+  const pendingCount = data.pendingCount == null ? data.requests.length : Number(data.pendingCount);
+  const hasRequests = pendingCount > 0 && data.requests.length > 0;
+  updateChatRequestBadge(pendingCount);
+  chatRequestsSection?.classList.toggle('hidden', !hasRequests);
   data.requests.forEach((request) => {
     const row = makeListItem(request.display_name, chatCopy.feedback.wantsToChat, null);
     const actions = document.createElement('span');
@@ -1940,7 +1903,7 @@ async function loadChatRequestsPanel() {
     row.appendChild(actions);
     list.appendChild(row);
   });
-  showListState('chatRequests', data.requests.length > 0);
+  showListState('chatRequests', hasRequests);
   window.lucide?.createIcons();
 }
 
@@ -2120,6 +2083,26 @@ async function saveCurrentConversation() {
     loadPanel('saved');
   } catch (error) {
     alert(error.message);
+  }
+}
+
+async function addCurrentPartnerFriend() {
+  conversationMenu.classList.add('hidden');
+  if (!currentUser || !currentPartner?.publicId || !addFriendMenuBtn || addFriendMenuBtn.disabled) return;
+  addFriendMenuBtn.disabled = true;
+  addFriendMenuBtn.setAttribute('aria-busy', 'true');
+  try {
+    await api('/api/friend-requests', {
+      method: 'POST',
+      body: JSON.stringify({ publicId: currentPartner.publicId })
+    });
+    addFriendMenuBtn.classList.add('hidden');
+    addMessage(uiCopy.common.requestSent, 'system');
+  } catch (error) {
+    alert(error.message);
+    addFriendMenuBtn.disabled = false;
+  } finally {
+    addFriendMenuBtn.removeAttribute('aria-busy');
   }
 }
 

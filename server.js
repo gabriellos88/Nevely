@@ -22,7 +22,6 @@ const { trustApplicationProxy, trustedClientAddress } = require('./lib/client-ad
 const safeLog = require('./lib/safe-log');
 const uiCopy = require('./public/i18n/en.json');
 
-const GUEST_CHAT_DURATION_SECONDS = 120;
 const DEFAULT_SHUTDOWN_GRACE_MS = 25_000;
 const DATABASE_HEALTH_TIMEOUT_MS = 2_000;
 
@@ -254,7 +253,6 @@ function createRuntime(options = {}) {
       isGuest,
       currentUser,
       guestClaimEligible,
-      guestDurationSeconds: GUEST_CHAT_DURATION_SECONDS,
       googleClientId: currentUser ? environment.GOOGLE_CLIENT_ID || '' : '',
       googleNonce: currentUser ? req.session.googleNonce || '' : ''
     });
@@ -262,7 +260,6 @@ function createRuntime(options = {}) {
 
   const presence = createPresence(io);
   const chat = registerChat(io, db, presence, {
-    guestDurationSeconds: GUEST_CHAT_DURATION_SECONDS,
     enforcePersistentGuestOwnership: options.enforcePersistentGuestOwnership,
     isNetworkBlocked: (address) => moderation?.isNetworkBlocked(address) || Promise.resolve(false),
     isGuestBlocked: (guestId) => moderation?.isGuestBlocked(guestId) || Promise.resolve(false),

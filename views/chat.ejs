@@ -99,7 +99,7 @@
           </div>
 
           <section class="activity-section drawer-tab-panel" id="messagesInboxPanel" role="tabpanel" aria-labelledby="messagesTabInbox" tabindex="0">
-            <div class="drawer-content-group">
+            <div class="drawer-content-group hidden" id="chatRequestsSection">
               <div class="drawer-section-label">
                 <h3><%= copy.chat.drawers.messages.chatRequests %></h3>
                 <span class="inline-count hidden" id="chatRequestsBadge" aria-hidden="true">0</span>
@@ -353,6 +353,25 @@
           </section>
         </div>
 
+        <section class="search-status-view hidden" id="searchCard" aria-labelledby="searchCardTitle">
+          <div class="loading-spinner" aria-hidden="true"></div>
+          <div class="search-status-heading">
+            <div>
+              <p class="search-status-eyebrow"><%= copy.chat.search.eyebrow %></p>
+              <h2 id="searchCardTitle"><%= copy.chat.search.title %></h2>
+              <p class="search-phase-status" id="searchPhaseStatus" role="status" aria-live="polite"><%= copy.chat.search.general %></p>
+            </div>
+          </div>
+          <div class="search-topics-block">
+            <span><%= copy.chat.search.topics %></span>
+            <div class="search-topic-list" id="searchTopicList" role="list" aria-label="<%= copy.chat.search.topics %>"></div>
+          </div>
+          <button class="cancel-search-btn" id="cancelSearchBtn" type="button">
+            <i data-lucide="x" aria-hidden="true"></i>
+            <span><%= copy.chat.conversation.cancelSearch %></span>
+          </button>
+        </section>
+
         <section class="live-chat-card hidden" id="chatCard" data-state="idle" aria-label="<%= copy.chat.conversation.workspaceAria %>">
           <header class="chat-partner-bar">
             <button class="partner-info partner-profile-trigger" id="partnerProfileBtn" type="button">
@@ -362,7 +381,6 @@
             <div class="conversation-state" aria-label="<%= copy.chat.conversation.statusAria %>">
               <span class="conversation-state-dot" aria-hidden="true"></span>
               <p class="status" id="statusText" aria-live="polite"><%= copy.chat.conversation.looking %></p>
-              <span class="timer-badge hidden" id="timerBadge"></span>
             </div>
             <div class="partner-actions">
               <button type="button" class="partner-action-btn premium-camera" aria-label="<%= copy.chat.conversation.photoAria %>" title="<%= copy.chat.conversation.photoComingSoon %>" disabled>
@@ -376,6 +394,7 @@
                 <i data-lucide="ellipsis-vertical" aria-hidden="true"></i>
               </button>
               <div class="conversation-menu hidden" id="conversationMenu">
+                <button type="button" class="hidden" id="addFriendMenuBtn"><i data-lucide="user-plus" aria-hidden="true"></i><span><%= copy.common.addFriend %></span></button>
                 <button type="button" id="saveConversationBtn"><%= copy.chat.conversation.saveChat %></button>
                 <button type="button" id="blockPartnerBtn"><%= copy.chat.conversation.blockUser %></button>
                 <button type="button" class="danger" id="deleteConversationBtn"><%= copy.chat.conversation.deleteForEveryone %></button>
@@ -387,10 +406,6 @@
 
           <div class="chat-composer-shell hidden" id="chatComposer">
             <div class="chat-input-bar">
-              <button class="end-chat-btn" id="endChatBtn" type="button" disabled>
-                <i data-lucide="square" aria-hidden="true"></i>
-                <span><%= copy.chat.conversation.end %></span>
-              </button>
               <div class="message-send-group" id="messageSendGroup">
                 <input id="messageInput" type="text" maxlength="1000" autocomplete="off" placeholder="<%= copy.chat.composer.idle %>" disabled>
                 <button class="send-btn" id="sendBtn" type="button" aria-label="<%= copy.chat.conversation.send %>" disabled>
@@ -401,10 +416,6 @@
                 <button class="skip-btn" id="newBtn" type="button">
                   <span><%= copy.chat.conversation.next %></span>
                   <i data-lucide="skip-forward" aria-hidden="true"></i>
-                </button>
-                <button class="cancel-search-btn hidden" id="cancelSearchBtn" type="button">
-                  <i data-lucide="x" aria-hidden="true"></i>
-                  <span><%= copy.chat.conversation.cancelSearch %></span>
                 </button>
               </div>
             </div>
@@ -771,7 +782,6 @@
     <script nonce="<%= cspNonce %>">
       window.__COPY__ = <%- JSON.stringify(copy).replace(/</g, '\\u003c') %>;
       window.__IS_GUEST__ = <%= isGuest ? 'true' : 'false' %>;
-      window.__GUEST_DURATION__ = <%= guestDurationSeconds %>;
       window.__CURRENT_USER__ = <%- JSON.stringify(currentUser || null).replace(/</g, '\\u003c') %>;
       window.__GOOGLE_CONFIG__ = <%- JSON.stringify({
         enabled: Boolean(googleClientId),

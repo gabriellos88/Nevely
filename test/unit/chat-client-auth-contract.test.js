@@ -43,3 +43,14 @@ test('chat client applies only the generic server retry interval to message cont
   assert.doesNotMatch(source, /pendingSentMessages/);
   assert.doesNotMatch(source, /data\.(?:signal|threshold|normalized|counter)/);
 });
+
+test('chat search and ended-conversation UI follow authoritative lifecycle events', () => {
+  const startSearchSource = source.slice(source.indexOf('function startSearch()'), source.indexOf('// Aggiunge un messaggio'));
+  const partnerLeftSource = source.slice(source.indexOf("socket.on('partner-left'"), source.indexOf("socket.on('message-error'"));
+
+  assert.match(source, /socket\.on\('search-state',[\s\S]*phase !== 'topic-preference'[\s\S]*phase !== 'general'/);
+  assert.doesNotMatch(startSearchSource, /showSearchView\(/);
+  assert.doesNotMatch(source, /guest-time-expired|durationSeconds|startCountdown/);
+  assert.match(partnerLeftSource, /statusText\.textContent = chatCopy\.feedback\.chatEnded/);
+  assert.doesNotMatch(partnerLeftSource, /resetPartnerBar|currentPartner = null|currentConversationId = null/);
+});

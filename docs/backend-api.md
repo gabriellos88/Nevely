@@ -67,6 +67,9 @@ evidence window for 24 months.
 
 - `GET /api/friends`, `DELETE /api/friends/:id`: list or remove friends.
 - `GET /api/friend-requests`, `POST /api/friend-requests`: list or create requests.
+- Friend-request creation revalidates email verification, blocks, existing
+  friendships and pending requests inside one transaction. Repeating the same
+  pending request is idempotent and does not create another notification.
 - `PATCH /api/friend-requests/:id`: accept or decline a request.
 - `GET /api/chat-requests`: list pending direct-chat requests.
 - `GET /api/notifications`: list notifications. Ban notifications are neither
@@ -139,7 +142,7 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
   immediately. With interests, `waitingTimeSeconds` (5–30) bounds only the
   initial shared-topic preference; the server then relaxes that requirement in
   place and keeps the socket queued. Filters, blocks, bans, authorization and
-  rate limits remain active throughout. The client is not told the active phase.
+  rate limits remain active throughout.
 - `cancel-search`: removes the current socket from matchmaking. Its optional
   acknowledgement contains only `{ ok, cancelled }` and no queue or presence data.
 - `send-message`: sends one text message, maximum 1,000 characters.
@@ -155,14 +158,20 @@ Every growing list in this section uses keyset `cursor` pagination. The default 
 ### Server to client
 
 - `waiting`: user entered the matchmaking queue. Payload is the generic
-  `{ status: "searching" }`; it contains no timeout, phase, presence or matching
-  criteria. Search does not normally emit a terminal timeout.
+  `{ status: "searching" }`; it contains no timeout, presence or matching criteria.
+- `search-state`: authoritative search presentation state. Its entire payload is
+  `{ phase: "topic-preference" }` or `{ phase: "general" }`. It does not expose
+  queue size, online presence, partner identity, filters, anti-abuse signals or
+  thresholds. Search does not normally emit a terminal timeout.
 - `search-cancelled`: the server removed this socket from matchmaking, either
   after explicit cancellation or because another socket for the same principal
   replaced the search.
-- `matched`: includes conversation id, partner profile, shared interests and cooldown.
+- `matched`: includes conversation id, partner profile, shared interests, cooldown
+  and the minimized `canAddFriend` authorization boolean for the receiving account.
 - `receive-message`, `message-sent`, `message-error`: message lifecycle.
-- `partner-left`, `guest-time-expired`, `skip-cooldown`: conversation lifecycle.
+- `partner-left`, `skip-cooldown`: conversation lifecycle. `partner-left` retains
+  the conversation id so an authorized participant can save the ended conversation.
+  Guest conversations have no duration timeout.
 - `message-error`: message delivery or temporary abuse/rate protection rejection. Its
   optional `retryAfterSeconds` is generic; it never identifies a duplicate, link,
   repeated-character, burst, or other server-side signal. The chat client temporarily
