@@ -86,9 +86,16 @@ evidence window for 24 months.
 - `DELETE /api/friend-requests/:id`: cancel an outgoing pending request;
   repeated cancellation is idempotent.
 - `GET /api/chat-requests`: list pending direct-chat requests.
-- `GET /api/notifications`: list notifications. Ban notifications are neither
-  created nor returned; suspension state is authoritative server state.
-- `PATCH /api/notifications/:id/read`: mark a notification as read.
+- `GET /api/notifications`: list non-dismissed product notifications using
+  opaque `ntf_...` IDs and public-ID keyset cursors. Ban notifications are not
+  returned; suspension state is authoritative server state. JSON `data` is
+  minimized per notification type and can contain only validated public IDs or
+  fixed actions.
+- `PATCH /api/notifications/:id/read`: idempotently mark an owned product
+  notification as read.
+- `DELETE /api/notifications/:id`: idempotently soft-dismiss an allowlisted
+  product notification. The row remains in PostgreSQL; security, moderation and
+  audit records cannot be deleted or dismissed through this endpoint.
 
 Guest notifications use the same endpoints and are authorized by the current
 guest principal session.
@@ -103,6 +110,9 @@ principal IDs; numeric database keys are never sent to the browser.
 Friend removal and block publish the minimized `friendship-updated`
 invalidation only after commit. Its payload contains the other account’s
 public ID and the generic status `removed` or `blocked`.
+Notification read/dismiss mutations publish `notification-updated` after the
+database write with only `{ notificationId, status }`. Account tabs refetch the
+authoritative list; reconnect also reads the persisted state.
 
 ### Operations
 

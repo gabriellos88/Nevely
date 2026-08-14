@@ -220,7 +220,7 @@ deferred N1.12 transactional-email polish is now tracked unchanged as N9.6.
 - [ ] **N5.3.2 — Friendship, notifications and direct friend chat.**
   - [x] Friendship requests: transactional create, accept, decline and cancel with public IDs and post-commit realtime events.
   - [x] Friend list: server capabilities, accessible menus and idempotent removal.
-  - [ ] Notifications: persistent appearance, read and product dismissal with minimized payloads.
+  - [x] Notifications: persistent appearance, read and product dismissal with minimized payloads.
   - [ ] Chat requests: persistent expiry, idempotent send/respond/cancel and distributed rate limits.
   - [ ] Direct friend chat: server-owned conversation type, one conversation per acceptance and End without random rematch or skip usage.
 - [ ] **N5.4 — Refine the mobile chat workspace.**

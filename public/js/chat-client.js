@@ -1702,6 +1702,10 @@ socket.on('notification-created', ({ type } = {}) => {
   if (type === 'friend_request') loadFriendRequestsPanel();
   refreshTopbarBadges();
 });
+socket.on('notification-updated', () => {
+  loadNotificationsPanel();
+  refreshTopbarBadges();
+});
 socket.on('friend-request-updated', () => {
   if (!currentUser) return;
   loadFriendRequestsPanel();
@@ -2148,28 +2152,55 @@ function actionButton(label, handler, icon = null) {
 
 async function loadNotificationsPanel() {
   const { list } = listElements('notifications');
-  list.innerHTML = '';
-  const data = await api('/api/notifications');
-  updateTopbarBadge(
-    'notifications',
-    data.unreadCount == null
-      ? data.notifications.filter((item) => !item.read_at).length
-      : Number(data.unreadCount)
-  );
-  data.notifications.forEach((item) => list.appendChild(makeListItem(
+  renderPanelStatus('notifications', chatCopy.feedback.notificationsLoading, { loading: true });
+  try {
+    const data = await api('/api/notifications');
+    updateTopbarBadge(
+      'notifications',
+      data.unreadCount == null
+        ? data.notifications.filter((item) => !item.read_at).length
+        : Number(data.unreadCount)
+    );
+    list.replaceChildren(...data.notifications.map(makeNotificationListItem));
+    list.setAttribute('aria-busy', 'false');
+    showListState('notifications', data.notifications.length > 0);
+    window.lucide?.createIcons();
+  } catch (error) {
+    renderPanelStatus('notifications', chatCopy.feedback.notificationsLoadError, {
+      retry: () => loadNotificationsPanel()
+    });
+  }
+}
+
+function makeNotificationListItem(item) {
+  const row = makeListItem(
     item.title,
     `${item.body || ''} ${new Date(item.created_at).toLocaleString()}`,
-    async () => {
-      await api(`/api/notifications/${item.id}/read`, { method: 'PATCH', body: '{}' });
-      if (item.type === 'guest_account_claim') {
-        window.location.assign('/login');
-        return;
-      }
-      loadNotificationsPanel();
-    },
+    null,
     item.read_at ? '' : uiCopy.common.new
-  )));
-  showListState('notifications', data.notifications.length > 0);
+  );
+  row.classList.add('notification-list-item');
+  const actions = document.createElement('span');
+  actions.className = 'panel-inline-actions';
+  if (item.type === 'guest_account_claim') {
+    actions.append(actionButton(chatCopy.feedback.openNotification, async () => {
+      if (!item.read_at) {
+        await api(`/api/notifications/${item.id}/read`, { method: 'PATCH', body: '{}' });
+      }
+      window.location.assign('/login');
+    }, 'log-in'));
+  } else if (!item.read_at) {
+    actions.append(actionButton(chatCopy.feedback.markNotificationRead, async () => {
+      await api(`/api/notifications/${item.id}/read`, { method: 'PATCH', body: '{}' });
+      await loadNotificationsPanel();
+    }, 'check'));
+  }
+  actions.append(actionButton(chatCopy.feedback.dismissNotification, async () => {
+    await api(`/api/notifications/${item.id}`, { method: 'DELETE', body: '{}' });
+    await loadNotificationsPanel();
+  }, 'x'));
+  row.appendChild(actions);
+  return row;
 }
 
 async function loadSavedPanel() {
