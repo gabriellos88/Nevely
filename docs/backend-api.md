@@ -65,7 +65,14 @@ evidence window for 24 months.
 
 ### Friends and inbox
 
-- `GET /api/friends`, `DELETE /api/friends/:id`: list or remove friends.
+- `GET /api/friends`: list friends with public-ID keyset cursors and a
+  server-derived `capabilities` object. The browser renders only capabilities
+  whose value is exactly `true`; it never supplies friendship or availability
+  state back to the server.
+- `DELETE /api/friends/:id`: remove both directed friendship rows atomically,
+  cancel pending friend/chat requests for the pair and remain idempotent on
+  retries. `PUT /api/blocks/:id` uses the same ordered account locks, removes
+  the friendship and cancels pending requests in the same transaction.
 - `GET /api/friend-requests`: list incoming requests. Use
   `?direction=outgoing` for requests created by the current account. Request
   IDs and keyset cursors contain only opaque `frq_...` public identifiers.
@@ -93,6 +100,9 @@ database commit. Its minimized payload is `{ requestId, status }`, where
 `requestId` is the opaque public request ID and status is one of the documented
 friend-request states. Notification payloads use `requestPublicId` and public
 principal IDs; numeric database keys are never sent to the browser.
+Friend removal and block publish the minimized `friendship-updated`
+invalidation only after commit. Its payload contains the other account’s
+public ID and the generic status `removed` or `blocked`.
 
 ### Operations
 

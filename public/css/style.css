@@ -9491,7 +9491,10 @@ body.guest-passport-open .chat-layout {
 .chat-app-page .activity-close:focus-visible,
 .chat-app-page .activity-segment button:focus-visible,
 .chat-app-page .activity-drawer .panel-data-item:focus-visible,
-.chat-app-page .activity-drawer .panel-inline-actions button:focus-visible {
+.chat-app-page .activity-drawer .panel-inline-actions button:focus-visible,
+.chat-app-page .activity-drawer .friend-actions-trigger:focus-visible,
+.chat-app-page .activity-drawer .friend-actions-menu button:focus-visible,
+.chat-app-page .activity-drawer .panel-load-state button:focus-visible {
   outline: 0;
   box-shadow: var(--focus-ring-brand);
 }
@@ -9967,8 +9970,8 @@ body.guest-passport-open .chat-layout {
 }
 
 .chat-app-page .activity-drawer .panel-inline-actions .panel-icon-action {
-  width: var(--spacing-9, 2.25rem);
-  height: var(--spacing-9, 2.25rem);
+  width: var(--spacing-11);
+  height: var(--spacing-11);
   display: grid;
   place-items: center;
   padding: var(--spacing-0);
@@ -10638,6 +10641,114 @@ body.guest-passport-open .chat-layout {
     left: auto;
     width: 100%;
   }
+}
+
+.chat-app-page .activity-drawer .panel-load-state {
+  min-height: calc(var(--spacing-16) * 2);
+  display: grid;
+  place-items: center;
+  align-content: center;
+  gap: var(--spacing-3);
+  padding: var(--spacing-5);
+  color: var(--color-body-subtle);
+  font-size: var(--font-size-md);
+  line-height: var(--line-height-body);
+  text-align: center;
+}
+
+.chat-app-page .activity-drawer .panel-load-state .loading-spinner {
+  width: var(--spacing-8);
+  height: var(--spacing-8);
+}
+
+.chat-app-page .activity-drawer .panel-load-state button {
+  min-height: var(--spacing-11);
+  padding-inline: var(--spacing-4);
+  border: var(--spacing-px) solid var(--color-border-medium);
+  border-radius: var(--radius-full);
+  background: var(--color-neutral-tertiary);
+  color: var(--color-heading);
+  font: inherit;
+  font-weight: var(--font-weight-semibold);
+  cursor: pointer;
+}
+
+.chat-app-page .activity-drawer .friend-list-item {
+  position: relative;
+  overflow: visible;
+}
+
+.chat-app-page .activity-drawer .friend-actions-shell {
+  position: relative;
+  display: inline-flex;
+  flex: none;
+}
+
+.chat-app-page .activity-drawer .friend-actions-trigger {
+  width: var(--spacing-11);
+  height: var(--spacing-11);
+  display: grid;
+  place-items: center;
+  padding: var(--spacing-0);
+  border: var(--spacing-px) solid var(--color-border-default);
+  border-radius: var(--radius-full);
+  background: var(--color-neutral-primary-medium);
+  color: var(--color-body);
+  cursor: pointer;
+}
+
+.chat-app-page .activity-drawer .friend-actions-trigger:hover,
+.chat-app-page .activity-drawer .friend-actions-trigger[aria-expanded="true"] {
+  border-color: var(--color-border-medium);
+  background: var(--color-brand-soft);
+  color: var(--color-heading);
+}
+
+.chat-app-page .activity-drawer .friend-actions-menu {
+  position: absolute;
+  z-index: 8;
+  inset-block-start: calc(100% + var(--spacing-2));
+  inset-inline-end: 0;
+  width: max-content;
+  min-width: 12rem;
+  display: grid;
+  gap: var(--spacing-1);
+  padding: var(--spacing-2);
+  border: var(--spacing-px) solid var(--color-border-medium);
+  border-radius: var(--radius-xxl);
+  background: var(--color-neutral-primary);
+  box-shadow: var(--elevation-overlay);
+}
+
+.chat-app-page .activity-drawer .friend-actions-menu[hidden] {
+  display: none;
+}
+
+.chat-app-page .activity-drawer .friend-actions-menu button {
+  min-height: var(--spacing-11);
+  display: flex;
+  align-items: center;
+  gap: var(--spacing-1-5);
+  padding: var(--spacing-2) var(--spacing-3);
+  border: 0;
+  border-radius: var(--radius-full);
+  background: transparent;
+  color: var(--color-body);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.chat-app-page .activity-drawer .friend-actions-menu button:hover {
+  background: var(--color-neutral-tertiary);
+  color: var(--color-heading);
+}
+
+.chat-app-page .activity-drawer .friend-actions-menu .lucide,
+.chat-app-page .activity-drawer .friend-actions-trigger .lucide {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
 }
 
 /* Final N5.3 cascade: keep the live composer inside its workspace. */

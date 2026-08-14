@@ -1708,6 +1708,11 @@ socket.on('friend-request-updated', () => {
   loadFriendsPanel();
   refreshTopbarBadges();
 });
+socket.on('friendship-updated', () => {
+  if (!currentUser) return;
+  loadFriendsPanel();
+  loadFriendRequestsPanel();
+});
 socket.on('direct-chat-requested', () => {
   loadChatRequestsPanel();
 });
@@ -1783,6 +1788,35 @@ function showListState(name, hasItems) {
   const { list, empty } = listElements(name);
   if (list) list.classList.toggle('hidden', !hasItems);
   if (empty) empty.classList.toggle('hidden', hasItems);
+}
+
+function renderPanelStatus(name, message, { loading = false, retry = null } = {}) {
+  const { list, empty } = listElements(name);
+  if (!list) return;
+  list.replaceChildren();
+  list.setAttribute('aria-busy', String(loading));
+  const status = document.createElement('div');
+  status.className = `panel-load-state${loading ? ' is-loading' : ' is-error'}`;
+  status.setAttribute('role', loading ? 'status' : 'alert');
+  if (loading) {
+    const spinner = document.createElement('span');
+    spinner.className = 'loading-spinner';
+    spinner.setAttribute('aria-hidden', 'true');
+    status.appendChild(spinner);
+  }
+  const statusCopy = document.createElement('span');
+  statusCopy.textContent = message;
+  status.appendChild(statusCopy);
+  if (typeof retry === 'function') {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.textContent = chatCopy.feedback.retry;
+    button.addEventListener('click', retry);
+    status.appendChild(button);
+  }
+  list.appendChild(status);
+  list.classList.remove('hidden');
+  empty?.classList.add('hidden');
 }
 
 function renderAccountRequired(name) {
@@ -1931,16 +1965,124 @@ async function loadHistoryPanel() {
 async function loadFriendsPanel() {
   if (!currentUser) return renderAccountRequired('friends');
   const { list } = listElements('friends');
-  list.innerHTML = '';
-  const data = await api('/api/friends');
-  data.friends.forEach((friend) => list.appendChild(makeListItem(
+  renderPanelStatus('friends', chatCopy.feedback.friendsLoading, { loading: true });
+  try {
+    const data = await api('/api/friends');
+    list.replaceChildren(...data.friends.map(makeFriendListItem));
+    list.setAttribute('aria-busy', 'false');
+    showListState('friends', data.friends.length > 0);
+    window.lucide?.createIcons();
+  } catch (error) {
+    renderPanelStatus('friends', chatCopy.feedback.friendsLoadError, {
+      retry: () => loadFriendsPanel()
+    });
+  }
+}
+
+function closeFriendMenus(except = null) {
+  document.querySelectorAll('.friend-actions-menu:not([hidden])').forEach((menu) => {
+    if (menu === except) return;
+    menu.hidden = true;
+    menu.parentElement?.querySelector('.friend-actions-trigger')?.setAttribute('aria-expanded', 'false');
+  });
+}
+
+function friendMenuAction(label, icon, handler) {
+  const button = document.createElement('button');
+  button.type = 'button';
+  button.setAttribute('role', 'menuitem');
+  button.innerHTML = `<i data-lucide="${icon}" aria-hidden="true"></i><span></span>`;
+  button.querySelector('span').textContent = label;
+  button.addEventListener('click', (event) => {
+    event.stopPropagation();
+    closeFriendMenus();
+    Promise.resolve(handler()).catch((error) => alert(error.message));
+  });
+  return button;
+}
+
+function makeFriendListItem(friend) {
+  const row = makeListItem(
     friend.display_name,
     chatCopy.feedback.friendChatHint,
-    () => socket.emit('direct-chat-request', { publicId: friend.public_id }),
+    null,
     friend.online ? uiCopy.common.online : uiCopy.common.offline
-  )));
-  showListState('friends', data.friends.length > 0);
+  );
+  row.classList.add('friend-list-item');
+  const capabilities = friend.capabilities || {};
+  const actions = [];
+  if (capabilities.canStartDirectChat === true) {
+    actions.push(friendMenuAction(chatCopy.feedback.startDirectChat, 'message-circle', () => {
+      socket.emit('direct-chat-request', { publicId: friend.public_id });
+    }));
+  }
+  if (capabilities.canRemoveFriend === true) {
+    actions.push(friendMenuAction(uiCopy.common.removeFriend, 'user-minus', async () => {
+      await api(`/api/friends/${friend.public_id}`, { method: 'DELETE', body: '{}' });
+      await loadFriendsPanel();
+    }));
+  }
+  if (capabilities.canBlock === true) {
+    actions.push(friendMenuAction(uiCopy.common.block, 'shield-off', async () => {
+      await api(`/api/blocks/${friend.public_id}`, { method: 'PUT', body: '{}' });
+      await loadFriendsPanel();
+    }));
+  }
+  if (!actions.length) return row;
+
+  const shell = document.createElement('span');
+  shell.className = 'friend-actions-shell';
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'friend-actions-trigger';
+  trigger.setAttribute('aria-haspopup', 'menu');
+  trigger.setAttribute('aria-expanded', 'false');
+  trigger.setAttribute('aria-label', formatCopy(chatCopy.feedback.friendActions, {
+    name: friend.display_name || uiCopy.common.unknownUser
+  }));
+  trigger.innerHTML = '<i data-lucide="more-horizontal" aria-hidden="true"></i>';
+  const menu = document.createElement('span');
+  menu.className = 'friend-actions-menu';
+  menu.setAttribute('role', 'menu');
+  menu.hidden = true;
+  menu.append(...actions);
+  trigger.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const opening = menu.hidden;
+    closeFriendMenus(opening ? menu : null);
+    menu.hidden = !opening;
+    trigger.setAttribute('aria-expanded', String(opening));
+    if (opening) menu.querySelector('[role="menuitem"]')?.focus();
+  });
+  shell.addEventListener('keydown', (event) => {
+    if (menu.hidden) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      event.stopPropagation();
+      menu.hidden = true;
+      trigger.setAttribute('aria-expanded', 'false');
+      trigger.focus();
+      return;
+    }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const items = Array.from(menu.querySelectorAll('[role="menuitem"]'));
+    const current = items.indexOf(document.activeElement);
+    const index = event.key === 'Home'
+      ? 0
+      : event.key === 'End'
+        ? items.length - 1
+        : event.key === 'ArrowDown'
+          ? (current + 1) % items.length
+          : (current - 1 + items.length) % items.length;
+    items[index]?.focus();
+  });
+  shell.append(trigger, menu);
+  row.appendChild(shell);
+  return row;
 }
+
+document.addEventListener('click', () => closeFriendMenus());
 
 async function loadFriendRequestsPanel() {
   if (!currentUser) return renderAccountRequired('friendRequests');

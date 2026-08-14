@@ -159,6 +159,29 @@ test('friend requests use public IDs and remain transactional, idempotent and ra
     .set('Cookie', inverseWinner.account.cookie)
     .send({})
     .expect(204);
+  const carolId = Number((await db.query('SELECT id FROM users WHERE public_id = $1', [carol.publicId])).rows[0].id);
+  const danaId = Number((await db.query('SELECT id FROM users WHERE public_id = $1', [dana.publicId])).rows[0].id);
+  await db.query(
+    `INSERT INTO friendships (user_id, friend_id)
+     VALUES ($1, $2), ($2, $1)`,
+    [carolId, danaId]
+  );
+  await request(baseUrl)
+    .put(`/api/blocks/${carol.publicId}`)
+    .set('Cookie', dana.cookie)
+    .send({})
+    .expect(201);
+  await request(baseUrl)
+    .put(`/api/blocks/${carol.publicId}`)
+    .set('Cookie', dana.cookie)
+    .send({})
+    .expect(200);
+  const blockedFriendship = await db.query(
+    `SELECT COUNT(*)::int AS count FROM friendships
+     WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)`,
+    [carolId, danaId]
+  );
+  assert.equal(blockedFriendship.rows[0].count, 0);
 
   await request(baseUrl)
     .delete(`/api/friend-requests/${created.body.requestId}`)
@@ -203,6 +226,42 @@ test('friend requests use public IDs and remain transactional, idempotent and ra
     [alice.publicId]
   );
   assert.equal(acceptedNotifications.rows[0].count, 1);
+
+  const friendList = await request(baseUrl)
+    .get('/api/friends')
+    .set('Cookie', alice.cookie)
+    .expect(200);
+  assert.equal(friendList.body.friends.length, 1);
+  assert.equal(friendList.body.friends[0].public_id, bob.publicId);
+  assert.equal(Object.hasOwn(friendList.body.friends[0], 'id'), false);
+  assert.deepEqual(friendList.body.friends[0].capabilities, {
+    canStartDirectChat: true,
+    canRemoveFriend: true,
+    canBlock: true
+  });
+  const aliceId = Number((await db.query('SELECT id FROM users WHERE public_id = $1', [alice.publicId])).rows[0].id);
+  const bobId = Number((await db.query('SELECT id FROM users WHERE public_id = $1', [bob.publicId])).rows[0].id);
+  await db.query(
+    'INSERT INTO chat_requests (sender_user_id, receiver_user_id) VALUES ($1, $2)',
+    [aliceId, bobId]
+  );
+  const removedEvent = eventFrom(bobSocket, 'friendship-updated');
+  const removals = await Promise.all([
+    request(baseUrl).delete(`/api/friends/${bob.publicId}`).set('Cookie', alice.cookie).send({}),
+    request(baseUrl).delete(`/api/friends/${bob.publicId}`).set('Cookie', alice.cookie).send({})
+  ]);
+  assert.deepEqual(removals.map((response) => response.status), [204, 204]);
+  assert.deepEqual(await removedEvent, { userPublicId: alice.publicId, status: 'removed' });
+  const removedState = await db.query(
+    `SELECT
+       (SELECT COUNT(*)::int FROM friendships
+        WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)) AS friendships,
+       (SELECT status FROM chat_requests
+        WHERE sender_user_id = $1 AND receiver_user_id = $2) AS chat_status`,
+    [aliceId, bobId]
+  );
+  assert.equal(removedState.rows[0].friendships, 0);
+  assert.equal(removedState.rows[0].chat_status, 'cancelled');
 
   const declined = await request(baseUrl)
     .post('/api/friend-requests')
