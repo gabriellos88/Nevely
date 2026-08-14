@@ -213,10 +213,16 @@ deferred N1.12 transactional-email polish is now tracked unchanged as N9.6.
   - Cover loading, match, reconnect, error, report and end states with keyboard-visible focus and 44px targets.
   - Verify Playwright at `1366×768` and `768×1024` with captured screenshots.
 - [x] **N5.3.1 — Separate search and conversation lifecycle surfaces.**
-  - Render a dedicated Astra search card from server-authoritative topic/general states.
+  - Render search directly in the Astra chat surface from server-authoritative topic/general states.
   - Keep only Next beside the joined message field and preserve the ended partner identity and Save action.
   - Hide empty Chat requests, gate Add friend from the server and keep the message list above the in-flow composer.
   - Verify Playwright at `1366×768`, `1366×640` and `768×1024`.
+- [ ] **N5.3.2 — Friendship, notifications and direct friend chat.**
+  - [x] Friendship requests: transactional create, accept, decline and cancel with public IDs and post-commit realtime events.
+  - [ ] Friend list: server capabilities, accessible menus and idempotent removal.
+  - [ ] Notifications: persistent appearance, read and product dismissal with minimized payloads.
+  - [ ] Chat requests: persistent expiry, idempotent send/respond/cancel and distributed rate limits.
+  - [ ] Direct friend chat: server-owned conversation type, one conversation per acceptance and End without random rematch or skip usage.
 - [ ] **N5.4 — Refine the mobile chat workspace.**
   - Verify `390×844`, portrait/landscape transitions, on-screen keyboard and safe-area insets.
   - Stabilize the composer, drawers, modals, touch targets and message/command overflow.

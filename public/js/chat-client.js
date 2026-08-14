@@ -1702,6 +1702,12 @@ socket.on('notification-created', ({ type } = {}) => {
   if (type === 'friend_request') loadFriendRequestsPanel();
   refreshTopbarBadges();
 });
+socket.on('friend-request-updated', () => {
+  if (!currentUser) return;
+  loadFriendRequestsPanel();
+  loadFriendsPanel();
+  refreshTopbarBadges();
+});
 socket.on('direct-chat-requested', () => {
   loadChatRequestsPanel();
 });
@@ -1940,7 +1946,10 @@ async function loadFriendRequestsPanel() {
   if (!currentUser) return renderAccountRequired('friendRequests');
   const { list } = listElements('friendRequests');
   list.innerHTML = '';
-  const data = await api('/api/friend-requests');
+  const [data, outgoing] = await Promise.all([
+    api('/api/friend-requests'),
+    api('/api/friend-requests?direction=outgoing')
+  ]);
   updateTopbarBadge(
     'friends',
     data.pendingCount == null ? data.requests.length : Number(data.pendingCount)
@@ -1962,7 +1971,18 @@ async function loadFriendRequestsPanel() {
     row.appendChild(actions);
     list.appendChild(row);
   });
-  showListState('friendRequests', data.requests.length > 0);
+  outgoing.requests.forEach((request) => {
+    const row = makeListItem(request.display_name, chatCopy.feedback.sentFriendRequestPending, null);
+    const actions = document.createElement('span');
+    actions.className = 'panel-inline-actions';
+    actions.append(actionButton(chatCopy.feedback.cancelFriendRequest, async () => {
+      await api(`/api/friend-requests/${request.id}`, { method: 'DELETE', body: '{}' });
+      await loadFriendRequestsPanel();
+    }, 'x'));
+    row.appendChild(actions);
+    list.appendChild(row);
+  });
+  showListState('friendRequests', data.requests.length + outgoing.requests.length > 0);
   window.lucide?.createIcons();
 }
 

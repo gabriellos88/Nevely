@@ -9,10 +9,13 @@ const {
 test('canonical public IDs use the exact lowercase principal formats', () => {
   const userId = createPublicId('user');
   const guestId = createPublicId('guest');
+  const friendRequestId = createPublicId('friendRequest');
   assert.match(userId, /^nvy_[0-9a-f]{12}$/);
   assert.match(guestId, /^gst_[0-9a-f]{12}$/);
+  assert.match(friendRequestId, /^frq_[0-9a-f]{24}$/);
   assert.equal(isPublicId(userId, 'user'), true);
   assert.equal(isPublicId(guestId, 'guest'), true);
+  assert.equal(isPublicId(friendRequestId, 'friendRequest'), true);
   assert.equal(isPublicId('nvy_ABCDEF123456', 'user'), false);
   assert.equal(isPublicId('gst_0123456789ab', 'user'), false);
 });

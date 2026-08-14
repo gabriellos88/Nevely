@@ -66,11 +66,18 @@ evidence window for 24 months.
 ### Friends and inbox
 
 - `GET /api/friends`, `DELETE /api/friends/:id`: list or remove friends.
-- `GET /api/friend-requests`, `POST /api/friend-requests`: list or create requests.
-- Friend-request creation revalidates email verification, blocks, existing
-  friendships and pending requests inside one transaction. Repeating the same
-  pending request is idempotent and does not create another notification.
-- `PATCH /api/friend-requests/:id`: accept or decline a request.
+- `GET /api/friend-requests`: list incoming requests. Use
+  `?direction=outgoing` for requests created by the current account. Request
+  IDs and keyset cursors contain only opaque `frq_...` public identifiers.
+- `POST /api/friend-requests`: create a request. Creation locks both accounts in
+  deterministic order and revalidates active account, email verification,
+  blocks, friendship and reverse-pending state. Repeating the same pending
+  request returns the same public ID without creating another notification.
+- `PATCH /api/friend-requests/:id`: accept or decline an incoming request.
+  Repeating the same terminal action is idempotent. Acceptance revalidates both
+  accounts and blocks before creating both friendship directions atomically.
+- `DELETE /api/friend-requests/:id`: cancel an outgoing pending request;
+  repeated cancellation is idempotent.
 - `GET /api/chat-requests`: list pending direct-chat requests.
 - `GET /api/notifications`: list notifications. Ban notifications are neither
   created nor returned; suspension state is authoritative server state.
@@ -80,6 +87,12 @@ Guest notifications use the same endpoints and are authorized by the current
 guest principal session.
 
 Every growing list in this section uses keyset `cursor` pagination. The default page size is 30 and `limit` is capped at 100. Responses include `page.hasMore` and `page.nextCursor`; malformed cursors return HTTP 400.
+
+Friend-request mutations publish `friend-request-updated` only after the
+database commit. Its minimized payload is `{ requestId, status }`, where
+`requestId` is the opaque public request ID and status is one of the documented
+friend-request states. Notification payloads use `requestPublicId` and public
+principal IDs; numeric database keys are never sent to the browser.
 
 ### Operations
 
