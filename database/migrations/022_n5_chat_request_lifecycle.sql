@@ -7,6 +7,12 @@ SET public_id = 'crq_' || encode(gen_random_bytes(12), 'hex'),
     expires_at = COALESCE(expires_at, created_at + INTERVAL '15 minutes')
 WHERE public_id IS NULL OR expires_at IS NULL;
 
+ALTER TABLE chat_requests
+  DROP CONSTRAINT IF EXISTS chat_requests_status_check;
+ALTER TABLE chat_requests
+  ADD CONSTRAINT chat_requests_status_check
+  CHECK (status IN ('pending', 'accepted', 'declined', 'cancelled', 'expired'));
+
 UPDATE chat_requests
 SET status = 'expired', responded_at = COALESCE(responded_at, expires_at)
 WHERE status = 'pending' AND expires_at <= NOW();
@@ -25,12 +31,6 @@ ALTER TABLE chat_requests
 ALTER TABLE chat_requests
   ADD CONSTRAINT chat_requests_public_id_format_check
   CHECK (public_id ~ '^crq_[0-9a-f]{24}$');
-
-ALTER TABLE chat_requests
-  DROP CONSTRAINT IF EXISTS chat_requests_status_check;
-ALTER TABLE chat_requests
-  ADD CONSTRAINT chat_requests_status_check
-  CHECK (status IN ('pending', 'accepted', 'declined', 'cancelled', 'expired'));
 
 ALTER TABLE chat_requests
   DROP CONSTRAINT IF EXISTS chat_requests_expiry_check;
