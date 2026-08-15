@@ -12,6 +12,7 @@ const startBtn = document.getElementById('startBtn');
 const startBtnSidebar = document.getElementById('startBtnSidebar');
 const startBtnBottom = document.getElementById('startBtnBottom');
 const newBtn = document.getElementById('newBtn');
+const endDirectChatBtn = document.getElementById('endDirectChatBtn');
 const cancelSearchBtn = document.getElementById('cancelSearchBtn');
 const reportBtn = document.getElementById('reportBtn');
 const sendBtn = document.getElementById('sendBtn');
@@ -149,6 +150,7 @@ const deleteConversationBtn = document.getElementById('deleteConversationBtn');
 const currentUser = window.__CURRENT_USER__ || null;
 const GuestProfileStore = window.NevelyGuestProfileStore;
 let currentConversationId = null;
+let currentConversationType = null;
 let currentPartner = null;
 let currentProfile = null;
 let readOnlyConversation = false;
@@ -167,6 +169,7 @@ let accountModalRestoreFocus = null;
 let reportModalRestoreFocus = null;
 let reportPending = false;
 let nextSearchPending = false;
+let directEndPending = false;
 let pendingSearchTopics = [];
 let guestCountryActiveIndex = -1;
 let chatComposerMode = 'idle';
@@ -308,6 +311,7 @@ if (startBtn) startBtn.addEventListener('click', startSearch);
 if (startBtnSidebar) startBtnSidebar.addEventListener('click', startSearch);
 if (startBtnBottom) startBtnBottom.addEventListener('click', startSearch);
 newBtn.addEventListener('click', startSearch);
+endDirectChatBtn?.addEventListener('click', endDirectConversation);
 cancelSearchBtn?.addEventListener('click', cancelSearch);
 sendBtn.addEventListener('click', sendMessage);
 reportBtn.addEventListener('click', reportUser);
@@ -507,6 +511,7 @@ function setChatComposerState(mode, message = '') {
   const stateMessage = message || fallbackMessages[mode] || chatCopy.composer.idle;
   const isLive = mode === 'live';
   const isSearching = mode === 'searching';
+  const isDirect = currentConversationType === 'direct';
   const canSend = isLive && Date.now() >= messageCooldownUntil;
 
   chatComposerMode = mode;
@@ -520,6 +525,10 @@ function setChatComposerState(mode, message = '') {
   messageInput.placeholder = isLive ? chatCopy.conversation.messagePlaceholder : stateMessage;
   chatCard?.setAttribute('data-state', mode);
   setControlLabel(newBtn, chatCopy.conversation.next);
+  const showNext = !isDirect && (isLive || mode === 'ended');
+  const showDirectEnd = isDirect && (isLive || mode === 'ending');
+  newBtn.classList.toggle('hidden', !showNext);
+  endDirectChatBtn?.classList.toggle('hidden', !showDirectEnd);
   if (mode === 'searching' || mode === 'ending') {
     newBtn.disabled = true;
   } else if (mode === 'live') {
@@ -528,6 +537,10 @@ function setChatComposerState(mode, message = '') {
     newBtn.disabled = false;
   }
   newBtn.toggleAttribute('aria-busy', nextSearchPending);
+  if (endDirectChatBtn) {
+    endDirectChatBtn.disabled = !isLive || directEndPending;
+    endDirectChatBtn.toggleAttribute('aria-busy', directEndPending);
+  }
 }
 
 function startMessageCooldown(retryAfterSeconds) {
@@ -1311,6 +1324,7 @@ function updateWaitingTimeControl() {
 
 function startSearch() {
   if (nextSearchPending) return;
+  if (currentConversationType === 'direct' && chatComposerMode === 'live') return;
   if (releaseDraining) {
     if (!currentConversationId) setChatComposerState('error', uiCopy.release.drainingTitle);
     return;
@@ -1376,6 +1390,29 @@ function sendMessage() {
     if (messageId <= lastPartnerReadMessageId) pendingMessage.dataset.read = 'true';
   });
   messageInput.value = '';
+}
+
+function endDirectConversation() {
+  if (directEndPending || currentConversationType !== 'direct' || chatComposerMode !== 'live') return;
+  directEndPending = true;
+  setChatComposerState('ending');
+  socket.timeout(6000).emit('end-direct-chat', (timeoutError, response = {}) => {
+    directEndPending = false;
+    if (timeoutError || !response.ok) {
+      statusText.textContent = response.error || chatCopy.feedback.chatUnavailable;
+      setChatComposerState('live');
+      return;
+    }
+    if (response.ended) {
+      statusText.textContent = chatCopy.feedback.chatEnded;
+      addMessage(chatCopy.feedback.endedByYou, 'system');
+      readOnlyConversation = true;
+      setChatComposerState('ended');
+      loadPanel('history');
+      return;
+    }
+    setChatComposerState('ended');
+  });
 }
 
 function queueReadReceipt(conversationId, messageId) {
@@ -1502,6 +1539,7 @@ socket.on('search-state', ({ phase } = {}) => {
   if (phase !== 'topic-preference' && phase !== 'general') return;
   nextSearchPending = false;
   currentConversationId = null;
+  currentConversationType = null;
   currentPartner = null;
   currentConversationSaved = false;
   addFriendMenuBtn?.classList.add('hidden');
@@ -1523,6 +1561,11 @@ socket.on('search-cancelled', () => {
 });
 
 socket.on('matched', (data) => {
+  if (data?.conversationType !== 'random' && data?.conversationType !== 'direct') {
+    statusText.textContent = chatCopy.feedback.chatUnavailable;
+    setChatComposerState('error', chatCopy.feedback.chatUnavailable);
+    return;
+  }
   nextSearchPending = false;
   if (reportModal && !reportModal.classList.contains('hidden') && !reportPending) closeReportModal();
   showChatView();
@@ -1534,6 +1577,7 @@ socket.on('matched', (data) => {
 
   const fallbackName = strangerNames[Math.floor(Math.random() * strangerNames.length)];
   currentConversationId = data.conversationId || null;
+  currentConversationType = data.conversationType;
   currentPartner = data.partner || null;
   currentConversationSaved = false;
   addFriendMenuBtn?.classList.toggle('hidden', !data.canAddFriend);
@@ -1632,7 +1676,7 @@ socket.on('chat-error', (data) => {
 socket.on('release-draining', ({ retryAfterSeconds = 0 } = {}) => {
   releaseDraining = true;
   releaseNotice?.classList.remove('hidden');
-  for (const button of [startBtn, startBtnSidebar, startBtnBottom, newBtn]) {
+  for (const button of [startBtn, startBtnSidebar, startBtnBottom, newBtn, endDirectChatBtn]) {
     if (button) button.disabled = true;
   }
 
@@ -2271,6 +2315,7 @@ async function openStoredConversation(item) {
   try {
     const data = await api(`/api/conversations/${item.id}/messages`);
     currentConversationId = Number(item.id);
+    currentConversationType = item.type === 'direct' ? 'direct' : item.type === 'random' ? 'random' : null;
     currentPartner = item.partner_public_id
       ? { publicId: item.partner_public_id, displayName: item.partner_name }
       : null;

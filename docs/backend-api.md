@@ -122,6 +122,11 @@ row, commit a compare-and-set terminal state, then publish only
 actions are idempotent. Send, response and cancellation use separate
 principal-scoped PostgreSQL rate windows shared by replicas; the client sees
 only generic feedback and an optional `retryAfterSeconds`.
+Acceptance reserves exactly one `direct` conversation in the same PostgreSQL
+transaction as the request transition and stores that relation on the request.
+Both accounts, friendship and blocks are revalidated while the ordered account
+locks are held. A request remains pending if the local realtime route cannot
+start safely; no presence detail is returned.
 
 ### Operations
 
@@ -193,6 +198,10 @@ only generic feedback and an optional `retryAfterSeconds`.
   the server transition completes, or `{ ok: false, retryAfterSeconds }` for a
   generic cooldown. The existing `skip-cooldown` event remains available for
   older clients; neither response discloses thresholds or abuse signals.
+- `end-direct-chat`: ends only a server-owned `direct` conversation. It never
+  enters random matchmaking or consumes the progressive skip counter. Repeated
+  calls after the pair ended return `{ ok: true, ended: false }`. A random
+  conversation cannot use this event to bypass Next/skip enforcement.
 - `report`: reports the active partner with optional `reason` and `details`.
 - `direct-chat-request`: requests a direct chat with a friend using only the
   friend’s public account ID. Its acknowledgement is `{ ok, requestId, status }`
@@ -213,12 +222,17 @@ only generic feedback and an optional `retryAfterSeconds`.
 - `search-cancelled`: the server removed this socket from matchmaking, either
   after explicit cancellation or because another socket for the same principal
   replaced the search.
-- `matched`: includes conversation id, partner profile, shared interests, cooldown
-  and the minimized `canAddFriend` authorization boolean for the receiving account.
+- `matched`: includes conversation id, server-owned `conversationType`
+  (`random` or `direct`), partner profile, shared interests, cooldown and the
+  minimized `canAddFriend` authorization boolean. Its capability payload makes
+  `canNext` and `canEnd` mutually exclusive. The browser rejects an unknown
+  conversation type instead of inferring one.
 - `receive-message`, `message-sent`, `message-error`: message lifecycle.
 - `partner-left`, `skip-cooldown`: conversation lifecycle. `partner-left` retains
   the conversation id so an authorized participant can save the ended conversation.
   Guest conversations have no duration timeout.
+  `find-partner` is rejected while the server has a direct pair, and the legacy
+  `leave-chat` path ends a direct pair without touching random skip state.
 - `message-error`: message delivery or temporary abuse/rate protection rejection. Its
   optional `retryAfterSeconds` is generic; it never identifies a duplicate, link,
   repeated-character, burst, or other server-side signal. The chat client temporarily
@@ -258,6 +272,9 @@ transaction. Migration 018 adds registered-account lifecycle columns and the
 frozen dual-control network-review references. Historical `deleted_<id>`
 tombstones are marked already purged with no invented future retention;
 non-anonymized historical deletions receive `deleted_at + INTERVAL '30 days'`.
+Migration 022 adds opaque chat-request IDs and persisted expiry. Migration 023
+adds the nullable, unique request-to-direct-conversation reservation used by
+new accepts; both migrations remain readable by the previous server version.
 The rollout/rollback contract is documented in
 [`docs/admin/account-deletion-lifecycle.md`](admin/account-deletion-lifecycle.md)
 and [`docs/admin/network-ban-review.md`](admin/network-ban-review.md). Never

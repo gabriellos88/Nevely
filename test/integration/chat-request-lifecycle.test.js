@@ -235,19 +235,14 @@ test('chat requests are durable, expiring, idempotent and rate-limited across re
     requestId: activeRequests.rows[0].public_id,
     action: 'accept'
   });
-  assert.deepEqual(accepted, { ok: true, status: 'accepted', started: false });
-  assert.deepEqual(
-    await emitWithAck(bobSecond, 'direct-chat-response', {
-      requestId: activeRequests.rows[0].public_id,
-      action: 'accept'
-    }),
-    accepted
-  );
+  assert.equal(accepted.ok, false);
+  assert.equal(accepted.error, require('../../public/i18n/en.json').errors.chatRequestUnavailable);
   const afterReconnect = await connectAccount(firstUrl, alice.cookie);
   sockets.push(afterReconnect);
-  const noPendingAfterReconnect = await request(firstUrl)
+  const pendingAfterReconnect = await request(firstUrl)
     .get('/api/chat-requests?direction=outgoing')
     .set('Cookie', alice.cookie)
     .expect(200);
-  assert.equal(noPendingAfterReconnect.body.pendingCount, 0);
+  assert.equal(pendingAfterReconnect.body.pendingCount, 1);
+  assert.equal(pendingAfterReconnect.body.requests[0].id, activeRequests.rows[0].public_id);
 });

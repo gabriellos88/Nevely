@@ -108,6 +108,8 @@ test('two guest clients match, exchange a message, and end the pair once on skip
   assert.deepEqual(secondMatch.sharedInterests, ['astronomy']);
   assert.equal(firstMatch.isGuest, true);
   assert.equal(firstMatch.canAddFriend, false);
+  assert.equal(firstMatch.conversationType, 'random');
+  assert.deepEqual(firstMatch.capabilities, { canNext: true, canEnd: false, canReport: true });
   assert.equal(Object.hasOwn(firstMatch, 'durationSeconds'), false);
   await new Promise((resolve) => setTimeout(resolve, 100));
   assert.equal(runtime.chat.getActiveConversationCount(), 1);

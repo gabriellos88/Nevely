@@ -94,6 +94,7 @@ async function expectContainedWorkspace(page) {
   expect(measurements.nextSeparation).toBeGreaterThanOrEqual(24);
   expect(measurements.sendBackground).not.toBe(measurements.nextBackground);
   await expect(page.locator('#endChatBtn')).toHaveCount(0);
+  await expect(page.locator('#endDirectChatBtn')).toBeHidden();
   await expect(page.locator('#newBtn span')).toBeVisible();
   await expect(page.locator('#newBtn span')).toHaveText('Next');
 
@@ -152,6 +153,59 @@ test('desktop chat keeps one contained scroll surface and accessible controls', 
   expect(profileCloseBox.height).toBeGreaterThanOrEqual(44);
   await page.locator('#profileModal .modal-close').click();
   await expect(page.locator('#profileModal')).toBeHidden();
+});
+
+test('direct friend chat replaces Next with an accessible destructive End action', async ({ page }, testInfo) => {
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await completeGuestPassport(page, 'Direct UI Guest');
+  await renderSyntheticConversation(page);
+  await page.evaluate(() => {
+    currentConversationType = 'direct';
+    setChatComposerState('live');
+  });
+
+  await expect(page.locator('#newBtn')).toBeHidden();
+  const end = page.locator('#endDirectChatBtn');
+  await expect(end).toBeVisible();
+  await expect(end.locator('span')).toHaveText('End conversation');
+  await expect(end.locator('[data-lucide="phone-off"]')).toHaveCount(1);
+  const endBox = await end.boundingBox();
+  expect(endBox.width).toBeGreaterThanOrEqual(44);
+  expect(endBox.height).toBeGreaterThanOrEqual(44);
+  await page.locator('#messageInput').focus();
+  await page.keyboard.press('Tab');
+  await expect(page.locator('#sendBtn')).toBeFocused();
+  await page.keyboard.press('Tab');
+  await expect(end).toBeFocused();
+  const styles = await end.evaluate((element) => {
+    const computed = getComputedStyle(element);
+    return { boxShadow: computed.boxShadow, background: computed.backgroundColor };
+  });
+  expect(styles.boxShadow).not.toBe('none');
+  expect(styles.background).not.toBe('rgba(0, 0, 0, 0)');
+
+  await page.locator('#reportBtn').click();
+  await expect(page.locator('#reportReason')).toBeFocused();
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#reportBtn')).toBeFocused();
+
+  for (const viewport of [
+    { width: 1366, height: 768 },
+    { width: 1366, height: 640 },
+    { width: 768, height: 1024 },
+    { width: 390, height: 844 }
+  ]) {
+    await page.setViewportSize(viewport);
+    const screenshot = testInfo.outputPath(`n5.3.2-direct-chat-${viewport.width}x${viewport.height}.png`);
+    await page.screenshot({ path: screenshot });
+    await testInfo.attach(`N5.3.2 direct chat ${viewport.width}x${viewport.height}`, {
+      path: screenshot,
+      contentType: 'image/png'
+    });
+    const composer = await page.locator('#chatComposer').boundingBox();
+    expect(composer.x).toBeGreaterThanOrEqual(0);
+    expect(composer.x + composer.width).toBeLessThanOrEqual(viewport.width + 1);
+  }
 });
 
 test('report feedback waits for the server response and stays generic', async ({ page }) => {

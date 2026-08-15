@@ -54,3 +54,14 @@ test('chat search and ended-conversation UI follow authoritative lifecycle event
   assert.match(partnerLeftSource, /statusText\.textContent = chatCopy\.feedback\.chatEnded/);
   assert.doesNotMatch(partnerLeftSource, /resetPartnerBar|currentPartner = null|currentConversationId = null/);
 });
+
+test('direct chat controls follow only the server conversation type', () => {
+  const matchedSource = source.slice(source.indexOf("socket.on('matched'"), source.indexOf("socket.on('receive-message'"));
+  const startSearchSource = source.slice(source.indexOf('function startSearch()'), source.indexOf('// Aggiunge un messaggio'));
+  assert.match(matchedSource, /data\?\.conversationType !== 'random'[\s\S]*data\?\.conversationType !== 'direct'/);
+  assert.match(matchedSource, /currentConversationType = data\.conversationType/);
+  assert.match(source, /currentConversationType === 'direct'[\s\S]*endDirectChatBtn/);
+  assert.match(startSearchSource, /currentConversationType === 'direct' && chatComposerMode === 'live'/);
+  assert.match(source, /socket\.timeout\(6000\)\.emit\('end-direct-chat'/);
+  assert.doesNotMatch(source, /conversationType\s*=\s*(?:payload|window|localStorage|sessionStorage)/);
+});

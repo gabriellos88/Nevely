@@ -304,6 +304,10 @@ test('chat requests stay hidden when empty and render incoming and outgoing acti
     { width: 390, height: 844 }
   ]) {
     await page.setViewportSize(viewport);
+    await expect.poll(async () => {
+      const drawer = await page.locator('#messagesDrawer').boundingBox();
+      return Math.ceil(drawer.x + drawer.width);
+    }).toBeLessThanOrEqual(viewport.width + 1);
     const screenshot = testInfo.outputPath(`n5.3.2-chat-requests-${viewport.width}x${viewport.height}.png`);
     await page.screenshot({ path: screenshot });
     await testInfo.attach(`N5.3.2 chat requests ${viewport.width}x${viewport.height}`, {
