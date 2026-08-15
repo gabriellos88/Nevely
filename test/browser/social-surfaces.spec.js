@@ -127,11 +127,15 @@ test('friend list exposes only server capabilities with accessible responsive me
 
   await page.getByRole('button', { name: 'Actions for Astra Friend' }).click();
   await page.getByRole('menuitem', { name: 'Remove friend' }).click();
+  await expect(page.locator('#friendSafetyConfirmModal')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Cancel' })).toBeFocused();
+  await expect(page.locator('#friendSafetyConfirmDescription')).toContainText('Remove Astra Friend');
+  await page.locator('#friendSafetyConfirmSubmit').click();
   await expect(page.locator('#friendsPanelEmpty')).toBeVisible();
   await expect(page.locator('.friend-list-item')).toHaveCount(0);
 });
 
-test('notifications appear, become read and dismiss without deleting the UI shell', async ({ page }, testInfo) => {
+test('friendship notifications are one accessible link to Friend requests without inline controls', async ({ page }, testInfo) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, '__CURRENT_USER__', {
       configurable: false,
@@ -156,6 +160,11 @@ test('notifications appear, become read and dismiss without deleting the UI shel
     read_at: null,
     created_at: new Date().toISOString()
   };
+  await page.route('**/api/friends**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ friends: [], page: { hasMore: false } })
+  }));
   await page.route('**/api/notifications**', async (route) => {
     const method = route.request().method();
     if (method === 'PATCH') {
@@ -197,21 +206,18 @@ test('notifications appear, become read and dismiss without deleting the UI shel
   await page.locator('#notificationsToggle').click();
   await expect(page.locator('#notificationsPanelList')).toHaveAttribute('aria-busy', 'true');
   await expect(page.locator('.notification-list-item')).toContainText('Friend request accepted');
-  const readButton = page.getByRole('button', { name: 'Mark as read' });
-  const readBox = await readButton.boundingBox();
-  expect(readBox.width).toBeGreaterThanOrEqual(44);
-  expect(readBox.height).toBeGreaterThanOrEqual(44);
-  await readButton.click();
+  const friendshipNotification = page.getByRole('button', { name: /Friend request accepted.*Open Friend requests/ });
+  await expect(friendshipNotification).toBeVisible();
   await expect(page.getByRole('button', { name: 'Mark as read' })).toHaveCount(0);
-  await expect(page.locator('.notification-list-item')).not.toContainText('New');
+  await expect(page.getByRole('button', { name: 'Dismiss notification' })).toHaveCount(0);
 
   const screenshot = testInfo.outputPath('n5.3.2-notifications-390x844.png');
   await page.screenshot({ path: screenshot });
   await testInfo.attach('N5.3.2 notifications 390x844', { path: screenshot, contentType: 'image/png' });
 
-  await page.getByRole('button', { name: 'Dismiss notification' }).click();
-  await expect(page.locator('#notificationsPanelEmpty')).toBeVisible();
-  await expect(page.locator('.notification-list-item')).toHaveCount(0);
+  await friendshipNotification.click();
+  await expect(page.locator('#friendsDrawer')).toHaveAttribute('aria-hidden', 'false');
+  await expect(page.locator('#friendsTabRequests')).toHaveAttribute('aria-selected', 'true');
 });
 
 test('chat requests stay hidden when empty and render incoming and outgoing actions responsively', async ({ page }, testInfo) => {

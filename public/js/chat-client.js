@@ -69,6 +69,8 @@ const drawerCloseButtons = document.querySelectorAll('[data-drawer-close]');
 const messagesBadge = document.getElementById('messagesBadge');
 const friendsBadge = document.getElementById('friendsBadge');
 const notificationsBadge = document.getElementById('notificationsBadge');
+const friendRequestsTabBadge = document.getElementById('friendRequestsTabBadge');
+const friendsActionFeedback = document.getElementById('friendsActionFeedback');
 const chatRequestsSection = document.getElementById('chatRequestsSection');
 const guestClaimAccountButton = document.getElementById('guestClaimAccountButton');
 const partnerAvatar = document.getElementById('partnerAvatar');
@@ -130,6 +132,8 @@ const deleteAccountFeedback = document.getElementById('deleteAccountFeedback');
 const profileModal = document.getElementById('profileModal');
 const partnerProfileBtn = document.getElementById('partnerProfileBtn');
 const publicProfileAvatar = document.getElementById('publicProfileAvatar');
+const publicProfileAvatarImage = document.getElementById('publicProfileAvatarImage');
+const publicProfileAvatarInitial = document.getElementById('publicProfileAvatarInitial');
 const publicProfileMeta = document.getElementById('publicProfileMeta');
 const friendActionBtn = document.getElementById('friendActionBtn');
 const profileBlockBtn = document.getElementById('profileBlockBtn');
@@ -146,6 +150,12 @@ const addFriendMenuBtn = document.getElementById('addFriendMenuBtn');
 const saveConversationBtn = document.getElementById('saveConversationBtn');
 const blockPartnerBtn = document.getElementById('blockPartnerBtn');
 const deleteConversationBtn = document.getElementById('deleteConversationBtn');
+const friendSafetyConfirmModal = document.getElementById('friendSafetyConfirmModal');
+const friendSafetyConfirmClose = document.getElementById('friendSafetyConfirmClose');
+const friendSafetyConfirmCancel = document.getElementById('friendSafetyConfirmCancel');
+const friendSafetyConfirmSubmit = document.getElementById('friendSafetyConfirmSubmit');
+const friendSafetyConfirmTitle = document.getElementById('friendSafetyConfirmTitle');
+const friendSafetyConfirmDescription = document.getElementById('friendSafetyConfirmDescription');
 
 const currentUser = window.__CURRENT_USER__ || null;
 const GuestProfileStore = window.NevelyGuestProfileStore;
@@ -153,6 +163,8 @@ let currentConversationId = null;
 let currentConversationType = null;
 let currentPartner = null;
 let currentProfile = null;
+let pendingFriendSafetyAction = null;
+let friendSafetyRestoreFocus = null;
 let readOnlyConversation = false;
 let currentConversationSaved = false;
 let skipCooldownTimer = null;
@@ -339,6 +351,9 @@ if (logoutBtn) logoutBtn.addEventListener('click', logout);
 if (deleteAccountBtn) deleteAccountBtn.addEventListener('click', openDeleteAccountConfirmation);
 if (friendActionBtn) friendActionBtn.addEventListener('click', toggleFriendship);
 if (profileBlockBtn) profileBlockBtn.addEventListener('click', toggleProfileBlock);
+friendSafetyConfirmClose?.addEventListener('click', () => closeFriendSafetyConfirmation(false));
+friendSafetyConfirmCancel?.addEventListener('click', () => closeFriendSafetyConfirmation(false));
+friendSafetyConfirmSubmit?.addEventListener('click', confirmFriendSafetyAction);
 if (guestPassportForm) guestPassportForm.addEventListener('submit', saveGuestPassport);
 if (guestNameForm) guestNameForm.addEventListener('submit', saveGuestName);
 if (guestLogoutBtn) guestLogoutBtn.addEventListener('click', openDeleteAccountConfirmation);
@@ -506,6 +521,7 @@ function setChatComposerState(mode, message = '') {
     ended: chatCopy.composer.partnerLeft,
     history: chatCopy.composer.history,
     ending: chatCopy.composer.ending,
+    paused: chatCopy.feedback.directChatPaused,
     error: chatCopy.composer.chatError
   };
   const stateMessage = message || fallbackMessages[mode] || chatCopy.composer.idle;
@@ -526,7 +542,7 @@ function setChatComposerState(mode, message = '') {
   chatCard?.setAttribute('data-state', mode);
   setControlLabel(newBtn, chatCopy.conversation.next);
   const showNext = !isDirect && (isLive || mode === 'ended');
-  const showDirectEnd = isDirect && (isLive || mode === 'ending');
+  const showDirectEnd = isDirect && (isLive || mode === 'ending' || mode === 'paused');
   newBtn.classList.toggle('hidden', !showNext);
   endDirectChatBtn?.classList.toggle('hidden', !showDirectEnd);
   if (mode === 'searching' || mode === 'ending') {
@@ -538,7 +554,7 @@ function setChatComposerState(mode, message = '') {
   }
   newBtn.toggleAttribute('aria-busy', nextSearchPending);
   if (endDirectChatBtn) {
-    endDirectChatBtn.disabled = !isLive || directEndPending;
+    endDirectChatBtn.disabled = (!isLive && mode !== 'paused') || directEndPending;
     endDirectChatBtn.toggleAttribute('aria-busy', directEndPending);
   }
 }
@@ -1199,20 +1215,31 @@ function updateTopbarBadge(name, count) {
     : formatCopy(chatCopy.dynamic.open, { title: titles[name] }));
 }
 
+function updateFriendRequestBadges(count) {
+  const safeCount = currentUser ? Math.max(0, Number(count) || 0) : 0;
+  updateTopbarBadge('friends', safeCount);
+  if (!friendRequestsTabBadge) return;
+  friendRequestsTabBadge.textContent = safeCount > 99 ? '99+' : String(safeCount);
+  friendRequestsTabBadge.classList.toggle('hidden', safeCount === 0);
+  friendRequestsTabBadge.setAttribute('aria-hidden', String(safeCount === 0));
+}
+
 async function refreshTopbarBadges() {
   if (!currentUser) {
     try {
       const [conversations, notifications] = guestProfile
         ? await Promise.all([api('/api/conversations'), api('/api/notifications')])
         : [{ conversations: [], unreadCount: 0 }, { notifications: [], unreadCount: 0 }];
-      const unreadMessages = conversations.unreadCount == null
+      const unreadMessages = conversations.messageBadgeCount != null
+        ? Number(conversations.messageBadgeCount)
+        : conversations.unreadCount == null
         ? conversations.conversations?.reduce(
           (total, item) => total + (Number(item.unread_count) || 0),
           0
         ) || 0
         : Number(conversations.unreadCount);
       updateTopbarBadge('messages', unreadMessages);
-      updateTopbarBadge('friends', 0);
+      updateFriendRequestBadges(0);
       updateTopbarBadge(
         'notifications',
         notifications.unreadCount == null
@@ -1221,7 +1248,7 @@ async function refreshTopbarBadges() {
       );
     } catch (error) {
       updateTopbarBadge('messages', 0);
-      updateTopbarBadge('friends', 0);
+      updateFriendRequestBadges(0);
       updateTopbarBadge('notifications', 0);
     }
     return;
@@ -1232,12 +1259,13 @@ async function refreshTopbarBadges() {
       api('/api/friend-requests'),
       api('/api/notifications')
     ]);
-    const unreadMessages = conversations.unreadCount == null
+    const unreadMessages = conversations.messageBadgeCount != null
+      ? Number(conversations.messageBadgeCount)
+      : conversations.unreadCount == null
       ? conversations.conversations?.reduce((total, item) => total + (Number(item.unread_count) || 0), 0) || 0
       : Number(conversations.unreadCount);
     updateTopbarBadge('messages', unreadMessages);
-    updateTopbarBadge(
-      'friends',
+    updateFriendRequestBadges(
       friendRequests.pendingCount == null
         ? friendRequests.requests?.length || 0
         : Number(friendRequests.pendingCount)
@@ -1560,7 +1588,7 @@ socket.on('search-cancelled', () => {
   if (waitingTimeHint) waitingTimeHint.textContent = chatCopy.feedback.searchCancelled;
 });
 
-socket.on('matched', (data) => {
+socket.on('matched', async (data) => {
   if (data?.conversationType !== 'random' && data?.conversationType !== 'direct') {
     statusText.textContent = chatCopy.feedback.chatUnavailable;
     setChatComposerState('error', chatCopy.feedback.chatUnavailable);
@@ -1570,7 +1598,9 @@ socket.on('matched', (data) => {
   if (reportModal && !reportModal.classList.contains('hidden') && !reportPending) closeReportModal();
   showChatView();
   closeActiveDrawer({ restoreFocus: false });
-  const shared = data.sharedInterests.length
+  const shared = data.conversationType === 'direct'
+    ? chatCopy.feedback.directChatReady
+    : data.sharedInterests.length
     ? formatCopy(chatCopy.dynamic.sharedTopics, { topics: data.sharedInterests.join(', ') })
     : chatCopy.feedback.noSharedTopics;
   statusText.textContent = formatCopy(chatCopy.feedback.connected, { shared });
@@ -1594,7 +1624,20 @@ socket.on('matched', (data) => {
   setChatComposerState('live');
 
   messagesEl.innerHTML = '';
-  addMessage(shared, 'system');
+  if (data.restored && currentConversationId) {
+    try {
+      const history = await api(`/api/conversations/${currentConversationId}/messages`);
+      [...history.messages].reverse().forEach((message) => {
+        const mine = Boolean(message.sender_is_owner)
+          || Boolean(currentUser && message.sender_public_id === currentUser.publicId);
+        addMessage(message.body, mine ? 'me' : 'them', Number(message.id));
+      });
+    } catch (_error) {
+      addMessage(chatCopy.feedback.chatUnavailable, 'system');
+    }
+  } else {
+    addMessage(shared, 'system');
+  }
 
   if (data.skipCooldownSeconds) startSkipCooldown(data.skipCooldownSeconds * 1000);
 });
@@ -1624,6 +1667,37 @@ socket.on('partner-left', ({ conversationId } = {}) => {
   readOnlyConversation = true;
   setChatComposerState('ended');
   loadPanel('history');
+});
+
+socket.on('direct-chat-paused', () => {
+  if (currentConversationType !== 'direct' || readOnlyConversation) return;
+  statusText.textContent = chatCopy.feedback.directChatPaused;
+  setChatComposerState('paused', chatCopy.feedback.directChatPaused);
+});
+
+socket.on('direct-chat-resumable', async (data = {}) => {
+  if (data.conversationType !== 'direct' || !data.conversationId || !data.partner?.publicId) return;
+  currentConversationId = data.conversationId;
+  currentConversationType = 'direct';
+  currentPartner = data.partner;
+  readOnlyConversation = false;
+  currentConversationSaved = false;
+  showChatView();
+  partnerName.textContent = data.partner.displayName || uiCopy.common.unknownUser;
+  partnerAvatar.textContent = (data.partner.displayName || '?').charAt(0).toUpperCase();
+  messagesEl.innerHTML = '';
+  try {
+    const history = await api(`/api/conversations/${currentConversationId}/messages`);
+    [...history.messages].reverse().forEach((message) => {
+      const mine = Boolean(message.sender_is_owner)
+        || Boolean(currentUser && message.sender_public_id === currentUser.publicId);
+      addMessage(message.body, mine ? 'me' : 'them', Number(message.id));
+    });
+  } catch (_error) {
+    addMessage(chatCopy.feedback.chatUnavailable, 'system');
+  }
+  statusText.textContent = chatCopy.feedback.directChatPaused;
+  setChatComposerState('paused', chatCopy.feedback.directChatPaused);
 });
 
 socket.on('message-error', (data) => {
@@ -1730,8 +1804,13 @@ socket.on('connect_error', (error) => {
 socket.on('connect', () => {
   if (releaseDraining) return;
   if (chatComposerMode === 'error') {
-    showSetupView();
-    setChatComposerState('idle');
+    if (currentConversationType === 'direct' && currentConversationId && !readOnlyConversation) {
+      showChatView();
+      setChatComposerState('paused', chatCopy.composer.reconnecting);
+    } else {
+      showSetupView();
+      setChatComposerState('idle');
+    }
   }
 });
 socket.on('skip-cooldown', ({ retryAfterSeconds }) => {
@@ -1913,6 +1992,53 @@ function makeListItem(title, meta, onClick, badge) {
   return item;
 }
 
+function makeConversationListItem(item, context, meta = '') {
+  const row = document.createElement('div');
+  row.className = 'conversation-list-row';
+  const open = makeListItem(
+    item.partner_name,
+    meta || item.last_message || new Date(item.started_at).toLocaleString(),
+    () => openStoredConversation({ ...item, sourceContext: context }),
+    Number(item.unread_count) > 0
+      ? formatCopy(chatCopy.dynamic.unread, { count: Number(item.unread_count) > 99 ? '99+' : item.unread_count })
+      : ''
+  );
+  row.appendChild(open);
+  const capabilities = item.capabilities || {};
+  const actions = document.createElement('span');
+  actions.className = 'panel-inline-actions conversation-row-actions';
+  const reload = async () => {
+    if (context === 'messages') await loadMessagesPanel();
+    if (context === 'history') await loadHistoryPanel();
+    if (context === 'saved') await loadSavedPanel();
+    refreshTopbarBadges();
+  };
+  if (capabilities.canSave === true) {
+    actions.append(actionButton(chatCopy.feedback.saveConversation, async () => {
+      await api(`/api/conversations/${item.id}/saved`, { method: 'PUT', body: '{}' });
+      await reload();
+    }, 'bookmark'));
+  }
+  if (capabilities.canUnsave === true) {
+    actions.append(actionButton(chatCopy.feedback.unsaveConversation, async () => {
+      await api(`/api/conversations/${item.id}/saved`, { method: 'DELETE' });
+      await reload();
+    }, 'bookmark-x'));
+  }
+  if (capabilities.canDeleteForEveryone === true) {
+    actions.append(actionButton(chatCopy.feedback.deleteConversation, async () => {
+      if (!confirm(chatCopy.feedback.deleteConversationConfirm)) return;
+      await api(`/api/conversations/${item.id}`, {
+        method: 'DELETE',
+        body: JSON.stringify({ confirmation: 'DELETE FOR EVERYONE' })
+      });
+      await reload();
+    }, 'trash-2'));
+  }
+  if (actions.childElementCount) row.appendChild(actions);
+  return row;
+}
+
 async function loadPanel(name) {
   if (!currentUser && name === 'friends') {
     renderAccountRequired(name);
@@ -1933,20 +2059,20 @@ async function loadMessagesPanel() {
   const { list } = listElements('messages');
   list.innerHTML = '';
   const data = await api('/api/conversations');
-  const conversations = data.conversations.filter((item) => item.type === 'direct');
-  const unreadMessages = data.unreadCount == null
+  const active = data.directInbox?.active || data.conversations.filter((item) => item.type === 'direct' && item.status === 'active').slice(0, 5);
+  const recent = data.directInbox?.recent || data.conversations.filter((item) => item.type === 'direct' && item.status !== 'active').slice(0, Math.max(0, 5 - active.length));
+  const unreadMessages = data.messageBadgeCount != null
+    ? Number(data.messageBadgeCount)
+    : data.unreadCount == null
     ? data.conversations.reduce((total, item) => total + (Number(item.unread_count) || 0), 0)
     : Number(data.unreadCount);
   updateTopbarBadge('messages', unreadMessages);
-  conversations.forEach((item) => list.appendChild(makeListItem(
-    item.partner_name,
-    item.last_message || new Date(item.started_at).toLocaleString(),
-    () => openStoredConversation(item),
-    Number(item.unread_count) > 0
-      ? formatCopy(chatCopy.dynamic.unread, { count: Number(item.unread_count) > 99 ? '99+' : item.unread_count })
-      : ''
-  )));
-  showListState('messages', conversations.length > 0);
+  active.forEach((item) => list.appendChild(makeConversationListItem(item, 'messages')));
+  const recentList = document.getElementById('messagesDirectRecentList');
+  const recentSection = document.getElementById('directRecentSection');
+  recentList?.replaceChildren(...recent.map((item) => makeConversationListItem(item, 'messages')));
+  recentSection?.classList.toggle('hidden', recent.length === 0);
+  showListState('messages', active.length > 0);
 }
 
 function updateChatRequestBadge(count) {
@@ -1989,7 +2115,24 @@ async function sendDirectChatRequest(publicId) {
     });
   });
   await loadChatRequestsPanel();
+  if (friendsActionFeedback) friendsActionFeedback.textContent = chatCopy.feedback.chatRequestSent;
   return response;
+}
+
+function openFriendRequestsFromNotification(item) {
+  const navigate = async () => {
+    if (!item.read_at) {
+      await api(`/api/notifications/${item.id}/read`, { method: 'PATCH', body: '{}' });
+    }
+    closeActiveDrawer({ restoreFocus: false });
+    openDrawer('friends');
+    const requestTab = document.getElementById('friendsTabRequests');
+    requestAnimationFrame(() => {
+      requestTab?.click();
+      requestTab?.focus();
+    });
+  };
+  navigate().catch((error) => alert(error.message));
 }
 
 async function loadChatRequestsPanel() {
@@ -2047,13 +2190,10 @@ async function loadHistoryPanel() {
   const { list } = listElements('history');
   list.innerHTML = '';
   const data = await api('/api/conversations');
-  data.conversations.forEach((item) => list.appendChild(makeListItem(
-    item.partner_name,
-    `${item.last_message || new Date(item.started_at).toLocaleString()}${item.saved ? ` · ${chatCopy.dynamic.historySaved}` : ''}`,
-    () => openStoredConversation(item),
-    Number(item.unread_count) > 0
-      ? formatCopy(chatCopy.dynamic.unread, { count: Number(item.unread_count) > 99 ? '99+' : item.unread_count })
-      : ''
+  data.conversations.forEach((item) => list.appendChild(makeConversationListItem(
+    item,
+    'history',
+    `${item.last_message || new Date(item.started_at).toLocaleString()}${item.saved ? ` · ${chatCopy.dynamic.historySaved}` : ''}`
   )));
   showListState('history', data.conversations.length > 0);
 }
@@ -2083,6 +2223,70 @@ function closeFriendMenus(except = null) {
   });
 }
 
+function openFriendSafetyConfirmation({ title, description, confirmLabel, action, trigger }) {
+  if (!friendSafetyConfirmModal || typeof action !== 'function') return;
+  pendingFriendSafetyAction = action;
+  friendSafetyRestoreFocus = trigger instanceof HTMLElement ? trigger : document.activeElement;
+  friendSafetyConfirmTitle.textContent = title;
+  friendSafetyConfirmDescription.textContent = description;
+  friendSafetyConfirmSubmit.textContent = confirmLabel;
+  friendSafetyConfirmSubmit.disabled = false;
+  friendSafetyConfirmModal.inert = false;
+  friendSafetyConfirmModal.setAttribute('aria-hidden', 'false');
+  friendSafetyConfirmModal.classList.remove('hidden');
+  requestAnimationFrame(() => friendSafetyConfirmCancel?.focus());
+}
+
+function closeFriendSafetyConfirmation(restoreFocus = true) {
+  if (!friendSafetyConfirmModal) return;
+  friendSafetyConfirmModal.classList.add('hidden');
+  friendSafetyConfirmModal.setAttribute('aria-hidden', 'true');
+  friendSafetyConfirmModal.inert = true;
+  pendingFriendSafetyAction = null;
+  friendSafetyConfirmSubmit.disabled = false;
+  friendSafetyConfirmSubmit.removeAttribute('aria-busy');
+  if (restoreFocus && friendSafetyRestoreFocus?.isConnected) friendSafetyRestoreFocus.focus();
+  friendSafetyRestoreFocus = null;
+}
+
+async function confirmFriendSafetyAction() {
+  if (!pendingFriendSafetyAction) return;
+  const action = pendingFriendSafetyAction;
+  friendSafetyConfirmSubmit.disabled = true;
+  friendSafetyConfirmSubmit.setAttribute('aria-busy', 'true');
+  try {
+    await action();
+    closeFriendSafetyConfirmation(false);
+  } catch (error) {
+    friendSafetyConfirmSubmit.disabled = false;
+    friendSafetyConfirmSubmit.removeAttribute('aria-busy');
+    alert(error.message);
+  }
+}
+
+function handleFriendSafetyConfirmationKeydown(event) {
+  if (!friendSafetyConfirmModal || friendSafetyConfirmModal.classList.contains('hidden')) return;
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    closeFriendSafetyConfirmation();
+    return;
+  }
+  if (event.key !== 'Tab') return;
+  const focusables = [friendSafetyConfirmClose, friendSafetyConfirmCancel, friendSafetyConfirmSubmit]
+    .filter((element) => element && !element.disabled);
+  const first = focusables[0];
+  const last = focusables.at(-1);
+  if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault();
+    last.focus();
+  } else if (!event.shiftKey && document.activeElement === last) {
+    event.preventDefault();
+    first.focus();
+  }
+}
+
+document.addEventListener('keydown', handleFriendSafetyConfirmationKeydown);
+
 function friendMenuAction(label, icon, handler) {
   const button = document.createElement('button');
   button.type = 'button';
@@ -2092,7 +2296,7 @@ function friendMenuAction(label, icon, handler) {
   button.addEventListener('click', (event) => {
     event.stopPropagation();
     closeFriendMenus();
-    Promise.resolve(handler()).catch((error) => alert(error.message));
+    Promise.resolve(handler(button)).catch((error) => alert(error.message));
   });
   return button;
 }
@@ -2115,15 +2319,31 @@ function makeFriendListItem(friend) {
     ));
   }
   if (capabilities.canRemoveFriend === true) {
-    actions.push(friendMenuAction(uiCopy.common.removeFriend, 'user-minus', async () => {
-      await api(`/api/friends/${friend.public_id}`, { method: 'DELETE', body: '{}' });
-      await loadFriendsPanel();
+    actions.push(friendMenuAction(uiCopy.common.removeFriend, 'user-minus', (trigger) => {
+      openFriendSafetyConfirmation({
+        title: uiCopy.common.removeFriend,
+        description: formatCopy(chatCopy.feedback.confirmRemoveFriend, { name: friend.display_name }),
+        confirmLabel: uiCopy.common.removeFriend,
+        trigger,
+        action: async () => {
+          await api(`/api/friends/${friend.public_id}`, { method: 'DELETE', body: '{}' });
+          await loadFriendsPanel();
+        }
+      });
     }));
   }
   if (capabilities.canBlock === true) {
-    actions.push(friendMenuAction(uiCopy.common.block, 'shield-off', async () => {
-      await api(`/api/blocks/${friend.public_id}`, { method: 'PUT', body: '{}' });
-      await loadFriendsPanel();
+    actions.push(friendMenuAction(uiCopy.common.block, 'shield-off', (trigger) => {
+      openFriendSafetyConfirmation({
+        title: uiCopy.common.block,
+        description: formatCopy(chatCopy.feedback.confirmBlockFriend, { name: friend.display_name }),
+        confirmLabel: uiCopy.common.block,
+        trigger,
+        action: async () => {
+          await api(`/api/blocks/${friend.public_id}`, { method: 'PUT', body: '{}' });
+          await loadFriendsPanel();
+        }
+      });
     }));
   }
   if (!actions.length) return row;
@@ -2190,8 +2410,7 @@ async function loadFriendRequestsPanel() {
     api('/api/friend-requests'),
     api('/api/friend-requests?direction=outgoing')
   ]);
-  updateTopbarBadge(
-    'friends',
+  updateFriendRequestBadges(
     data.pendingCount == null ? data.requests.length : Number(data.pendingCount)
   );
   data.requests.forEach((request) => {
@@ -2267,13 +2486,26 @@ async function loadNotificationsPanel() {
 }
 
 function makeNotificationListItem(item) {
+  const isFriendshipNotification = ['friend_request', 'friend_accepted'].includes(item.type);
   const row = makeListItem(
     item.title,
     `${item.body || ''} ${new Date(item.created_at).toLocaleString()}`,
-    null,
+    isFriendshipNotification ? () => openFriendRequestsFromNotification(item) : null,
     item.read_at ? '' : uiCopy.common.new
   );
   row.classList.add('notification-list-item');
+  if (isFriendshipNotification) {
+    row.classList.add('notification-list-item--link');
+    row.setAttribute('role', 'button');
+    row.tabIndex = 0;
+    row.setAttribute('aria-label', `${item.title}. ${chatCopy.feedback.openFriendRequests}`);
+    row.addEventListener('keydown', (event) => {
+      if (!['Enter', ' '].includes(event.key)) return;
+      event.preventDefault();
+      openFriendRequestsFromNotification(item);
+    });
+    return row;
+  }
   const actions = document.createElement('span');
   actions.className = 'panel-inline-actions';
   if (item.type === 'guest_account_claim') {
@@ -2303,10 +2535,10 @@ async function loadSavedPanel() {
   const data = await api('/api/saved-chats');
   const limitLine = document.getElementById('savedLimitLine');
   limitLine.textContent = formatCopy(chatCopy.dynamic.savedUsage, { used: data.used, limit: data.limit });
-  data.chats.forEach((item) => list.appendChild(makeListItem(
-    item.partner_name,
-    formatCopy(chatCopy.dynamic.savedOn, { date: new Date(item.created_at).toLocaleString() }),
-    () => openStoredConversation({ id: item.conversation_id, partner_name: item.partner_name, saved: true })
+  data.chats.forEach((item) => list.appendChild(makeConversationListItem(
+    { ...item, id: item.conversation_id, saved: true },
+    'saved',
+    formatCopy(chatCopy.dynamic.savedOn, { date: new Date(item.created_at).toLocaleString() })
   )));
   showListState('saved', data.chats.length > 0);
 }
@@ -2323,7 +2555,9 @@ async function openStoredConversation(item) {
     saveConversationBtn.textContent = currentConversationSaved
       ? chatCopy.conversation.removeSaved
       : chatCopy.conversation.saveChat;
-    readOnlyConversation = true;
+    const resumableDirect = item.sourceContext === 'messages'
+      && item.type === 'direct' && item.status === 'active';
+    readOnlyConversation = !resumableDirect;
     showChatView();
     closeActiveDrawer({ restoreFocus: false });
     messagesEl.innerHTML = '';
@@ -2346,8 +2580,13 @@ async function openStoredConversation(item) {
       });
       refreshTopbarBadges();
     }
-    addMessage(chatCopy.feedback.historyReadOnly, 'system');
-    setChatComposerState('history');
+    if (resumableDirect) {
+      addMessage(chatCopy.feedback.directChatPaused, 'system');
+      setChatComposerState('paused', chatCopy.feedback.directChatPaused);
+    } else {
+      addMessage(chatCopy.feedback.historyReadOnly, 'system');
+      setChatComposerState('history');
+    }
     newBtn.disabled = false;
   } catch (error) {
     alert(error.message);
@@ -2385,7 +2624,7 @@ async function addCurrentPartnerFriend() {
       body: JSON.stringify({ publicId: currentPartner.publicId })
     });
     addFriendMenuBtn.classList.add('hidden');
-    addMessage(uiCopy.common.requestSent, 'system');
+    addMessage(chatCopy.feedback.friendRequestSent, 'system');
   } catch (error) {
     alert(error.message);
     addFriendMenuBtn.disabled = false;
@@ -2414,13 +2653,18 @@ async function blockCurrentPartner() {
   conversationMenu.classList.add('hidden');
   if (!currentUser) return openAccountSettings();
   if (!currentPartner?.publicId) return alert(chatCopy.feedback.guestBlockUnavailable);
-  try {
-    await api(`/api/blocks/${currentPartner.publicId}`, { method: 'PUT', body: '{}' });
-    blockPartnerBtn.textContent = chatCopy.conversation.blocked;
-    socket.emit('leave-chat');
-  } catch (error) {
-    alert(error.message);
-  }
+  openFriendSafetyConfirmation({
+    title: uiCopy.common.block,
+    description: formatCopy(chatCopy.feedback.confirmBlockFriend, {
+      name: currentPartner.displayName || uiCopy.common.unknownUser
+    }),
+    confirmLabel: uiCopy.common.block,
+    trigger: conversationMenuBtn,
+    action: async () => {
+      await api(`/api/blocks/${currentPartner.publicId}`, { method: 'PUT', body: '{}' });
+      blockPartnerBtn.textContent = chatCopy.conversation.blocked;
+    }
+  });
 }
 
 function openModal(modal) {
@@ -2876,15 +3120,28 @@ async function confirmDeleteAccount() {
 async function openPartnerProfile() {
   if (!currentPartner?.publicId || !currentUser) return;
   try {
-    const data = await api(`/api/users/${currentPartner.publicId}/profile`);
+    const historyQuery = readOnlyConversation && currentConversationId
+      ? `?context=history&conversationId=${encodeURIComponent(currentConversationId)}`
+      : '';
+    const data = await api(`/api/users/${currentPartner.publicId}/profile${historyQuery}`);
     currentProfile = data.user;
-    publicProfileAvatar.textContent = data.user.display_name.charAt(0).toUpperCase();
+    const avatarUrl = data.user.profile_image_url || '';
+    publicProfileAvatarInitial.textContent = data.user.display_name.charAt(0).toUpperCase();
+    publicProfileAvatarInitial.classList.toggle('hidden', Boolean(avatarUrl));
+    publicProfileAvatarImage.classList.toggle('hidden', !avatarUrl);
+    if (avatarUrl) publicProfileAvatarImage.src = avatarUrl;
+    else publicProfileAvatarImage.removeAttribute('src');
     document.getElementById('profileModalTitle').textContent = data.user.display_name;
-    publicProfileMeta.textContent = formatCopy(chatCopy.dynamic.publicProfileMeta, {
-      id: data.user.public_id,
-      country: data.user.country || chatCopy.feedback.countryHidden,
-      status: data.online ? uiCopy.common.online : uiCopy.common.offline
-    });
+    publicProfileMeta.textContent = data.presenceVisible === false
+      ? formatCopy(chatCopy.dynamic.publicProfileHistoryMeta, {
+        id: data.user.public_id,
+        country: data.user.country || chatCopy.feedback.countryHidden
+      })
+      : formatCopy(chatCopy.dynamic.publicProfileMeta, {
+        id: data.user.public_id,
+        country: data.user.country || chatCopy.feedback.countryHidden,
+        status: data.online ? uiCopy.common.online : uiCopy.common.offline
+      });
     friendActionBtn.textContent = data.user.is_friend ? uiCopy.common.removeFriend : uiCopy.common.addFriend;
     profileBlockBtn.textContent = data.user.is_blocked ? uiCopy.common.unblock : uiCopy.common.block;
     openModal(profileModal);
@@ -2895,19 +3152,28 @@ async function openPartnerProfile() {
 
 async function toggleFriendship() {
   if (!currentProfile) return;
+  if (currentProfile.is_friend) {
+    openFriendSafetyConfirmation({
+      title: uiCopy.common.removeFriend,
+      description: formatCopy(chatCopy.feedback.confirmRemoveFriend, { name: currentProfile.display_name }),
+      confirmLabel: uiCopy.common.removeFriend,
+      trigger: friendActionBtn,
+      action: async () => {
+        await api(`/api/friends/${currentProfile.public_id}`, { method: 'DELETE' });
+        currentProfile.is_friend = false;
+        friendActionBtn.textContent = uiCopy.common.addFriend;
+        await loadPanel('friends');
+      }
+    });
+    return;
+  }
   try {
-    if (currentProfile.is_friend) {
-      await api(`/api/friends/${currentProfile.public_id}`, { method: 'DELETE' });
-      currentProfile.is_friend = false;
-      friendActionBtn.textContent = uiCopy.common.addFriend;
-    } else {
-      await api('/api/friend-requests', {
-        method: 'POST',
-        body: JSON.stringify({ publicId: currentProfile.public_id })
-      });
-      friendActionBtn.textContent = uiCopy.common.requestSent;
-      friendActionBtn.disabled = true;
-    }
+    await api('/api/friend-requests', {
+      method: 'POST',
+      body: JSON.stringify({ publicId: currentProfile.public_id })
+    });
+    friendActionBtn.textContent = chatCopy.feedback.friendRequestSent;
+    friendActionBtn.disabled = true;
     loadPanel('friends');
   } catch (error) {
     alert(error.message);
@@ -2916,16 +3182,24 @@ async function toggleFriendship() {
 
 async function toggleProfileBlock() {
   if (!currentProfile) return;
+  if (!currentProfile.is_blocked) {
+    openFriendSafetyConfirmation({
+      title: uiCopy.common.block,
+      description: formatCopy(chatCopy.feedback.confirmBlockFriend, { name: currentProfile.display_name }),
+      confirmLabel: uiCopy.common.block,
+      trigger: profileBlockBtn,
+      action: async () => {
+        await api(`/api/blocks/${currentProfile.public_id}`, { method: 'PUT', body: '{}' });
+        currentProfile.is_blocked = true;
+        profileBlockBtn.textContent = uiCopy.common.unblock;
+      }
+    });
+    return;
+  }
   try {
-    if (currentProfile.is_blocked) {
-      await api(`/api/blocks/${currentProfile.public_id}`, { method: 'DELETE' });
-      currentProfile.is_blocked = false;
-      profileBlockBtn.textContent = uiCopy.common.block;
-    } else {
-      await api(`/api/blocks/${currentProfile.public_id}`, { method: 'PUT', body: '{}' });
-      currentProfile.is_blocked = true;
-      profileBlockBtn.textContent = uiCopy.common.unblock;
-    }
+    await api(`/api/blocks/${currentProfile.public_id}`, { method: 'DELETE' });
+    currentProfile.is_blocked = false;
+    profileBlockBtn.textContent = uiCopy.common.block;
   } catch (error) {
     alert(error.message);
   }

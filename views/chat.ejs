@@ -113,7 +113,7 @@
 
             <div class="drawer-content-group">
               <div class="drawer-section-label">
-                <h3><%= copy.chat.drawers.messages.conversations %></h3>
+                <h3><%= copy.chat.drawers.messages.activeConversations %></h3>
               </div>
               <div class="panel-data-list" id="messagesPanelList"></div>
               <div class="empty-inbox" id="messagesPanelEmpty">
@@ -169,10 +169,14 @@
         <div class="activity-feed">
           <div class="activity-segment drawer-tablist" role="tablist" aria-label="<%= copy.chat.drawers.friends.tabsAria %>">
             <button type="button" class="active" id="friendsTabFriends" role="tab" aria-selected="true" aria-controls="friendsListPanel" tabindex="0"><%= copy.chat.drawers.friends.friendsTab %></button>
-            <button type="button" id="friendsTabRequests" role="tab" aria-selected="false" aria-controls="friendRequestsListPanel" tabindex="-1"><%= copy.chat.drawers.friends.requestsTab %></button>
+            <button type="button" id="friendsTabRequests" role="tab" aria-selected="false" aria-controls="friendRequestsListPanel" tabindex="-1">
+              <span><%= copy.chat.drawers.friends.requestsTab %></span>
+              <span class="inline-count tab-count hidden" id="friendRequestsTabBadge" aria-hidden="true">0</span>
+            </button>
           </div>
 
           <section class="activity-section drawer-tab-panel" id="friendsListPanel" role="tabpanel" aria-labelledby="friendsTabFriends" tabindex="0">
+            <p class="drawer-action-feedback" id="friendsActionFeedback" role="status" aria-live="polite"></p>
             <div class="panel-data-list" id="friendsPanelList"></div>
             <div class="empty-inbox" id="friendsPanelEmpty">
               <div class="empty-icon"><i data-lucide="users" aria-hidden="true"></i></div>
@@ -400,12 +404,25 @@
                 <button type="button" class="danger" id="deleteConversationBtn"><%= copy.chat.conversation.deleteForEveryone %></button>
               </div>
             </div>
+
+            <div class="drawer-content-group hidden" id="directRecentSection">
+              <div class="drawer-section-label">
+                <h3><%= copy.chat.drawers.messages.endedConversations %></h3>
+              </div>
+              <div class="panel-data-list" id="messagesDirectRecentList"></div>
+            </div>
           </header>
 
           <div class="messages" id="messages" tabindex="0" aria-label="<%= copy.chat.conversation.messagesAria %>"></div>
 
           <div class="chat-composer-shell hidden" id="chatComposer">
             <div class="chat-input-bar">
+              <div class="conversation-end-group">
+                <button class="end-chat-btn hidden" id="endDirectChatBtn" type="button">
+                  <i data-lucide="phone-off" aria-hidden="true"></i>
+                  <span><%= copy.chat.conversation.end %></span>
+                </button>
+              </div>
               <div class="message-send-group" id="messageSendGroup">
                 <input id="messageInput" type="text" maxlength="1000" autocomplete="off" placeholder="<%= copy.chat.composer.idle %>" disabled>
                 <button class="send-btn" id="sendBtn" type="button" aria-label="<%= copy.chat.conversation.send %>" disabled>
@@ -416,10 +433,6 @@
                 <button class="skip-btn" id="newBtn" type="button">
                   <span><%= copy.chat.conversation.next %></span>
                   <i data-lucide="skip-forward" aria-hidden="true"></i>
-                </button>
-                <button class="end-chat-btn hidden" id="endDirectChatBtn" type="button">
-                  <span><%= copy.chat.conversation.end %></span>
-                  <i data-lucide="phone-off" aria-hidden="true"></i>
                 </button>
               </div>
             </div>
@@ -748,12 +761,28 @@
     <div class="app-modal hidden" id="profileModal" role="dialog" aria-modal="true" aria-labelledby="profileModalTitle">
       <div class="app-modal-card public-profile-card">
         <button class="modal-close" type="button" data-close-modal aria-label="<%= copy.common.close %>"><i data-lucide="x" aria-hidden="true"></i></button>
-        <div class="public-profile-avatar" id="publicProfileAvatar">N</div>
+        <div class="public-profile-avatar" id="publicProfileAvatar">
+          <img class="hidden" id="publicProfileAvatarImage" alt="">
+          <span id="publicProfileAvatarInitial">N</span>
+        </div>
         <h2 id="profileModalTitle"><%= copy.common.profile %></h2>
         <p id="publicProfileMeta"></p>
         <div class="profile-modal-actions">
           <button class="btn btn-primary" id="friendActionBtn" type="button"><%= copy.common.addFriend %></button>
           <button class="btn btn-outline" id="profileBlockBtn" type="button"><%= copy.common.block %></button>
+        </div>
+      </div>
+    </div>
+
+    <div class="app-modal hidden" id="friendSafetyConfirmModal" role="dialog" aria-modal="true" aria-hidden="true" aria-labelledby="friendSafetyConfirmTitle" aria-describedby="friendSafetyConfirmDescription" inert>
+      <div class="app-modal-card friend-safety-confirm-card">
+        <button class="modal-close" id="friendSafetyConfirmClose" type="button" aria-label="<%= copy.common.close %>"><i data-lucide="x" aria-hidden="true"></i></button>
+        <span class="friend-safety-confirm-icon" aria-hidden="true"><i data-lucide="triangle-alert"></i></span>
+        <h2 id="friendSafetyConfirmTitle"><%= copy.chat.feedback.confirmFriendActionTitle %></h2>
+        <p id="friendSafetyConfirmDescription"><%= copy.chat.feedback.confirmFriendActionBody %></p>
+        <div class="friend-safety-confirm-actions">
+          <button class="btn btn-outline" id="friendSafetyConfirmCancel" type="button"><%= copy.chat.feedback.keepFriend %></button>
+          <button class="btn btn-danger" id="friendSafetyConfirmSubmit" type="button"><%= copy.common.continue %></button>
         </div>
       </div>
     </div>

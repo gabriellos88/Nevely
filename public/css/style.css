@@ -1287,10 +1287,19 @@ a:hover { text-decoration: underline; }
 .chat-app-page .public-profile-avatar {
   width: var(--spacing-18);
   height: var(--spacing-18);
+  overflow: hidden;
   border: var(--spacing-px) solid var(--color-border-medium);
   background: var(--color-brand-soft);
   color: var(--color-fg-brand-strong);
   font-family: var(--font-family);
+}
+
+.chat-app-page .public-profile-avatar img {
+  width: 100%;
+  height: 100%;
+  display: block;
+  object-fit: cover;
+  object-position: center;
 }
 
 .chat-app-page .public-profile-meta {
@@ -9788,7 +9797,12 @@ body.guest-passport-open .chat-layout {
 }
 
 .chat-app-page .activity-segment button {
+  position: relative;
   min-height: calc(var(--spacing-8) + var(--spacing-1));
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-2);
   padding: var(--spacing-2) var(--spacing-3);
   border: 0;
   border-radius: var(--radius-full);
@@ -10643,6 +10657,87 @@ body.guest-passport-open .chat-layout {
   }
 }
 
+.chat-app-page .conversation-list-row {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: var(--spacing-2);
+}
+
+.chat-app-page .conversation-list-row > .panel-data-item {
+  min-width: 0;
+}
+
+.chat-app-page .conversation-row-actions {
+  flex-wrap: nowrap;
+}
+
+.chat-app-page .activity-segment .tab-count {
+  position: static;
+  flex: none;
+  min-width: var(--spacing-5);
+  height: var(--spacing-5);
+}
+
+.chat-app-page .drawer-action-feedback {
+  min-height: var(--spacing-5);
+  margin: var(--spacing-0);
+  color: var(--color-fg-success);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-component);
+}
+
+.chat-app-page .drawer-action-feedback:empty {
+  display: none;
+}
+
+.chat-app-page .notification-list-item--link {
+  cursor: pointer;
+}
+
+.chat-app-page .notification-list-item--link:hover {
+  border-color: var(--color-border-medium);
+  background: var(--color-neutral-tertiary);
+}
+
+.chat-app-page .friend-safety-confirm-card {
+  width: min(100%, var(--layout-modal-default));
+  display: grid;
+  gap: var(--spacing-4);
+  padding: var(--spacing-6);
+  border: var(--spacing-px) solid var(--color-border-medium);
+  border-radius: var(--radius-xxl);
+  background: var(--color-neutral-primary-soft);
+  box-shadow: var(--elevation-overlay);
+}
+
+.chat-app-page .friend-safety-confirm-card h2,
+.chat-app-page .friend-safety-confirm-card p {
+  margin: var(--spacing-0);
+}
+
+.chat-app-page .friend-safety-confirm-icon {
+  width: var(--spacing-11);
+  height: var(--spacing-11);
+  display: grid;
+  place-items: center;
+  border-radius: var(--radius-full);
+  background: var(--color-danger-soft);
+  color: var(--color-fg-danger);
+}
+
+.chat-app-page .friend-safety-confirm-actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: var(--spacing-3);
+}
+
+.chat-app-page .friend-safety-confirm-actions .btn {
+  min-height: var(--spacing-11);
+}
+
 .chat-app-page .activity-drawer .panel-load-state {
   min-height: calc(var(--spacing-16) * 2);
   display: grid;
@@ -10778,6 +10873,17 @@ body.guest-passport-open .chat-layout {
 .chat-app-page .live-chat-card .chat-input-bar {
   grid-template-columns: auto minmax(16rem, 1fr) auto;
   gap: var(--spacing-3);
+}
+
+.chat-app-page .conversation-end-group {
+  display: flex;
+  align-items: center;
+  padding-inline-end: var(--spacing-3);
+  border-inline-end: var(--spacing-px) solid var(--color-border-default);
+}
+
+.chat-app-page .conversation-end-group:has(.end-chat-btn.hidden) {
+  display: none;
 }
 
 .chat-app-page .message-send-group {

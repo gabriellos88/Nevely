@@ -58,7 +58,7 @@
     "unblock": "Unblock",
     "addFriend": "Add friend",
     "removeFriend": "Remove friend",
-    "requestSent": "Sent",
+    "requestSent": "Friend request sent",
     "unknownUser": "Unknown user"
   },
   "nav": {
@@ -113,7 +113,7 @@
       },
       {
         "question": "How many chats can I save?",
-        "answer": "Free accounts can keep 2 saved chats. Premium accounts can keep up to 10. Saved chats are deleted 12 months after their last activity."
+        "answer": "Free accounts can keep 5 saved chats. Premium accounts can keep up to 10. Saved chats are deleted 12 months after their last activity."
       },
       {
         "question": "What do advanced filters do?",
@@ -421,6 +421,8 @@
         "chatRequests": "Chat requests",
         "noRequests": "No chat requests right now.",
         "conversations": "Conversations",
+        "activeConversations": "Active conversations",
+        "endedConversations": "Recent direct chats",
         "noConversations": "No chats yet. Start a match or message a friend.",
         "recentTitle": "Recent chats",
         "recentBody": "Pick up a recent conversation.",
@@ -587,7 +589,8 @@
       "historySaved": "Saved",
       "savedUsage": "{used} of {limit} saved chats",
       "savedOn": "Saved on {date}",
-      "publicProfileMeta": "{id} · {country} · {status}"
+      "publicProfileMeta": "{id} · {country} · {status}",
+      "publicProfileHistoryMeta": "{id} · {country}"
     },
     "feedback": {
       "topicLimit": "You can add up to five topics.",
@@ -612,6 +615,8 @@
       "tryLonger": "Try a little longer or start another search.",
       "connected": "You’re connected. {shared}",
       "noSharedTopics": "No shared topics yet — say hello!",
+      "directChatReady": "Your direct conversation is ready.",
+      "directChatPaused": "Your friend is reconnecting. This conversation will stay open.",
       "partnerLeft": "They left the chat.",
       "endedByYou": "You ended the chat.",
       "chatEnded": "Conversation ended",
@@ -633,6 +638,13 @@
       "retry": "Try again",
       "friendActions": "Actions for {name}",
       "startDirectChat": "Start chat",
+      "chatRequestSent": "Chat request sent",
+      "friendRequestSent": "Friend request sent",
+      "confirmFriendActionTitle": "Confirm this action",
+      "confirmRemoveFriend": "Remove {name} from your friends? You can send a new friend request later.",
+      "confirmBlockFriend": "Block {name}? This also ends any active direct conversation and prevents new requests.",
+      "confirmFriendActionBody": "Review the action before continuing.",
+      "keepFriend": "Cancel",
       "sentFriendRequest": "Sent you a friend request",
       "sentFriendRequestPending": "Friend request pending",
       "acceptFriendRequest": "Accept friend request",
@@ -643,6 +655,7 @@
       "markNotificationRead": "Mark as read",
       "dismissNotification": "Dismiss notification",
       "openNotification": "Open notification",
+      "openFriendRequests": "Open Friend requests",
       "guestNotificationTitle": "Keep your Nevely moments",
       "guestNotificationBody": "Save chats, unread messages, friends, and your profile.",
       "historyReadOnly": "This is a saved view, so replies are turned off.",
@@ -653,7 +666,10 @@
       "emptyBlockList": "Your block list is empty.",
       "profileSaved": "Changes saved.",
       "deleteAccountPrompt": "Type DELETE to permanently delete your account.",
-      "countryHidden": "Country hidden"
+      "countryHidden": "Country hidden",
+      "saveConversation": "Save chat",
+      "unsaveConversation": "Unsave chat",
+      "deleteConversation": "Delete chat for everyone"
     }
   },
   "account": {
@@ -827,6 +843,8 @@
     "friendRequestBody": "{name} sent you a friend request.",
     "friendAcceptedTitle": "Friend request accepted",
     "friendAcceptedBody": "{name} accepted your friend request.",
+    "chatRequestTitle": "New chat request",
+    "chatRequestBody": "{name} sent you a chat request.",
     "suspensionTitle": "Account suspended",
     "suspensionPermanent": "Your account has been suspended.",
     "suspensionTemporary": "Your account has been suspended for {hours} hours.",

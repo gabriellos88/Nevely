@@ -172,11 +172,15 @@ test('direct friend chat replaces Next with an accessible destructive End action
   const endBox = await end.boundingBox();
   expect(endBox.width).toBeGreaterThanOrEqual(44);
   expect(endBox.height).toBeGreaterThanOrEqual(44);
-  await page.locator('#messageInput').focus();
+  const input = page.locator('#messageInput');
+  const inputBox = await input.boundingBox();
+  expect(endBox.x + endBox.width).toBeLessThan(inputBox.x);
+  await end.focus();
+  await page.keyboard.press('Tab');
+  await expect(input).toBeFocused();
   await page.keyboard.press('Tab');
   await expect(page.locator('#sendBtn')).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(end).toBeFocused();
+  await end.focus();
   const styles = await end.evaluate((element) => {
     const computed = getComputedStyle(element);
     return { boxShadow: computed.boxShadow, background: computed.backgroundColor };
