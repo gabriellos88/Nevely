@@ -189,6 +189,8 @@ test('Socket.IO blocks normalized duplicates, link flood and repeated-character 
 
   await sendAccepted(first, second, '  ＨＥＬＬＯ   WORLD  ');
   await sendAccepted(first, second, 'hello world');
+  await sendAccepted(first, second, 'hello\u200b world');
+  await sendAccepted(first, second, ' HELLO WORLD ');
   const duplicateError = eventFrom(first, 'message-error');
   first.emit('send-message', 'hello\u200b  world');
   const duplicatePayload = await duplicateError;
@@ -213,7 +215,7 @@ test('Socket.IO blocks normalized duplicates, link flood and repeated-character 
   }
 
   const stored = await db.query('SELECT COUNT(*)::integer AS count FROM messages WHERE conversation_id = $1', [match.conversationId]);
-  assert.equal(stored.rows[0].count, 8);
+  assert.equal(stored.rows[0].count, 10);
   const signals = await db.query("SELECT principal_id FROM moderation_rate_windows WHERE principal_type = 'signal'");
   assert.ok(signals.rowCount > 0);
   assert.equal(signals.rows.every((row) => /^[0-9a-f]{64}$/.test(row.principal_id)), true);

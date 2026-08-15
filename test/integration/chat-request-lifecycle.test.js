@@ -142,6 +142,20 @@ test('chat requests are durable, expiring, idempotent and rate-limited across re
     [Math.min(aliceId, bobId), Math.max(aliceId, bobId)]
   );
   assert.equal(onePending.rows[0].count, 1);
+  const persistentNotification = await db.query(
+    `SELECT type, data FROM notifications
+     WHERE user_id = $1 AND type = 'chat_request'`,
+    [bobId]
+  );
+  assert.equal(persistentNotification.rowCount, 1);
+  assert.equal(persistentNotification.rows[0].data.requestPublicId, created.requestId);
+  assert.deepEqual(Object.keys(persistentNotification.rows[0].data), ['requestPublicId']);
+  const messageBadge = await request(secondUrl)
+    .get('/api/conversations')
+    .set('Cookie', bob.cookie)
+    .expect(200);
+  assert.equal(messageBadge.body.pendingChatRequestCount, 1);
+  assert.equal(messageBadge.body.messageBadgeCount, 1);
 
   const incoming = await request(secondUrl)
     .get('/api/chat-requests')

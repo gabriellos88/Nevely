@@ -230,9 +230,13 @@ test('direct friend chat reserves one conversation across replicas and never con
   });
   assert.equal(secondAccept.started, true);
   await Promise.all([secondAliceMatch, secondBobMatch]);
-  const leftAfterLegacyEnd = eventFrom(bobFirst, 'partner-left');
-  assert.deepEqual(await emitWithAck(aliceFirst, 'leave-chat'), { ok: true, ended: true });
-  await leftAfterLegacyEnd;
+  assert.deepEqual(await emitWithAck(aliceFirst, 'leave-chat'), {
+    ok: false,
+    error: require('../../public/i18n/en.json').errors.directChatEnd
+  });
+  const leftAfterExplicitEnd = eventFrom(bobFirst, 'partner-left');
+  assert.deepEqual(await emitWithAck(aliceFirst, 'end-direct-chat'), { ok: true, ended: true });
+  await leftAfterExplicitEnd;
   assert.equal(Number((await db.query(
     `SELECT COUNT(*)::int AS count FROM moderation_rate_windows
      WHERE principal_type = 'user' AND principal_id = $1 AND action = 'skip'`,
@@ -271,4 +275,109 @@ test('direct friend chat reserves one conversation across replicas and never con
     [aliceId]
   );
   assert.equal(activeAfterReconnect.rows[0].count, 0);
+});
+
+test('direct friend chat survives disconnect, restores once and ends on friendship removal', {
+  skip: hasDatabase ? false : 'DATABASE_URL is unavailable outside the disposable CI database'
+}, async (t) => {
+  const db = require('../../db');
+  await resetDatabase(db);
+  const runtime = createRuntime({
+    db,
+    closeDatabaseOnShutdown: false,
+    env: {
+      ...process.env,
+      NODE_ENV: 'test',
+      SESSION_SECRET: 'direct-chat-reconnect-session-secret',
+      SHUTDOWN_GRACE_MS: '1000'
+    },
+    log: quietLog
+  });
+  const address = await runtime.start({ port: 0, host: '127.0.0.1' });
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  const alice = await registerVerified(baseUrl, db, 'direct_restore_alice');
+  const bob = await registerVerified(baseUrl, db, 'direct_restore_bob');
+  const identities = await db.query(
+    'SELECT id, public_id FROM users WHERE public_id = ANY($1::text[])',
+    [[alice.publicId, bob.publicId]]
+  );
+  const aliceId = Number(identities.rows.find((row) => row.public_id === alice.publicId).id);
+  const bobId = Number(identities.rows.find((row) => row.public_id === bob.publicId).id);
+  await db.query(
+    'INSERT INTO friendships (user_id, friend_id) VALUES ($1, $2), ($2, $1)',
+    [aliceId, bobId]
+  );
+  const aliceSocket = await connectAccount(baseUrl, alice.cookie);
+  const bobSocket = await connectAccount(baseUrl, bob.cookie);
+  const sockets = [aliceSocket, bobSocket];
+  t.after(async () => {
+    sockets.forEach((socket) => socket.disconnect());
+    await runtime.shutdown();
+  });
+
+  const created = await emitWithAck(aliceSocket, 'direct-chat-request', { publicId: bob.publicId });
+  const aliceMatch = eventFrom(aliceSocket, 'matched');
+  const bobMatch = eventFrom(bobSocket, 'matched');
+  assert.equal((await emitWithAck(bobSocket, 'direct-chat-response', {
+    requestId: created.requestId,
+    action: 'accept'
+  })).started, true);
+  const initial = await aliceMatch;
+  await bobMatch;
+
+  const paused = eventFrom(bobSocket, 'direct-chat-paused');
+  aliceSocket.disconnect();
+  assert.deepEqual(await paused, {});
+  const persisted = await db.query(
+    `SELECT c.status, COUNT(pair.conversation_id)::int AS reservations
+     FROM conversations c
+     LEFT JOIN direct_conversation_pairs pair ON pair.conversation_id = c.id
+     WHERE c.id = $1 GROUP BY c.status`,
+    [initial.conversationId]
+  );
+  assert.deepEqual(persisted.rows[0], { status: 'active', reservations: 1 });
+
+  const restoredAlice = createClient(baseUrl, {
+    autoConnect: false,
+    forceNew: true,
+    reconnection: false,
+    transports: ['websocket'],
+    extraHeaders: { Cookie: alice.cookie }
+  });
+  sockets.push(restoredAlice);
+  const connected = eventFrom(restoredAlice, 'connect');
+  const restoredForAlice = eventFrom(restoredAlice, 'matched');
+  const restoredForBob = eventFrom(bobSocket, 'matched');
+  restoredAlice.connect();
+  await connected;
+  const [aliceRestored, bobRestored] = await Promise.all([restoredForAlice, restoredForBob]);
+  assert.equal(aliceRestored.restored, true);
+  assert.equal(bobRestored.restored, true);
+  assert.equal(aliceRestored.conversationId, initial.conversationId);
+
+  const duplicateTab = await connectAccount(baseUrl, alice.cookie);
+  sockets.push(duplicateTab);
+  const duplicateRequest = await emitWithAck(duplicateTab, 'direct-chat-request', { publicId: bob.publicId });
+  assert.equal(duplicateRequest.ok, false);
+  assert.equal(duplicateRequest.error, require('../../public/i18n/en.json').errors.requestSend);
+  assert.equal(Number((await db.query(
+    `SELECT COUNT(*)::int AS count FROM conversations
+     WHERE type = 'direct' AND status = 'active'`
+  )).rows[0].count), 1);
+
+  const endedForAlice = eventFrom(restoredAlice, 'partner-left');
+  const endedForBob = eventFrom(bobSocket, 'partner-left');
+  await request(baseUrl)
+    .delete(`/api/friends/${bob.publicId}`)
+    .set('Cookie', alice.cookie)
+    .send({})
+    .expect(204);
+  await Promise.all([endedForAlice, endedForBob]);
+  const ended = await db.query(
+    `SELECT c.status,
+            EXISTS (SELECT 1 FROM direct_conversation_pairs pair WHERE pair.conversation_id = c.id) AS reserved
+     FROM conversations c WHERE c.id = $1`,
+    [initial.conversationId]
+  );
+  assert.deepEqual(ended.rows[0], { status: 'ended', reserved: false });
 });

@@ -45,12 +45,18 @@ Implemented in N1:
 - `POST /api/account/avatar`: reserved endpoint; returns `501` until object storage is configured.
 - `GET /api/users/:id/profile`: public profile plus friendship/block state;
   `:id` is the opaque `nvy_` + 12 lowercase hexadecimal public identifier.
+  `context=history&conversationId=...` is accepted only after participant
+  authorization and returns `presenceVisible: false` without an online field.
 - `GET /api/blocks`, `PUT /api/blocks/:id`, `DELETE /api/blocks/:id`: block-list management. The list uses the shared `cursor` contract.
 
 ### Conversations
 
 - `GET /api/conversations`: active and retained conversation history for the
   account or guest principal in the current session, paginated with `cursor`.
+  Each row includes server-derived `canSave`, `canUnsave` and
+  `canDeleteForEveryone` capabilities. Registered responses also include a
+  `directInbox` capped at five total rows, grouped as `active` and `recent`,
+  plus `pendingChatRequestCount` and the combined `messageBadgeCount`.
 - `GET /api/conversations/:id/messages`: read a retained or saved conversation, newest page first with `beforeMessageId` for older messages.
 - `DELETE /api/conversations/:id`: delete a conversation for both participants. Body confirmation: `DELETE FOR EVERYONE`.
 - `GET /api/saved-chats`: saved chats and the current account/guest limit.
@@ -59,8 +65,8 @@ Implemented in N1:
 Unsaved conversations are deleted 7 days after last activity, or oldest first
 when an account or guest exceeds the configured limit (50 by default) of
 unsaved conversations with messages. Saved conversations are deleted 12 months
-after last activity. Saved-chat limits are 2 for guests and free accounts, and
-10 for premium accounts. Reports retain a separate immutable 50-message
+after last activity. Saved-chat limits are 2 for guests, 5 for standard
+registered accounts and 10 for premium accounts. Reports retain a separate immutable 50-message
 evidence window for 24 months.
 
 ### Friends and inbox
@@ -72,7 +78,8 @@ evidence window for 24 months.
 - `DELETE /api/friends/:id`: remove both directed friendship rows atomically,
   cancel pending friend/chat requests for the pair and remain idempotent on
   retries. `PUT /api/blocks/:id` uses the same ordered account locks, removes
-  the friendship and cancels pending requests in the same transaction.
+  the friendship and cancels pending requests in the same transaction. Both
+  operations also end and release an active direct conversation for the pair.
 - `GET /api/friend-requests`: list incoming requests. Use
   `?direction=outgoing` for requests created by the current account. Request
   IDs and keyset cursors contain only opaque `frq_...` public identifiers.
@@ -202,6 +209,8 @@ start safely; no presence detail is returned.
   enters random matchmaking or consumes the progressive skip counter. Repeated
   calls after the pair ended return `{ ok: true, ended: false }`. A random
   conversation cannot use this event to bypass Next/skip enforcement.
+  It also resolves the authenticated account's persisted direct reservation
+  when the partner is offline; the browser never supplies the conversation type.
 - `report`: reports the active partner with optional `reason` and `details`.
 - `direct-chat-request`: requests a direct chat with a friend using only the
   friend’s public account ID. Its acknowledgement is `{ ok, requestId, status }`
@@ -231,8 +240,13 @@ start safely; no presence detail is returned.
 - `partner-left`, `skip-cooldown`: conversation lifecycle. `partner-left` retains
   the conversation id so an authorized participant can save the ended conversation.
   Guest conversations have no duration timeout.
-  `find-partner` is rejected while the server has a direct pair, and the legacy
-  `leave-chat` path ends a direct pair without touching random skip state.
+  `find-partner` is rejected while the server has a direct pair. The legacy
+  `leave-chat` path cannot end a direct pair; clients must use the explicit
+  `end-direct-chat` event.
+- `direct-chat-paused`: the direct partner disconnected. It exposes no presence
+  precision or timeout; the PostgreSQL conversation remains active and can be
+  restored after reconnect. A unique ordered-pair reservation prevents a
+  second active direct conversation, including concurrent and multi-tab accepts.
 - `message-error`: message delivery or temporary abuse/rate protection rejection. Its
   optional `retryAfterSeconds` is generic; it never identifies a duplicate, link,
   repeated-character, burst, or other server-side signal. The chat client temporarily
@@ -245,10 +259,12 @@ start safely; no presence detail is returned.
   copied into application logs or audit metadata.
 - `direct-chat-requested`, `direct-chat-request-sent`,
   `direct-chat-request-updated`, `direct-chat-error`: minimized direct-chat
-  request invalidations. The browser refetches persisted incoming and outgoing
+request invalidations. The browser refetches persisted incoming and outgoing
   state; payloads do not include blocks, presence, internal IDs or limiter
   signals.
-- `notification-created`: tells the client to refresh notifications.
+- `notification-created`: tells the client to refresh notifications. A newly
+  created direct chat request also creates a persistent minimized
+  `chat_request` notification after the same transaction commits.
 - `account-banned`: closes the account session after moderation action.
 - `guest-restricted`: closes a restricted guest principal session.
 - `network-restricted`: closes only sockets matching an activated HMAC network
@@ -259,6 +275,9 @@ start safely; no presence detail is returned.
 
 The server enforces text length and principal-scoped PostgreSQL message limits. Burst
 limits are separate from N5.2 duplicate, link-flood and repeated-character windows.
+The ordinary duplicate window allows four normalized copies in 30 seconds;
+sustained repetition then receives a generic 8/30/120-second escalation while
+the independent burst policy remains 12 messages per 10 seconds.
 The latter use daily-rotated HMAC bucket keys derived from a shared deployment secret;
 no message body, raw IP, device fingerprint, or derived bucket key is emitted to the
 client, logs, or audit stream. Configure `MODERATION_MESSAGE_HMAC_KEY` (or the shared
@@ -274,7 +293,12 @@ tombstones are marked already purged with no invented future retention;
 non-anonymized historical deletions receive `deleted_at + INTERVAL '30 days'`.
 Migration 022 adds opaque chat-request IDs and persisted expiry. Migration 023
 adds the nullable, unique request-to-direct-conversation reservation used by
-new accepts; both migrations remain readable by the previous server version.
+new accepts. Migration 024 adds the unique ordered account-pair reservation;
+it fails closed if legacy active direct data is malformed or duplicated and
+does not terminate or rewrite those conversations. These additive migrations
+remain readable by the previous server version. After an application rollback,
+the next N5 request safely removes a stale reservation whose conversation was
+already ended by that older version.
 The rollout/rollback contract is documented in
 [`docs/admin/account-deletion-lifecycle.md`](admin/account-deletion-lifecycle.md)
 and [`docs/admin/network-ban-review.md`](admin/network-ban-review.md). Never

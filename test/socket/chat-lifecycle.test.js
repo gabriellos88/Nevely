@@ -261,6 +261,13 @@ test('shutdown waits for active conversation persistence before closing resource
           if (sql.includes('INSERT INTO conversations')) {
             return { rowCount: 1, rows: [{ id: 1 }] };
           }
+          if (sql.includes('UPDATE conversations SET status')) {
+            markEndUpdateStarted();
+            await endUpdateGate;
+            return { rowCount: 1, rows: [] };
+          }
+          if (sql.includes('UPDATE conversation_participants')) return { rowCount: 2, rows: [] };
+          if (sql.includes('DELETE FROM direct_conversation_pairs')) return { rowCount: 0, rows: [] };
           return { rowCount: 0, rows: [] };
         },
         release() {}
@@ -268,12 +275,6 @@ test('shutdown waits for active conversation persistence before closing resource
     },
     async query(sql) {
       if (sql.includes('FROM account_bans') || sql.includes('FROM network_bans')) return { rowCount: 0, rows: [] };
-      if (sql.includes('UPDATE conversations SET status')) {
-        markEndUpdateStarted();
-        await endUpdateGate;
-        return { rowCount: 1, rows: [] };
-      }
-      if (sql.includes('UPDATE conversation_participants')) return { rowCount: 2, rows: [] };
       if (sql.includes('DELETE FROM conversations')) return { rowCount: 0, rows: [] };
       if (sql.includes('SELECT 1 AS ready')) return { rowCount: 1, rows: [{ ready: 1 }] };
       throw new Error('Unexpected database query in shutdown test');

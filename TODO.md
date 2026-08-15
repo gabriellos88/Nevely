@@ -223,6 +223,13 @@ deferred N1.12 transactional-email polish is now tracked unchanged as N9.6.
   - [x] Notifications: persistent appearance, read and product dismissal with minimized payloads.
   - [x] Chat requests: persistent expiry, idempotent send/respond/cancel and distributed rate limits.
   - [x] Direct friend chat: server-owned conversation type, one conversation per acceptance and End without random rematch or skip usage.
+  - [x] Require confirmation for friend removal/block, route friendship notifications to Friend requests and mirror its pending badge in the selector.
+  - [x] Keep at most five direct conversations in Inbox, split active/recent, and expose server-derived Save/Unsave/Delete capabilities across Inbox, Recent and Saved.
+  - [x] Raise the standard account saved-chat allowance to five while retaining guest and Premium policy server-side.
+  - [x] Keep direct conversations active across disconnect/reconnect; end them only explicitly, by friendship removal or by block, with one PostgreSQL reservation per pair.
+  - [x] Persist chat-request notifications and include their server-counted pending total in the Messages badge.
+  - [x] Keep history profile cards presence-free, preserve avatar aspect ratio and move destructive End to the left of the composer.
+  - [x] Make normalized duplicate-message enforcement tolerant of four repeats in 30 seconds while retaining the separate 12/10-second burst limit.
 - [ ] **N5.4 — Refine the mobile chat workspace.**
   - Verify `390×844`, portrait/landscape transitions, on-screen keyboard and safe-area insets.
   - Stabilize the composer, drawers, modals, touch targets and message/command overflow.

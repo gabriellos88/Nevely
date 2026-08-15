@@ -275,7 +275,7 @@ function createRuntime(options = {}) {
   });
   const moderationControl = createModerationControlChannel({ db, chat, log });
   moderation = createModerationService({ db, presence, chat, controlChannel: moderationControl, environment });
-  registerApiRoutes(app, db, presence, { environment, moderation });
+  registerApiRoutes(app, db, presence, { environment, moderation, chat });
   const outboxWorker = createOutboxWorker({
     db,
     environment,
