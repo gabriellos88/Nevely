@@ -471,7 +471,7 @@
       "addTopicAria": "Add topic",
       "waitingLabel": "Prioritize shared topics for",
       "secondsShort": "sec",
-      "noLimit": "No limit",
+      "noLimit": "Unlimited",
       "waitingHint": "With topics selected, we’ll prioritize them for this long, then keep looking.",
       "people": "People",
       "peopleDescription": "Pick as many options as you like.",

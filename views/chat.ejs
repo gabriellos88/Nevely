@@ -280,8 +280,8 @@
                     <label for="waitingTimeRange"><%= copy.chat.match.waitingLabel %></label>
                     <output id="waitingTimeOutput" for="waitingTimeRange">10 <%= copy.chat.match.secondsShort %></output>
                   </div>
-                  <input id="waitingTimeRange" type="range" min="5" max="30" step="5" value="10" aria-describedby="waitingTimeHint">
-                  <div class="waiting-time-bounds" aria-hidden="true"><span>5 <%= copy.chat.match.secondsShort %></span><span>30 <%= copy.chat.match.secondsShort %></span></div>
+                  <input id="waitingTimeRange" type="range" min="5" max="35" step="5" value="10" aria-describedby="waitingTimeHint">
+                  <div class="waiting-time-bounds" aria-hidden="true"><span>5 <%= copy.chat.match.secondsShort %></span><span><%= copy.chat.match.noLimit %></span></div>
                   <p class="match-preference-hint" id="waitingTimeHint" aria-live="polite"><%= copy.chat.match.waitingHint %></p>
                 </div>
               </section>

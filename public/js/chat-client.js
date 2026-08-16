@@ -1378,12 +1378,12 @@ function updateAgeRangeControl(changedHandle = '') {
 function selectedWaitingTimeSeconds() {
   if (!waitingTimeRange) return 10;
   const value = Number(waitingTimeRange.value);
-  return Math.min(Math.max(Math.round(value / 5) * 5, 5), 30);
+  return value >= 35 ? null : Math.min(Math.max(Math.round(value / 5) * 5, 5), 30);
 }
 
 function updateWaitingTimeControl() {
   const seconds = selectedWaitingTimeSeconds();
-  const label = `${seconds} ${chatCopy.match.secondsShort}`;
+  const label = seconds === null ? chatCopy.match.noLimit : `${seconds} ${chatCopy.match.secondsShort}`;
   if (waitingTimeOutput) waitingTimeOutput.textContent = label;
   if (waitingTimeRange) waitingTimeRange.setAttribute('aria-valuetext', label);
   if (waitingTimeHint) waitingTimeHint.textContent = defaultWaitingTimeHint;

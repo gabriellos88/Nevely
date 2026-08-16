@@ -193,10 +193,11 @@ start safely; no presence detail is returned.
 
 - `find-partner`: starts continuous random matching with profile, interests and
   premium filters. Without interests the socket enters the general queue
-  immediately. With interests, `waitingTimeSeconds` (5–30) bounds only the
-  initial shared-topic preference; the server then relaxes that requirement in
-  place and keeps the socket queued. Filters, blocks, bans, authorization and
-  rate limits remain active throughout.
+  immediately. With interests, `waitingTimeSeconds` accepts 5–30 seconds for
+  the initial shared-topic preference or `null` for an unlimited preference.
+  A finite preference relaxes in place and keeps the socket queued; `null`
+  remains in the shared-topic phase without imposing a maximum search duration.
+  Filters, blocks, bans, authorization and rate limits remain active throughout.
 - `cancel-search`: removes the current socket from matchmaking. Its optional
   acknowledgement contains only `{ ok, cancelled }` and no queue or presence data.
 - `send-message`: sends one text message, maximum 1,000 characters.

@@ -114,6 +114,9 @@ async function expectContainedWorkspace(page) {
 test('desktop chat keeps one contained scroll surface and accessible controls', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   await completeGuestPassport(page);
+  await page.locator('#waitingTimeRange').fill('35');
+  await expect(page.locator('#waitingTimeOutput')).toHaveText('Unlimited');
+  await expect(page.locator('#waitingTimeRange')).toHaveAttribute('aria-valuetext', 'Unlimited');
   await renderSyntheticConversation(page);
   await expectContainedWorkspace(page);
 
@@ -151,6 +154,9 @@ test('desktop chat keeps one contained scroll surface and accessible controls', 
   const profileCloseBox = await page.locator('#profileModal .modal-close').boundingBox();
   expect(profileCloseBox.width).toBeGreaterThanOrEqual(44);
   expect(profileCloseBox.height).toBeGreaterThanOrEqual(44);
+  const profileAvatarBox = await page.locator('#publicProfileAvatar').boundingBox();
+  expect(profileAvatarBox.width).toBeLessThanOrEqual(56);
+  expect(profileAvatarBox.height).toBeLessThanOrEqual(56);
   await page.locator('#profileModal .modal-close').click();
   await expect(page.locator('#profileModal')).toBeHidden();
 });
@@ -175,6 +181,10 @@ test('direct friend chat replaces Next with an accessible destructive End action
   const input = page.locator('#messageInput');
   const inputBox = await input.boundingBox();
   expect(endBox.x + endBox.width).toBeLessThan(inputBox.x);
+  const sendBox = await page.locator('#sendBtn').boundingBox();
+  const messageGroupBox = await page.locator('#messageSendGroup').boundingBox();
+  expect(messageGroupBox.width).toBeGreaterThan(320);
+  expect(Math.abs(inputBox.x + inputBox.width - sendBox.x)).toBeLessThan(1);
   await end.focus();
   await page.keyboard.press('Tab');
   await expect(input).toBeFocused();

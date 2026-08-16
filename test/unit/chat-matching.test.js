@@ -7,11 +7,11 @@ const {
   samePrincipal
 } = require('../../lib/chat-matching');
 
-test('matching without interests starts relaxed and slider values stay bounded', () => {
+test('matching without interests starts relaxed and the strict preference may be unlimited', () => {
   assert.equal(initialMatchingPhase([]), 'relaxed');
   assert.equal(normalizeStrictPhaseSeconds(5), 5);
   assert.equal(normalizeStrictPhaseSeconds(30), 30);
-  assert.equal(normalizeStrictPhaseSeconds(null), 10);
+  assert.equal(normalizeStrictPhaseSeconds(null), null);
   assert.equal(normalizeStrictPhaseSeconds(35), 10);
 });
 

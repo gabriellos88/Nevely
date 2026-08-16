@@ -207,7 +207,7 @@ deferred N1.12 transactional-email polish is now tracked unchanged as N9.6.
 - [x] **N5.3 — Refine the desktop chat workspace.**
   - Keep partner/status and composer fixed inside the conversation workspace; only messages scroll.
   - Keep Send attached to the message field and separate Next visually and spatially.
-  - Use the topic slider only for the initial strict phase, then relax server-side without leaving the queue.
+  - Use the topic slider for the strict phase, allow an explicit Unlimited preference, and otherwise relax server-side without leaving the queue.
   - Provide an explicit server-authoritative Cancel search action and prevent duplicate socket/principal queue entries.
   - Keep Report in the conversation menu, Next as the only rematch action and wait for authoritative Socket.IO results.
   - Cover loading, match, reconnect, error, report and end states with keyboard-visible focus and 44px targets.

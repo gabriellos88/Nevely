@@ -109,7 +109,13 @@ test('two guest clients match, exchange a message, and end the pair once on skip
   assert.equal(firstMatch.isGuest, true);
   assert.equal(firstMatch.canAddFriend, false);
   assert.equal(firstMatch.conversationType, 'random');
-  assert.deepEqual(firstMatch.capabilities, { canNext: true, canEnd: false, canReport: true });
+  assert.deepEqual(firstMatch.capabilities, {
+    canNext: true,
+    canEnd: false,
+    canReport: true,
+    canAddFriend: false,
+    canBlock: false
+  });
   assert.equal(Object.hasOwn(firstMatch, 'durationSeconds'), false);
   await new Promise((resolve) => setTimeout(resolve, 100));
   assert.equal(runtime.chat.getActiveConversationCount(), 1);
@@ -209,6 +215,46 @@ test('topic matching is strict first and relaxes in place without leaving the qu
   assert.deepEqual(await relaxedSecondGeneral, { phase: 'general' });
   const [relaxedMatch] = await relaxedMatches;
   assert.deepEqual(relaxedMatch.sharedInterests, []);
+});
+
+test('unlimited topic preference remains strict without imposing a thirty-second maximum', async (t) => {
+  const runtime = createRuntime({
+    db: disabledDb(),
+    strictPhaseDelayMs: () => 40,
+    env: { NODE_ENV: 'test', SESSION_SECRET: 'socket-test-session-secret', SHUTDOWN_GRACE_MS: '1000' },
+    log: quietLog
+  });
+  const address = await runtime.start({ port: 0, host: '127.0.0.1' });
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  const astronomy = await connectSocket(baseUrl);
+  const literature = await connectSocket(baseUrl);
+  const compatible = await connectSocket(baseUrl);
+  const sockets = [astronomy, literature, compatible];
+  t.after(async () => {
+    sockets.forEach((socket) => socket.disconnect());
+    await runtime.shutdown();
+  });
+
+  const astronomyStates = [];
+  const literatureStates = [];
+  astronomy.on('search-state', (state) => astronomyStates.push(state.phase));
+  literature.on('search-state', (state) => literatureStates.push(state.phase));
+  const firstWaiting = eventFrom(astronomy, 'waiting');
+  astronomy.emit('find-partner', guest('Unlimited Astronomy', ['astronomy']));
+  await firstWaiting;
+  const secondWaiting = eventFrom(literature, 'waiting');
+  literature.emit('find-partner', guest('Unlimited Literature', ['literature']));
+  await secondWaiting;
+
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.deepEqual(astronomyStates, ['topic-preference']);
+  assert.deepEqual(literatureStates, ['topic-preference']);
+
+  const matched = Promise.all([eventFrom(astronomy, 'matched'), eventFrom(compatible, 'matched')]);
+  compatible.emit('find-partner', guest('Compatible Astronomy', ['astronomy']));
+  const [astronomyMatch] = await matched;
+  assert.deepEqual(astronomyMatch.sharedInterests, ['astronomy']);
+  assert.deepEqual(await emitWithAck(literature, 'cancel-search'), { ok: true, cancelled: true });
 });
 
 test('draining sends only a generic notice and rejects new matching work', async (t) => {

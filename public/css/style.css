@@ -1337,8 +1337,8 @@ a:hover { text-decoration: underline; }
 }
 
 .chat-app-page .public-profile-avatar {
-  width: var(--spacing-18);
-  height: var(--spacing-18);
+  width: var(--spacing-14);
+  height: var(--spacing-14);
   overflow: hidden;
   border: var(--spacing-px) solid var(--color-border-medium);
   background: var(--color-brand-soft);
@@ -11051,19 +11051,20 @@ body.guest-passport-open .chat-layout {
   }
 }
 
-/* N5.3.1 final composer override: one message group and one Next action. */
+/* N5.3.1 final composer override: destructive End, message group and Next
+   each retain their own column when the direct-chat control is visible. */
 .chat-app-page .live-chat-card .chat-input-bar {
-  grid-template-columns: minmax(16rem, 1fr) auto;
+  grid-template-columns: auto minmax(16rem, 1fr) auto;
 }
 
 @media (max-width: 900px) {
   .chat-app-page .live-chat-card .chat-input-bar {
-    grid-template-columns: minmax(12rem, 1fr) auto;
+    grid-template-columns: auto minmax(12rem, 1fr) auto;
   }
 }
 
 @media (max-width: 700px) {
   .chat-app-page .live-chat-card .chat-input-bar {
-    grid-template-columns: minmax(0, 1fr) var(--spacing-11);
+    grid-template-columns: var(--spacing-11) minmax(0, 1fr) var(--spacing-11);
   }
 }
