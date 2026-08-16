@@ -42,3 +42,24 @@ test('ordinary duplicate messages have a tolerant window while sustained repetit
     escalationSeconds: [30, 120, 600]
   });
 });
+
+test('Inbox separates active and past direct chats and history uses contextual read-only status', () => {
+  const view = read('views/chat.ejs');
+  const client = read('public/js/chat-client.js');
+  const copy = JSON.parse(read('public/i18n/en.json'));
+  const inboxStart = view.indexOf('id="messagesInboxPanel"');
+  const inboxEnd = view.indexOf('id="messagesRecentPanel"');
+  const chatHeader = view.indexOf('class="chat-partner-bar"');
+  const messages = view.indexOf('id="messages"');
+  const pastSection = view.indexOf('id="directRecentSection"');
+  assert.ok(inboxStart >= 0 && pastSection > inboxStart && pastSection < inboxEnd);
+  assert.ok(chatHeader >= 0 && !(pastSection > chatHeader && pastSection < messages));
+  assert.equal(copy.chat.drawers.messages.endedConversations, 'Past conversations');
+  assert.equal(copy.chat.feedback.viewingRecentConversation, 'Viewing a recent conversation');
+  assert.equal(copy.chat.feedback.viewingSavedConversation, 'Viewing a saved conversation');
+  assert.equal(copy.chat.feedback.conversationHasEnded, 'This conversation has ended');
+  assert.match(client, /sourceContext === 'saved'[\s\S]*?viewingSavedConversation/);
+  assert.match(client, /sourceContext === 'history'[\s\S]*?viewingRecentConversation/);
+  assert.match(client, /window\.lucide\?\.createIcons\(\);/);
+  assert.doesNotMatch(view, />Recent Direct Chats</);
+});

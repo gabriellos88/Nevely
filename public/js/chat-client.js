@@ -1615,7 +1615,7 @@ socket.on('matched', async (data) => {
     addFriendMenuBtn.disabled = !data.canAddFriend;
     addFriendMenuBtn.removeAttribute('aria-busy');
   }
-  saveConversationBtn.textContent = chatCopy.conversation.saveChat;
+  setControlLabel(saveConversationBtn, chatCopy.conversation.saveChat);
   partnerAvatar.textContent = (data.partner?.displayName || fallbackName).charAt(0).toUpperCase();
   partnerName.textContent = data.partner?.displayName || fallbackName;
   readOnlyConversation = false;
@@ -2026,13 +2026,20 @@ function makeConversationListItem(item, context, meta = '') {
     }, 'bookmark-x'));
   }
   if (capabilities.canDeleteForEveryone === true) {
-    actions.append(actionButton(chatCopy.feedback.deleteConversation, async () => {
-      if (!confirm(chatCopy.feedback.deleteConversationConfirm)) return;
-      await api(`/api/conversations/${item.id}`, {
-        method: 'DELETE',
-        body: JSON.stringify({ confirmation: 'DELETE FOR EVERYONE' })
+    actions.append(actionButton(chatCopy.feedback.deleteConversation, (trigger) => {
+      openFriendSafetyConfirmation({
+        title: chatCopy.feedback.deleteConversation,
+        description: chatCopy.feedback.deleteConversationConfirm,
+        confirmLabel: chatCopy.feedback.deleteConversation,
+        trigger,
+        action: async () => {
+          await api(`/api/conversations/${item.id}`, {
+            method: 'DELETE',
+            body: JSON.stringify({ confirmation: 'DELETE FOR EVERYONE' })
+          });
+          await reload();
+        }
       });
-      await reload();
     }, 'trash-2'));
   }
   if (actions.childElementCount) row.appendChild(actions);
@@ -2073,6 +2080,7 @@ async function loadMessagesPanel() {
   recentList?.replaceChildren(...recent.map((item) => makeConversationListItem(item, 'messages')));
   recentSection?.classList.toggle('hidden', recent.length === 0);
   showListState('messages', active.length > 0);
+  window.lucide?.createIcons();
 }
 
 function updateChatRequestBadge(count) {
@@ -2196,6 +2204,7 @@ async function loadHistoryPanel() {
     `${item.last_message || new Date(item.started_at).toLocaleString()}${item.saved ? ` · ${chatCopy.dynamic.historySaved}` : ''}`
   )));
   showListState('history', data.conversations.length > 0);
+  window.lucide?.createIcons();
 }
 
 async function loadFriendsPanel() {
@@ -2458,7 +2467,7 @@ function actionButton(label, handler, icon = null) {
   }
   button.addEventListener('click', (event) => {
     event.stopPropagation();
-    Promise.resolve(handler()).catch((error) => alert(error.message));
+    Promise.resolve(handler(button)).catch((error) => alert(error.message));
   });
   return button;
 }
@@ -2541,6 +2550,7 @@ async function loadSavedPanel() {
     formatCopy(chatCopy.dynamic.savedOn, { date: new Date(item.created_at).toLocaleString() })
   )));
   showListState('saved', data.chats.length > 0);
+  window.lucide?.createIcons();
 }
 
 async function openStoredConversation(item) {
@@ -2552,9 +2562,10 @@ async function openStoredConversation(item) {
       ? { publicId: item.partner_public_id, displayName: item.partner_name }
       : null;
     currentConversationSaved = Boolean(item.saved);
-    saveConversationBtn.textContent = currentConversationSaved
-      ? chatCopy.conversation.removeSaved
-      : chatCopy.conversation.saveChat;
+    setControlLabel(
+      saveConversationBtn,
+      currentConversationSaved ? chatCopy.conversation.removeSaved : chatCopy.conversation.saveChat
+    );
     const resumableDirect = item.sourceContext === 'messages'
       && item.type === 'direct' && item.status === 'active';
     readOnlyConversation = !resumableDirect;
@@ -2584,8 +2595,14 @@ async function openStoredConversation(item) {
       addMessage(chatCopy.feedback.directChatPaused, 'system');
       setChatComposerState('paused', chatCopy.feedback.directChatPaused);
     } else {
-      addMessage(chatCopy.feedback.historyReadOnly, 'system');
-      setChatComposerState('history');
+      const contextualStatus = item.sourceContext === 'saved'
+        ? chatCopy.feedback.viewingSavedConversation
+        : item.sourceContext === 'history'
+          ? chatCopy.feedback.viewingRecentConversation
+          : chatCopy.feedback.conversationHasEnded;
+      statusText.textContent = contextualStatus;
+      addMessage(contextualStatus, 'system');
+      setChatComposerState('history', contextualStatus);
     }
     newBtn.disabled = false;
   } catch (error) {
@@ -2601,11 +2618,11 @@ async function saveCurrentConversation() {
     if (currentConversationSaved) {
       await api(`/api/conversations/${currentConversationId}/saved`, { method: 'DELETE' });
       currentConversationSaved = false;
-      saveConversationBtn.textContent = chatCopy.conversation.saveChat;
+      setControlLabel(saveConversationBtn, chatCopy.conversation.saveChat);
     } else {
       await api(`/api/conversations/${currentConversationId}/saved`, { method: 'PUT', body: '{}' });
       currentConversationSaved = true;
-      saveConversationBtn.textContent = chatCopy.conversation.removeSaved;
+      setControlLabel(saveConversationBtn, chatCopy.conversation.removeSaved);
     }
     loadPanel('saved');
   } catch (error) {
