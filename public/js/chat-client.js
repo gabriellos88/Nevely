@@ -155,7 +155,8 @@ const conversationMenu = document.getElementById('conversationMenu');
 const addFriendMenuBtn = document.getElementById('addFriendMenuBtn');
 const saveConversationBtn = document.getElementById('saveConversationBtn');
 const blockPartnerBtn = document.getElementById('blockPartnerBtn');
-const deleteConversationBtn = document.getElementById('deleteConversationBtn');
+const removeConversationHistoryBtn = document.getElementById('removeConversationHistoryBtn');
+const deleteUnsavedMessagesBtn = document.getElementById('deleteUnsavedMessagesBtn');
 const friendSafetyConfirmModal = document.getElementById('friendSafetyConfirmModal');
 const friendSafetyConfirmClose = document.getElementById('friendSafetyConfirmClose');
 const friendSafetyConfirmCancel = document.getElementById('friendSafetyConfirmCancel');
@@ -166,6 +167,7 @@ const friendSafetyConfirmDescription = document.getElementById('friendSafetyConf
 const currentUser = window.__CURRENT_USER__ || null;
 const GuestProfileStore = window.NevelyGuestProfileStore;
 let currentConversationId = null;
+let currentConversationPublicId = null;
 let currentConversationType = null;
 let currentPartner = null;
 let currentProfile = null;
@@ -335,7 +337,7 @@ newRandomChatBtn?.addEventListener('click', () => {
   startBtnBottom?.focus();
 });
 newBtn.addEventListener('click', startSearch);
-endDirectChatBtn?.addEventListener('click', endDirectConversation);
+endDirectChatBtn?.addEventListener('click', requestEndDirectConversation);
 cancelSearchBtn?.addEventListener('click', cancelSearch);
 sendBtn.addEventListener('click', sendMessage);
 reportBtn.addEventListener('click', reportUser);
@@ -359,15 +361,16 @@ if (blockPartnerBtn) blockPartnerBtn.addEventListener('click', () => blockCurren
 if (historyAddFriendBtn) historyAddFriendBtn.addEventListener('click', () => addCurrentPartnerFriend(historyAddFriendBtn));
 if (historySaveBtn) historySaveBtn.addEventListener('click', saveCurrentConversation);
 if (historyBlockBtn) historyBlockBtn.addEventListener('click', () => blockCurrentPartner(historyBlockBtn));
-if (deleteConversationBtn) deleteConversationBtn.addEventListener('click', deleteCurrentConversation);
+removeConversationHistoryBtn?.addEventListener('click', () => requestRemoveConversationHistory(removeConversationHistoryBtn));
+deleteUnsavedMessagesBtn?.addEventListener('click', () => requestDeleteUnsavedMessages(deleteUnsavedMessagesBtn));
 if (partnerProfileBtn) partnerProfileBtn.addEventListener('click', openPartnerProfile);
 if (accountForm) accountForm.addEventListener('submit', saveAccount);
 if (logoutBtn) logoutBtn.addEventListener('click', logout);
 if (deleteAccountBtn) deleteAccountBtn.addEventListener('click', openDeleteAccountConfirmation);
 if (friendActionBtn) friendActionBtn.addEventListener('click', toggleFriendship);
 if (profileBlockBtn) profileBlockBtn.addEventListener('click', toggleProfileBlock);
-friendSafetyConfirmClose?.addEventListener('click', () => closeFriendSafetyConfirmation(false));
-friendSafetyConfirmCancel?.addEventListener('click', () => closeFriendSafetyConfirmation(false));
+friendSafetyConfirmClose?.addEventListener('click', () => closeFriendSafetyConfirmation());
+friendSafetyConfirmCancel?.addEventListener('click', () => closeFriendSafetyConfirmation());
 friendSafetyConfirmSubmit?.addEventListener('click', confirmFriendSafetyAction);
 if (guestPassportForm) guestPassportForm.addEventListener('submit', saveGuestPassport);
 if (guestNameForm) guestNameForm.addEventListener('submit', saveGuestName);
@@ -585,7 +588,8 @@ function applyStoredConversationCapabilities(capabilities = {}) {
     canSave: capabilities.canSave === true,
     canUnsave: capabilities.canUnsave === true,
     canBlock: capabilities.canBlock === true,
-    canDeleteForEveryone: capabilities.canDeleteForEveryone === true,
+    canRemoveFromHistory: capabilities.canRemoveFromHistory === true,
+    canDeleteUnsavedMessages: capabilities.canDeleteUnsavedMessages === true,
     canResumeDirect: capabilities.canResumeDirect === true
   };
   const canToggleSaved = currentConversationCapabilities.canSave
@@ -594,7 +598,8 @@ function applyStoredConversationCapabilities(capabilities = {}) {
   if (addFriendMenuBtn) addFriendMenuBtn.disabled = !currentConversationCapabilities.canAddFriend;
   saveConversationBtn?.classList.toggle('hidden', !canToggleSaved);
   blockPartnerBtn?.classList.toggle('hidden', !currentConversationCapabilities.canBlock);
-  deleteConversationBtn?.classList.toggle('hidden', !currentConversationCapabilities.canDeleteForEveryone);
+  removeConversationHistoryBtn?.classList.toggle('hidden', !currentConversationCapabilities.canRemoveFromHistory);
+  deleteUnsavedMessagesBtn?.classList.toggle('hidden', !currentConversationCapabilities.canDeleteUnsavedMessages);
   historyAddFriendBtn?.classList.toggle('hidden', !currentConversationCapabilities.canAddFriend);
   historySaveBtn?.classList.toggle('hidden', !canToggleSaved);
   historyBlockBtn?.classList.toggle('hidden', !currentConversationCapabilities.canBlock);
@@ -1465,27 +1470,50 @@ function sendMessage() {
   messageInput.value = '';
 }
 
-function endDirectConversation() {
-  if (directEndPending || currentConversationType !== 'direct' || chatComposerMode !== 'live') return;
+function requestEndDirectConversation() {
+  if (directEndPending || currentConversationType !== 'direct'
+      || !['live', 'paused'].includes(chatComposerMode)) return;
+  openFriendSafetyConfirmation({
+    title: chatCopy.conversation.end,
+    description: chatCopy.feedback.confirmEndConversation,
+    confirmLabel: chatCopy.conversation.end,
+    trigger: endDirectChatBtn,
+    action: endDirectConversation
+  });
+}
+
+async function endDirectConversation() {
+  if (directEndPending || currentConversationType !== 'direct'
+      || !['live', 'paused'].includes(chatComposerMode)) return;
+  const previousMode = chatComposerMode;
   directEndPending = true;
   setChatComposerState('ending');
-  socket.timeout(6000).emit('end-direct-chat', (timeoutError, response = {}) => {
-    directEndPending = false;
-    if (timeoutError || !response.ok) {
-      statusText.textContent = response.error || chatCopy.feedback.chatUnavailable;
-      setChatComposerState('live');
-      return;
-    }
-    if (response.ended) {
-      statusText.textContent = chatCopy.feedback.chatEnded;
-      addMessage(chatCopy.feedback.endedByYou, 'system');
-      readOnlyConversation = true;
-      setChatComposerState('ended');
-      loadPanel('history');
-      return;
-    }
-    setChatComposerState('ended');
+  const response = await new Promise((resolve) => {
+    socket.timeout(6000).emit(
+      'end-direct-chat',
+      { confirmation: 'END DIRECT CONVERSATION' },
+      (timeoutError, result = {}) => {
+        resolve(timeoutError ? { ok: false } : result);
+      }
+    );
   });
+  directEndPending = false;
+  if (!response.ok) {
+    statusText.textContent = response.error || chatCopy.feedback.chatUnavailable;
+    setChatComposerState(previousMode);
+    throw new Error(response.error || chatCopy.feedback.chatUnavailable);
+  }
+  if (response.ended) {
+    statusText.textContent = chatCopy.feedback.chatEnded;
+    addMessage(chatCopy.feedback.endedByYou, 'system');
+    readOnlyConversation = true;
+    setChatComposerState('ended');
+    loadPanel('history');
+    loadPanel('messages');
+    return;
+  }
+  readOnlyConversation = true;
+  setChatComposerState('ended');
 }
 
 function queueReadReceipt(conversationId, messageId) {
@@ -1612,6 +1640,7 @@ socket.on('search-state', ({ phase } = {}) => {
   if (phase !== 'topic-preference' && phase !== 'general') return;
   nextSearchPending = false;
   currentConversationId = null;
+  currentConversationPublicId = null;
   currentConversationType = null;
   currentPartner = null;
   currentConversationSaved = false;
@@ -1652,6 +1681,7 @@ socket.on('matched', async (data) => {
 
   const fallbackName = strangerNames[Math.floor(Math.random() * strangerNames.length)];
   currentConversationId = data.conversationId || null;
+  currentConversationPublicId = data.conversationPublicId || null;
   currentConversationType = data.conversationType;
   currentPartner = data.partner || null;
   currentConversationSaved = false;
@@ -1660,7 +1690,8 @@ socket.on('matched', async (data) => {
     canSave: true,
     canUnsave: false,
     canBlock: data.capabilities?.canBlock === true,
-    canDeleteForEveryone: false
+    canRemoveFromHistory: false,
+    canDeleteUnsavedMessages: false
   };
   addFriendMenuBtn?.classList.toggle('hidden', !data.canAddFriend);
   if (addFriendMenuBtn) {
@@ -1670,7 +1701,8 @@ socket.on('matched', async (data) => {
   setControlLabel(saveConversationBtn, chatCopy.conversation.saveChat);
   saveConversationBtn?.classList.remove('hidden');
   blockPartnerBtn?.classList.toggle('hidden', !currentConversationCapabilities.canBlock);
-  deleteConversationBtn?.classList.add('hidden');
+  removeConversationHistoryBtn?.classList.add('hidden');
+  deleteUnsavedMessagesBtn?.classList.add('hidden');
   partnerAvatar.textContent = (data.partner?.displayName || fallbackName).charAt(0).toUpperCase();
   partnerName.textContent = data.partner?.displayName || fallbackName;
   readOnlyConversation = false;
@@ -1733,6 +1765,7 @@ socket.on('direct-chat-paused', () => {
 socket.on('direct-chat-resumable', async (data = {}) => {
   if (data.conversationType !== 'direct' || !data.conversationId || !data.partner?.publicId) return;
   currentConversationId = data.conversationId;
+  currentConversationPublicId = data.conversationPublicId || null;
   currentConversationType = 'direct';
   currentPartner = data.partner;
   readOnlyConversation = false;
@@ -2060,6 +2093,7 @@ function makeConversationListItem(item, context, meta = '') {
   );
   row.appendChild(open);
   const capabilities = item.capabilities || {};
+  const conversationPublicId = item.public_id || item.conversation_public_id || '';
   const actions = document.createElement('span');
   actions.className = 'panel-inline-actions conversation-row-actions';
   const reload = async () => {
@@ -2080,22 +2114,39 @@ function makeConversationListItem(item, context, meta = '') {
       await reload();
     }, 'bookmark-x'));
   }
-  if (capabilities.canDeleteForEveryone === true) {
-    actions.append(actionButton(chatCopy.feedback.deleteConversation, (trigger) => {
+  if (capabilities.canRemoveFromHistory === true && conversationPublicId) {
+    actions.append(actionButton(chatCopy.feedback.removeConversation, (trigger) => {
       openFriendSafetyConfirmation({
-        title: chatCopy.feedback.deleteConversation,
-        description: chatCopy.feedback.deleteConversationConfirm,
-        confirmLabel: chatCopy.feedback.deleteConversation,
+        title: chatCopy.feedback.removeConversation,
+        description: chatCopy.feedback.removeHistoryConfirm,
+        confirmLabel: chatCopy.feedback.removeConversation,
         trigger,
         action: async () => {
-          await api(`/api/conversations/${item.id}`, {
+          await api(`/api/conversations/${conversationPublicId}/history`, {
             method: 'DELETE',
-            body: JSON.stringify({ confirmation: 'DELETE FOR EVERYONE' })
+            body: JSON.stringify({ confirmation: 'REMOVE FROM MY HISTORY' })
           });
           await reload();
         }
       });
     }, 'trash-2'));
+  }
+  if (capabilities.canDeleteUnsavedMessages === true && conversationPublicId) {
+    actions.append(actionButton(chatCopy.feedback.deleteUnsavedMessages, (trigger) => {
+      openFriendSafetyConfirmation({
+        title: chatCopy.feedback.deleteUnsavedMessages,
+        description: chatCopy.feedback.deleteUnsavedMessagesConfirm,
+        confirmLabel: chatCopy.feedback.deleteUnsavedMessages,
+        trigger,
+        action: async () => {
+          await api(`/api/conversations/${conversationPublicId}/delete-unsaved`, {
+            method: 'POST',
+            body: JSON.stringify({ confirmation: 'DELETE UNSAVED MESSAGES' })
+          });
+          await reload();
+        }
+      });
+    }, 'eraser'));
   }
   if (actions.childElementCount) row.appendChild(actions);
   return row;
@@ -2612,6 +2663,7 @@ async function openStoredConversation(item) {
   try {
     const data = await api(`/api/conversations/${item.id}/messages`);
     currentConversationId = Number(item.id);
+    currentConversationPublicId = item.public_id || item.conversation_public_id || null;
     currentConversationType = item.type === 'direct' ? 'direct' : item.type === 'random' ? 'random' : null;
     currentPartner = item.partner_public_id
       ? { publicId: item.partner_public_id, displayName: item.partner_name }
@@ -2722,20 +2774,50 @@ async function addCurrentPartnerFriend(trigger = addFriendMenuBtn) {
   }
 }
 
-async function deleteCurrentConversation() {
+function requestRemoveConversationHistory(trigger = removeConversationHistoryBtn) {
   conversationMenu.classList.add('hidden');
-  if (!currentUser || !currentConversationId) return;
-  if (!confirm(chatCopy.feedback.deleteConversationConfirm)) return;
-  try {
-    await api(`/api/conversations/${currentConversationId}`, { method: 'DELETE', body: JSON.stringify({ confirmation: 'DELETE FOR EVERYONE' }) });
-    messagesEl.innerHTML = '';
-    addMessage(chatCopy.feedback.conversationDeleted, 'system');
-    setChatComposerState('history', chatCopy.feedback.conversationDeleted);
-    readOnlyConversation = true;
-    loadPanel('history');
-  } catch (error) {
-    alert(error.message);
-  }
+  if (!currentConversationPublicId || currentConversationCapabilities.canRemoveFromHistory !== true) return;
+  openFriendSafetyConfirmation({
+    title: chatCopy.feedback.removeConversation,
+    description: chatCopy.feedback.removeHistoryConfirm,
+    confirmLabel: chatCopy.feedback.removeConversation,
+    trigger,
+    action: async () => {
+      await api(`/api/conversations/${currentConversationPublicId}/history`, {
+        method: 'DELETE',
+        body: JSON.stringify({ confirmation: 'REMOVE FROM MY HISTORY' })
+      });
+      messagesEl.innerHTML = '';
+      showSetupView();
+      currentConversationId = null;
+      currentConversationPublicId = null;
+      currentConversationCapabilities = {};
+      await Promise.all([loadPanel('messages'), loadPanel('history'), loadPanel('saved')]);
+    }
+  });
+}
+
+function requestDeleteUnsavedMessages(trigger = deleteUnsavedMessagesBtn) {
+  conversationMenu.classList.add('hidden');
+  if (!currentUser || !currentConversationPublicId
+      || currentConversationCapabilities.canDeleteUnsavedMessages !== true) return;
+  openFriendSafetyConfirmation({
+    title: chatCopy.feedback.deleteUnsavedMessages,
+    description: chatCopy.feedback.deleteUnsavedMessagesConfirm,
+    confirmLabel: chatCopy.feedback.deleteUnsavedMessages,
+    trigger,
+    action: async () => {
+      await api(`/api/conversations/${currentConversationPublicId}/delete-unsaved`, {
+        method: 'POST',
+        body: JSON.stringify({ confirmation: 'DELETE UNSAVED MESSAGES' })
+      });
+      messagesEl.innerHTML = '';
+      addMessage(chatCopy.feedback.unsavedMessagesDeleted, 'system');
+      statusText.textContent = chatCopy.feedback.conversationHasEnded;
+      setChatComposerState('history', chatCopy.feedback.conversationHasEnded);
+      await Promise.all([loadPanel('messages'), loadPanel('history'), loadPanel('saved')]);
+    }
+  });
 }
 
 async function blockCurrentPartner(trigger = conversationMenuBtn) {

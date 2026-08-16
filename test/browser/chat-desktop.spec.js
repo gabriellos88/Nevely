@@ -197,6 +197,13 @@ test('direct friend chat replaces Next with an accessible destructive End action
   });
   expect(styles.boxShadow).not.toBe('none');
   expect(styles.background).not.toBe('rgba(0, 0, 0, 0)');
+  await end.click();
+  await expect(page.locator('#friendSafetyConfirmModal')).toBeVisible();
+  await expect(page.locator('#friendSafetyConfirmDescription')).toHaveText(
+    'End this direct conversation? Messages will remain in both participants’ history.'
+  );
+  await page.locator('#friendSafetyConfirmCancel').click();
+  await expect(end).toBeFocused();
 
   await page.locator('#reportBtn').click();
   await expect(page.locator('#reportReason')).toBeFocused();

@@ -64,6 +64,6 @@ test('direct chat controls follow only the server conversation type', () => {
   assert.doesNotMatch(startSearchSource, /currentConversationType === 'direct' && chatComposerMode === 'live'/);
   assert.match(source, /capabilities\.canResumeDirect === true/);
   assert.match(source, /emit\([\s\S]*?'resume-direct-chat'[\s\S]*?partnerPublicId/);
-  assert.match(source, /socket\.timeout\(6000\)\.emit\('end-direct-chat'/);
+  assert.match(source, /socket\.timeout\(6000\)\.emit\([\s\S]*?'end-direct-chat'[\s\S]*?END DIRECT CONVERSATION/);
   assert.doesNotMatch(source, /conversationType\s*=\s*(?:payload|window|localStorage|sessionStorage)/);
 });

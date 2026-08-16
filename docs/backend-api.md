@@ -53,12 +53,22 @@ Implemented in N1:
 
 - `GET /api/conversations`: active and retained conversation history for the
   account or guest principal in the current session, paginated with `cursor`.
-  Each row includes server-derived `canSave`, `canUnsave` and
-  `canDeleteForEveryone` capabilities. Registered responses also include a
+  Each row includes an opaque `cnv_...` public identifier and server-derived
+  `canSave`, `canUnsave`, `canRemoveFromHistory` and
+  `canDeleteUnsavedMessages` capabilities. Registered responses also include a
   `directInbox` capped at five total rows, grouped as `active` and `recent`,
   plus `pendingChatRequestCount` and the combined `messageBadgeCount`.
 - `GET /api/conversations/:id/messages`: read a retained or saved conversation, newest page first with `beforeMessageId` for older messages.
-- `DELETE /api/conversations/:id`: delete a conversation for both participants. Body confirmation: `DELETE FOR EVERYONE`.
+- `DELETE /api/conversations/:publicId/history`: for an ended conversation,
+  hides it only from the current participant and removes only that participant's
+  saved preference. Body confirmation: `REMOVE FROM MY HISTORY`. Repeated calls
+  are idempotent and do not change messages, the other participant, reports,
+  evidence or audit data.
+- `POST /api/conversations/:publicId/delete-unsaved`: for an ended conversation,
+  marks only server-deletable messages as deleted for both participants. Any
+  conversation protected by either participant's save or an active report
+  retention record is left untouched without revealing the reason. Body
+  confirmation: `DELETE UNSAVED MESSAGES`; a distributed generic cooldown applies.
 - `GET /api/saved-chats`: saved chats and the current account/guest limit.
 - `PUT /api/conversations/:id/saved`, `DELETE /api/conversations/:id/saved`: save or unsave a chat.
 
@@ -222,6 +232,7 @@ start safely; no presence detail is returned.
   enters random matchmaking or consumes the progressive skip counter. Repeated
   calls after the pair ended return `{ ok: true, ended: false }`. A random
   conversation cannot use this event to bypass Next/skip enforcement.
+  The event requires the exact `END DIRECT CONVERSATION` confirmation value.
   It also resolves the authenticated account's persisted direct reservation
   when the partner is offline; the browser never supplies the conversation type.
 - `report`: reports the active partner with optional `reason` and `details`.
@@ -253,9 +264,10 @@ start safely; no presence detail is returned.
 - `partner-left`, `skip-cooldown`: conversation lifecycle. `partner-left` retains
   the conversation id so an authorized participant can save the ended conversation.
   Guest conversations have no duration timeout.
-  `find-partner` is rejected while the server has a direct pair. The legacy
-  `leave-chat` path cannot end a direct pair; clients must use the explicit
-  `end-direct-chat` event.
+  A direct pair can be parked when its participant explicitly starts random
+  matching; this does not end the direct conversation or consume skip. The
+  legacy `leave-chat` path cannot end a direct pair; clients must use the
+  confirmed `end-direct-chat` event.
 - `direct-chat-paused`: the direct partner disconnected. It exposes no presence
   precision or timeout; the PostgreSQL conversation remains active and can be
   restored after reconnect. A unique ordered-pair reservation prevents a

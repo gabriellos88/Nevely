@@ -81,7 +81,8 @@ test('standard saved chats and the direct inbox are capped at five with server c
   assert.equal(inbox.body.directInbox.active.concat(inbox.body.directInbox.recent).length, 5);
   assert.deepEqual(inbox.body.limits.saved, 5);
   assert.equal(inbox.body.conversations[0].capabilities.canSave, true);
-  assert.equal(inbox.body.conversations[0].capabilities.canDeleteForEveryone, true);
+  assert.equal(inbox.body.conversations[0].capabilities.canRemoveFromHistory, true);
+  assert.equal(inbox.body.conversations[0].capabilities.canDeleteUnsavedMessages, true);
   assert.equal(inbox.body.conversations[0].capabilities.canAddFriend, true);
   assert.equal(inbox.body.conversations[0].capabilities.canBlock, true);
 
@@ -115,7 +116,10 @@ test('standard saved chats and the direct inbox are capped at five with server c
   assert.equal(saved.body.limit, 5);
   assert.equal(saved.body.used, 5);
   assert.equal(saved.body.chats.every((chat) => chat.capabilities.canUnsave === true), true);
-  assert.equal(saved.body.chats.every((chat) => chat.capabilities.canDeleteForEveryone === true), true);
+  assert.equal(saved.body.chats.every((chat) => (
+    chat.capabilities.canRemoveFromHistory === (chat.status !== 'active')
+    && chat.capabilities.canDeleteUnsavedMessages === (chat.status !== 'active')
+  )), true);
   assert.equal(saved.body.chats.every((chat) => chat.capabilities.canAddFriend === true), true);
   assert.equal(saved.body.chats.every((chat) => chat.capabilities.canBlock === true), true);
 

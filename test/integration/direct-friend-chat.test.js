@@ -233,13 +233,17 @@ test('direct friend chat reserves one conversation across replicas and never con
   assert.equal(aliceResumePayload.restored, true);
 
   const partnerLeft = eventFrom(bobResume.socket, 'partner-left');
+  assert.deepEqual(await emitWithAck(matchedAlice.socket, 'end-direct-chat'), {
+    ok: false,
+    error: require('../../public/i18n/en.json').errors.confirmationRequired
+  });
   assert.deepEqual(
-    await emitWithAck(matchedAlice.socket, 'end-direct-chat'),
+    await emitWithAck(matchedAlice.socket, 'end-direct-chat', { confirmation: 'END DIRECT CONVERSATION' }),
     { ok: true, ended: true }
   );
   assert.equal((await partnerLeft).conversationId, matchedAlice.payload.conversationId);
   assert.deepEqual(
-    await emitWithAck(matchedAlice.socket, 'end-direct-chat'),
+    await emitWithAck(matchedAlice.socket, 'end-direct-chat', { confirmation: 'END DIRECT CONVERSATION' }),
     { ok: true, ended: false }
   );
   const endedConversation = await db.query('SELECT status FROM conversations WHERE id = $1', [matchedAlice.payload.conversationId]);
@@ -264,7 +268,11 @@ test('direct friend chat reserves one conversation across replicas and never con
     error: require('../../public/i18n/en.json').errors.directChatEnd
   });
   const leftAfterExplicitEnd = eventFrom(bobFirst, 'partner-left');
-  assert.deepEqual(await emitWithAck(aliceFirst, 'end-direct-chat'), { ok: true, ended: true });
+  assert.deepEqual(await emitWithAck(
+    aliceFirst,
+    'end-direct-chat',
+    { confirmation: 'END DIRECT CONVERSATION' }
+  ), { ok: true, ended: true });
   await leftAfterExplicitEnd;
   assert.equal(Number((await db.query(
     `SELECT COUNT(*)::int AS count FROM moderation_rate_windows

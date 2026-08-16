@@ -35,6 +35,7 @@ test('recent conversations show server-capability actions instead of the message
   });
   const conversation = {
     id: 81,
+    public_id: 'cnv_0123456789abcdef01234567',
     type: 'direct',
     status: 'ended',
     started_at: new Date().toISOString(),
@@ -46,7 +47,8 @@ test('recent conversations show server-capability actions instead of the message
       canSave: true,
       canUnsave: false,
       canBlock: true,
-      canDeleteForEveryone: true
+      canRemoveFromHistory: true,
+      canDeleteUnsavedMessages: true
     }
   };
   await page.route('**/api/conversations/81/messages**', (route) => route.fulfill({
@@ -100,7 +102,15 @@ test('recent conversations show server-capability actions instead of the message
   await expect(page.locator('#addFriendMenuBtn')).toBeVisible();
   await expect(page.locator('#saveConversationBtn')).toBeVisible();
   await expect(page.locator('#blockPartnerBtn')).toBeVisible();
+  await expect(page.locator('#removeConversationHistoryBtn')).toBeVisible();
+  await expect(page.locator('#deleteUnsavedMessagesBtn')).toBeVisible();
   await expect(page.locator('#historySaveBtn .lucide-bookmark')).toHaveCount(1);
+  await page.locator('#removeConversationHistoryBtn').click();
+  await expect(page.locator('#friendSafetyConfirmModal')).toBeVisible();
+  await expect(page.locator('#friendSafetyConfirmDescription')).toHaveText(
+    'Remove this conversation from your history? This won’t affect the other person.'
+  );
+  await page.locator('#friendSafetyConfirmCancel').click();
 });
 
 test('friend list exposes only server capabilities with accessible responsive menus', async ({ page }, testInfo) => {

@@ -503,7 +503,8 @@
       "removeSaved": "Remove from saved",
       "blockUser": "Block user",
       "blocked": "Blocked",
-      "deleteForEveryone": "Delete chat for everyone",
+      "removeFromHistory": "Remove from my history",
+      "deleteUnsavedMessages": "Delete unsaved messages",
       "next": "Next",
       "end": "End conversation",
       "cancelSearch": "Cancel search",
@@ -644,6 +645,9 @@
       "confirmFriendActionTitle": "Confirm this action",
       "confirmRemoveFriend": "Remove {name} from your friends? You can send a new friend request later.",
       "confirmBlockFriend": "Block {name}? This also ends any active direct conversation and prevents new requests.",
+      "confirmEndConversation": "End this direct conversation? Messages will remain in both participants’ history.",
+      "removeHistoryConfirm": "Remove this conversation from your history? This won’t affect the other person.",
+      "deleteUnsavedMessagesConfirm": "Delete unsaved messages for both participants? Safety records may be retained.",
       "confirmFriendActionBody": "Review the action before continuing.",
       "keepFriend": "Cancel",
       "sentFriendRequest": "Sent you a friend request",
@@ -664,8 +668,8 @@
       "viewingSavedConversation": "Viewing a saved conversation",
       "conversationHasEnded": "This conversation has ended",
       "nothingToSave": "Start a conversation before saving it.",
-      "deleteConversationConfirm": "Delete this chat for both of you? This can’t be undone.",
-      "conversationDeleted": "Chat deleted for both of you.",
+      "conversationRemoved": "Conversation removed from your history.",
+      "unsavedMessagesDeleted": "Unsaved messages were removed where allowed.",
       "guestBlockUnavailable": "Guest blocking isn’t available yet.",
       "emptyBlockList": "Your block list is empty.",
       "profileSaved": "Changes saved.",
@@ -673,7 +677,8 @@
       "countryHidden": "Country hidden",
       "saveConversation": "Save chat",
       "unsaveConversation": "Unsave chat",
-      "deleteConversation": "Delete chat for everyone"
+      "removeConversation": "Remove from my history",
+      "deleteUnsavedMessages": "Delete unsaved messages"
     }
   },
   "account": {

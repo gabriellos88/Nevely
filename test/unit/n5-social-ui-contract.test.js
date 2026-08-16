@@ -95,3 +95,29 @@ test('direct conversations can be parked for random matching and resumed only by
   assert.match(messages, /saved_chats[\s\S]*?reports[\s\S]*?retention_until/);
   assert.doesNotMatch(messages, /console\.|safeLog|body\s*:/);
 });
+
+test('end, personal history removal and retained message deletion are distinct confirmed operations', () => {
+  const view = read('views/chat.ejs');
+  const client = read('public/js/chat-client.js');
+  const api = read('lib/api.js');
+  const copy = JSON.parse(read('public/i18n/en.json'));
+  assert.match(view, /id="removeConversationHistoryBtn"[\s\S]*?data-lucide="trash-2"/);
+  assert.match(view, /id="deleteUnsavedMessagesBtn"[\s\S]*?data-lucide="eraser"/);
+  assert.match(client, /confirmEndConversation[\s\S]*?action: endDirectConversation/);
+  assert.match(client, /capabilities\.canRemoveFromHistory === true/);
+  assert.match(client, /capabilities\.canDeleteUnsavedMessages === true/);
+  assert.match(client, /REMOVE FROM MY HISTORY/);
+  assert.match(client, /DELETE UNSAVED MESSAGES/);
+  assert.doesNotMatch(client, /\bconfirm\(/);
+  assert.match(api, /confirmation !== 'REMOVE FROM MY HISTORY'/);
+  assert.match(api, /confirmation !== 'DELETE UNSAVED MESSAGES'/);
+  assert.match(api, /saved_chats[\s\S]*?reports[\s\S]*?retention_until/);
+  assert.equal(
+    copy.chat.feedback.removeHistoryConfirm,
+    'Remove this conversation from your history? This won’t affect the other person.'
+  );
+  assert.equal(
+    copy.chat.feedback.deleteUnsavedMessagesConfirm,
+    'Delete unsaved messages for both participants? Safety records may be retained.'
+  );
+});
