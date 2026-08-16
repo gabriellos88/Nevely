@@ -34,7 +34,7 @@ test('recent conversations show server-capability actions instead of the message
     });
   });
   const conversation = {
-    id: 81,
+    id: 'cnv_0123456789abcdef01234567',
     public_id: 'cnv_0123456789abcdef01234567',
     type: 'direct',
     status: 'ended',
@@ -51,7 +51,7 @@ test('recent conversations show server-capability actions instead of the message
       canDeleteUnsavedMessages: true
     }
   };
-  await page.route('**/api/conversations/81/messages**', (route) => route.fulfill({
+  await page.route('**/api/conversations/cnv_0123456789abcdef01234567/messages**', (route) => route.fulfill({
     status: 200,
     contentType: 'application/json',
     body: JSON.stringify({ conversation, messages: [], page: { hasMore: false } })
@@ -382,17 +382,21 @@ test('direct chat request notifications open Conversations and preserve inline c
   await page.route('**/api/friend-requests**', (route) => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ requests: [], pendingCount: 0 })
   }));
-  await page.route('**/api/chat-requests**', (route) => route.fulfill({
-    status: 200,
-    contentType: 'application/json',
-    body: JSON.stringify({
-      requests: [{
-        id: requestId, public_id: requestId, person_public_id: 'nvy_0123456789ab',
-        display_name: 'Astra Friend', expires_at: new Date(Date.now() + 60_000).toISOString()
-      }],
-      direction: 'incoming', pendingCount: 1, page: { hasMore: false }
-    })
-  }));
+  await page.route('**/api/chat-requests**', (route) => {
+    const outgoing = new URL(route.request().url()).searchParams.get('direction') === 'outgoing';
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        requests: outgoing ? [] : [{
+          id: requestId, public_id: requestId, person_public_id: 'nvy_0123456789ab',
+          display_name: 'Astra Friend', expires_at: new Date(Date.now() + 60_000).toISOString()
+        }],
+        direction: outgoing ? 'outgoing' : 'incoming', pendingCount: outgoing ? 0 : 1,
+        page: { hasMore: false }
+      })
+    });
+  });
   await page.route('**/api/friends**', (route) => route.fulfill({
     status: 200, contentType: 'application/json', body: JSON.stringify({ friends: [] })
   }));

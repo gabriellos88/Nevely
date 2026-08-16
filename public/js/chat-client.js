@@ -1,5 +1,7 @@
 const uiCopy = window.__COPY__;
 const chatCopy = uiCopy.chat;
+const PUBLIC_CONVERSATION_ID_PATTERN = /^cnv_[0-9a-f]{24}$/;
+const PUBLIC_MESSAGE_ID_PATTERN = /^msg_[0-9a-f]{24}$/;
 const googleConfiguration = window.__GOOGLE_CONFIG__ || {};
 
 function formatCopy(template, values = {}) {
@@ -173,6 +175,7 @@ let currentPartner = null;
 let currentProfile = null;
 let pendingFriendSafetyAction = null;
 let friendSafetyRestoreFocus = null;
+let chatRequestsLoadSequence = 0;
 let readOnlyConversation = false;
 let currentConversationSaved = false;
 let currentConversationCapabilities = {};
@@ -183,7 +186,6 @@ let activeDrawerConfig = null;
 let drawerRestoreFocus = null;
 let drawerTouchStart = null;
 let pendingReadReceipt = null;
-let lastPartnerReadMessageId = 0;
 let guestProfile = null;
 let guestPassportRestoreFocus = null;
 let accountModalRestoreFocus = null;
@@ -1447,7 +1449,7 @@ function addMessage(text, who, messageId = null) {
   const message = document.createElement('div');
   message.className = `msg ${who}`;
   message.textContent = text;
-  if (Number.isSafeInteger(Number(messageId)) && Number(messageId) > 0) {
+  if (PUBLIC_MESSAGE_ID_PATTERN.test(String(messageId || ''))) {
     message.dataset.messageId = String(messageId);
   }
   messagesEl.appendChild(message);
@@ -1467,10 +1469,9 @@ function sendMessage() {
       startMessageCooldown(response.retryAfterSeconds);
       return;
     }
-    const messageId = Number(response.id);
-    if (!Number.isSafeInteger(messageId) || messageId <= 0) return;
-    pendingMessage.dataset.messageId = String(messageId);
-    if (messageId <= lastPartnerReadMessageId) pendingMessage.dataset.read = 'true';
+    const messageId = String(response.id || '');
+    if (!PUBLIC_MESSAGE_ID_PATTERN.test(messageId)) return;
+    pendingMessage.dataset.messageId = messageId;
   });
   messageInput.value = '';
 }
@@ -1522,11 +1523,11 @@ async function endDirectConversation() {
 }
 
 function queueReadReceipt(conversationId, messageId) {
-  const safeConversationId = Number(conversationId);
-  const safeMessageId = Number(messageId);
+  const safeConversationId = String(conversationId || '');
+  const safeMessageId = String(messageId || '');
   if ((!currentUser && !guestProfile)
-      || !Number.isSafeInteger(safeConversationId) || safeConversationId <= 0
-      || !Number.isSafeInteger(safeMessageId) || safeMessageId <= 0) return;
+      || !PUBLIC_CONVERSATION_ID_PATTERN.test(safeConversationId)
+      || !PUBLIC_MESSAGE_ID_PATTERN.test(safeMessageId)) return;
   pendingReadReceipt = { conversationId: safeConversationId, upToMessageId: safeMessageId };
   flushPendingReadReceipt();
 }
@@ -1546,12 +1547,12 @@ function flushPendingReadReceipt() {
 }
 
 function markOutgoingMessagesRead(upToMessageId) {
-  const safeMessageId = Number(upToMessageId);
-  if (!Number.isSafeInteger(safeMessageId)) return;
-  lastPartnerReadMessageId = Math.max(lastPartnerReadMessageId, safeMessageId);
-  messagesEl.querySelectorAll('.msg.me[data-message-id]').forEach((message) => {
-    if (Number(message.dataset.messageId) <= lastPartnerReadMessageId) message.dataset.read = 'true';
-  });
+  const safeMessageId = String(upToMessageId || '');
+  if (!PUBLIC_MESSAGE_ID_PATTERN.test(safeMessageId)) return;
+  for (const message of messagesEl.querySelectorAll('.msg[data-message-id]')) {
+    if (message.classList.contains('me')) message.dataset.read = 'true';
+    if (message.dataset.messageId === safeMessageId) break;
+  }
 }
 
 function setReportModalOpen(open) {
@@ -1717,7 +1718,6 @@ socket.on('matched', async (data) => {
   partnerName.textContent = data.partner?.displayName || fallbackName;
   readOnlyConversation = false;
   pendingReadReceipt = null;
-  lastPartnerReadMessageId = 0;
   setChatComposerState('live');
 
   messagesEl.innerHTML = '';
@@ -1727,7 +1727,7 @@ socket.on('matched', async (data) => {
       [...history.messages].reverse().forEach((message) => {
         const mine = Boolean(message.sender_is_owner)
           || Boolean(currentUser && message.sender_public_id === currentUser.publicId);
-        addMessage(message.body, mine ? 'me' : 'them', Number(message.id));
+        addMessage(message.body, mine ? 'me' : 'them', message.id);
       });
     } catch (_error) {
       addMessage(chatCopy.feedback.chatUnavailable, 'system');
@@ -1740,14 +1740,14 @@ socket.on('matched', async (data) => {
 });
 
 socket.on('receive-message', (message) => {
-  const messageId = typeof message === 'object' ? Number(message.id) : null;
+  const messageId = typeof message === 'object' ? String(message.id || '') : null;
   addMessage(typeof message === 'string' ? message : message.text, 'them', messageId);
   if ((currentUser || guestProfile) && document.visibilityState !== 'visible') refreshTopbarBadges();
   queueReadReceipt(currentConversationId, messageId);
 });
 
 socket.on('message-read', ({ conversationId, upToMessageId } = {}) => {
-  if (Number(conversationId) !== Number(currentConversationId)) return;
+  if (conversationId !== currentConversationId) return;
   markOutgoingMessagesRead(upToMessageId);
 });
 
@@ -1756,9 +1756,8 @@ socket.on('partner-left', ({ conversationId } = {}) => {
   showChatView();
   statusText.textContent = chatCopy.feedback.chatEnded;
   addMessage(chatCopy.feedback.partnerLeft, 'system');
-  const endedConversationId = Number(conversationId);
-  if (Number.isSafeInteger(endedConversationId) && endedConversationId > 0) {
-    currentConversationId = endedConversationId;
+  if (PUBLIC_CONVERSATION_ID_PATTERN.test(String(conversationId || ''))) {
+    currentConversationId = conversationId;
   }
   addFriendMenuBtn?.classList.add('hidden');
   readOnlyConversation = true;
@@ -1789,7 +1788,7 @@ socket.on('direct-chat-resumable', async (data = {}) => {
     [...history.messages].reverse().forEach((message) => {
       const mine = Boolean(message.sender_is_owner)
         || Boolean(currentUser && message.sender_public_id === currentUser.publicId);
-      addMessage(message.body, mine ? 'me' : 'them', Number(message.id));
+      addMessage(message.body, mine ? 'me' : 'them', message.id);
     });
   } catch (_error) {
     addMessage(chatCopy.feedback.chatUnavailable, 'system');
@@ -2287,6 +2286,7 @@ function openConversationsFromNotification(item) {
 }
 
 async function loadChatRequestsPanel() {
+  const loadSequence = ++chatRequestsLoadSequence;
   const { list } = listElements('chatRequests');
   if (!list) return;
   list.innerHTML = '';
@@ -2299,6 +2299,8 @@ async function loadChatRequestsPanel() {
     api('/api/chat-requests'),
     api('/api/chat-requests?direction=outgoing')
   ]);
+  if (loadSequence !== chatRequestsLoadSequence) return;
+  list.replaceChildren();
   const incomingCount = incoming.pendingCount == null
     ? incoming.requests.length
     : Number(incoming.pendingCount);
@@ -2720,7 +2722,7 @@ async function loadSavedPanel() {
 async function openStoredConversation(item) {
   try {
     const data = await api(`/api/conversations/${item.id}/messages`);
-    currentConversationId = Number(item.id);
+    currentConversationId = item.public_id || item.conversation_public_id || item.id || null;
     currentConversationPublicId = item.public_id || item.conversation_public_id || null;
     currentConversationType = item.type === 'direct' ? 'direct' : item.type === 'random' ? 'random' : null;
     currentPartner = item.partner_public_id
@@ -2738,7 +2740,7 @@ async function openStoredConversation(item) {
     data.messages.forEach((message) => {
       const mine = Boolean(message.sender_is_owner)
         || Boolean(currentUser && message.sender_public_id === currentUser.publicId);
-      const element = addMessage(message.body, mine ? 'me' : 'them', Number(message.id));
+      const element = addMessage(message.body, mine ? 'me' : 'them', message.id);
       if (mine && message.delivered_at) element.dataset.delivered = 'true';
       if (mine && message.read_at) element.dataset.read = 'true';
     });
@@ -2748,7 +2750,7 @@ async function openStoredConversation(item) {
     if (lastIncomingMessage) {
       await api(`/api/conversations/${item.id}/read`, {
         method: 'PATCH',
-        body: JSON.stringify({ upToMessageId: Number(lastIncomingMessage.id) })
+        body: JSON.stringify({ upToMessageId: lastIncomingMessage.id })
       });
       refreshTopbarBadges();
     }

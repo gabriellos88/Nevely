@@ -140,3 +140,23 @@ test('saved history keeps content but removes unavailable partner identity and c
   assert.match(client, /capabilities\.canViewPartnerProfile === true/);
   assert.match(client, /partnerProfileBtn\.disabled = !currentConversationCapabilities\.canViewPartnerProfile/);
 });
+
+test('product conversation and message actions use only opaque public identifiers', () => {
+  const api = read('lib/api.js');
+  const chat = read('lib/chat.js');
+  const client = read('public/js/chat-client.js');
+  const migration = read('database/migrations/026_n5_public_message_identifiers.sql');
+  assert.match(migration, /messages_public_id_unique/);
+  assert.match(api, /conversationIdFromPublicId/);
+  assert.match(api, /c\.public_id AS id/);
+  assert.match(api, /m\.public_id AS id/);
+  assert.match(api, /ORDER BY c\.created_at DESC, c\.public_id DESC/);
+  assert.match(api, /boundary\.public_id = \$4/);
+  assert.match(chat, /conversationId: conversationPublicId/);
+  assert.match(chat, /active\.conversationPublicId !== conversationPublicId/);
+  assert.match(client, /PUBLIC_CONVERSATION_ID_PATTERN/);
+  assert.match(client, /PUBLIC_MESSAGE_ID_PATTERN/);
+  assert.doesNotMatch(client, /Number\(response\.id\)/);
+  assert.doesNotMatch(client, /Number\(conversationId\)/);
+  assert.doesNotMatch(chat, /log\.(?:info|warn|error)\([^\n]*(?:payload|text|body)/);
+});

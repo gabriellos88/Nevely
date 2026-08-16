@@ -238,7 +238,7 @@ test('migrations, authentication, profile validation and authorization contracts
     'ended'
   );
 
-  await outsider.delete(`/api/conversations/${conversationId}/saved`).expect(204);
+  await outsider.delete(`/api/conversations/${conversationPublicId}/saved`).expect(204);
   assert.equal(
     Number((await db.query(
       'SELECT COUNT(*) AS count FROM saved_chats WHERE user_id = $1 AND conversation_id = $2',
@@ -269,7 +269,7 @@ test('migrations, authentication, profile validation and authorization contracts
     .delete(`/api/conversations/${conversationPublicId}/history`)
     .send({ confirmation: 'wrong value' })
     .expect(400);
-  await primary.delete(`/api/conversations/${conversationId}/saved`).expect(204);
+  await primary.delete(`/api/conversations/${conversationPublicId}/saved`).expect(204);
   await primary.delete(`/api/friends/${memberPublicId}`).expect(204);
   await primary.delete(`/api/blocks/${memberPublicId}`).expect(204);
   await primary

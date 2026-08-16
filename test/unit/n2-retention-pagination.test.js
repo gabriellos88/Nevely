@@ -70,15 +70,18 @@ test('page sizes and cursors are bounded, stable and reject malformed input', ()
 
 test('message pages return chronological items and an older-message cursor', () => {
   const paged = messagePage([
-    { id: 5 },
-    { id: 4 },
-    { id: 3 }
+    { id: 'msg_000000000000000000000005' },
+    { id: 'msg_000000000000000000000004' },
+    { id: 'msg_000000000000000000000003' }
   ], 2);
-  assert.deepEqual(paged.items.map((item) => item.id), [4, 5]);
+  assert.deepEqual(paged.items.map((item) => item.id), [
+    'msg_000000000000000000000004',
+    'msg_000000000000000000000005'
+  ]);
   assert.deepEqual(paged.page, {
     limit: 2,
     hasMore: true,
-    nextBeforeMessageId: 4
+    nextBeforeMessageId: 'msg_000000000000000000000004'
   });
 });
 

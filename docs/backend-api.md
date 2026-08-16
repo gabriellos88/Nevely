@@ -45,7 +45,7 @@ Implemented in N1:
 - `POST /api/account/avatar`: reserved endpoint; returns `501` until object storage is configured.
 - `GET /api/users/:id/profile`: public profile plus friendship/block state;
   `:id` is the opaque `nvy_` + 12 lowercase hexadecimal public identifier.
-  `context=history&conversationId=...` is accepted only after participant
+  `context=history&conversationId=cnv_...` is accepted only after participant
   authorization and returns `presenceVisible: false` without an online field.
 - `GET /api/blocks`, `PUT /api/blocks/:id`, `DELETE /api/blocks/:id`: block-list management. The list uses the shared `cursor` contract.
 
@@ -58,7 +58,11 @@ Implemented in N1:
   `canDeleteUnsavedMessages` capabilities. Registered responses also include a
   `directInbox` capped at five total rows, grouped as `active` and `recent`,
   plus `pendingChatRequestCount` and the combined `messageBadgeCount`.
-- `GET /api/conversations/:id/messages`: read a retained or saved conversation, newest page first with `beforeMessageId` for older messages.
+- `GET /api/conversations/:publicId/messages`: read a retained or saved
+  conversation using its `cnv_...` ID. Messages expose only `msg_...` IDs;
+  `beforeMessageId` is the oldest visible public message ID from the prior page.
+- `PATCH /api/conversations/:publicId/read`: idempotently records a read boundary
+  using only `upToMessageId: "msg_..."` after revalidating participation.
 - `DELETE /api/conversations/:publicId/history`: for an ended conversation,
   hides it only from the current participant and removes only that participant's
   saved preference. Body confirmation: `REMOVE FROM MY HISTORY`. Repeated calls
@@ -75,7 +79,8 @@ Implemented in N1:
   with `partner_anonymized: true`, a neutral label, no partner public ID, photo
   or presence, and no partner-dependent capability. Historical message sender
   identity is minimized by the same rule.
-- `PUT /api/conversations/:id/saved`, `DELETE /api/conversations/:id/saved`: save or unsave a chat.
+- `PUT /api/conversations/:publicId/saved`, `DELETE /api/conversations/:publicId/saved`:
+  save or unsave a chat using only its opaque public ID.
 
 Unsaved conversations are deleted 7 days after last activity, or oldest first
 when an account or guest exceeds the configured limit (50 by default) of
@@ -233,6 +238,9 @@ start safely; no presence detail is returned.
   Unsaved/unreported conversation storage is progressively bounded to the most
   recent 200 messages. Saved or moderation-retained records are not pruned, but
   product history APIs expose at most the latest 200 messages.
+- `messages-read`: records a read boundary for the socket's current active
+  conversation. Both `conversationId` and `upToMessageId` are opaque public IDs;
+  the server rejects IDs that do not match the socket's active pairing.
 - `leave-chat`: leaves the active conversation, subject to skip cooldown. An
   optional Socket.IO acknowledgement returns `{ ok: true, ended }` only after
   the server transition completes, or `{ ok: false, retryAfterSeconds }` for a
@@ -265,14 +273,15 @@ start safely; no presence detail is returned.
 - `search-cancelled`: the server removed this socket from matchmaking, either
   after explicit cancellation or because another socket for the same principal
   replaced the search.
-- `matched`: includes conversation id, server-owned `conversationType`
+- `matched`: includes only the opaque `cnv_...` conversation ID, server-owned `conversationType`
   (`random` or `direct`), partner profile, shared interests, cooldown and the
   minimized `canAddFriend` authorization boolean. Its capability payload makes
   `canNext` and `canEnd` mutually exclusive. The browser rejects an unknown
   conversation type instead of inferring one.
-- `receive-message`, `message-sent`, `message-error`: message lifecycle.
+- `receive-message`, `message-sent`, `message-error`: message lifecycle. Successful
+  message events expose only the opaque `msg_...` identifier.
 - `partner-left`, `skip-cooldown`: conversation lifecycle. `partner-left` retains
-  the conversation id so an authorized participant can save the ended conversation.
+  the public conversation ID so an authorized participant can save the ended conversation.
   Guest conversations have no duration timeout.
   A direct pair can be parked when its participant explicitly starts random
   matching; this does not end the direct conversation or consume skip. The
@@ -334,6 +343,10 @@ does not terminate or rewrite those conversations. These additive migrations
 remain readable by the previous server version. After an application rollback,
 the next N5 request safely removes a stale reservation whose conversation was
 already ended by that older version.
+Migration 025 adds opaque conversation IDs and per-participant history
+visibility. Migration 026 backfills and defaults opaque message IDs; serial
+conversation/message keys remain server-only for locks, ordering and foreign
+keys and are never accepted from or returned to product clients.
 The rollout/rollback contract is documented in
 [`docs/admin/account-deletion-lifecycle.md`](admin/account-deletion-lifecycle.md)
 and [`docs/admin/network-ban-review.md`](admin/network-ban-review.md). Never

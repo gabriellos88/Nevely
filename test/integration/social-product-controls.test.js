@@ -57,16 +57,18 @@ test('standard saved chats and the direct inbox are capped at five with server c
   const ownerId = Number(ids.rows.find((row) => row.public_id === owner.publicId).id);
   const partnerId = Number(ids.rows.find((row) => row.public_id === partner.publicId).id);
   const conversationIds = [];
+  const conversationPublicIds = [];
   for (let index = 0; index < 7; index += 1) {
     const status = index < 3 ? 'active' : 'ended';
     const conversation = await db.query(
       `INSERT INTO conversations (type, status, ended_at, last_activity_at)
        VALUES ('direct', $1::varchar, CASE WHEN $1::varchar = 'ended' THEN NOW() ELSE NULL END, NOW() - ($2 * INTERVAL '1 minute'))
-       RETURNING id`,
+       RETURNING id, public_id`,
       [status, index]
     );
     const conversationId = Number(conversation.rows[0].id);
     conversationIds.push(conversationId);
+    conversationPublicIds.push(conversation.rows[0].public_id);
     await db.query(
       `INSERT INTO conversation_participants (conversation_id, user_id, socket_id, display_name)
        VALUES ($1, $2, $3, 'Owner'), ($1, $4, $5, 'Partner')`,
@@ -100,7 +102,7 @@ test('standard saved chats and the direct inbox are capped at five with server c
     [ownerId, partnerId]
   );
 
-  for (const conversationId of conversationIds.slice(0, 5)) {
+  for (const conversationId of conversationPublicIds.slice(0, 5)) {
     await request(baseUrl)
       .put(`/api/conversations/${conversationId}/saved`)
       .set('Cookie', owner.cookie)
@@ -108,7 +110,7 @@ test('standard saved chats and the direct inbox are capped at five with server c
       .expect((response) => assert.ok([200, 201].includes(response.status)));
   }
   await request(baseUrl)
-    .put(`/api/conversations/${conversationIds[5]}/saved`)
+    .put(`/api/conversations/${conversationPublicIds[5]}/saved`)
     .set('Cookie', owner.cookie)
     .send({})
     .expect(409);
@@ -124,7 +126,7 @@ test('standard saved chats and the direct inbox are capped at five with server c
   assert.equal(saved.body.chats.every((chat) => chat.capabilities.canBlock === true), true);
 
   const historyProfile = await request(baseUrl)
-    .get(`/api/users/${partner.publicId}/profile?context=history&conversationId=${conversationIds[0]}`)
+    .get(`/api/users/${partner.publicId}/profile?context=history&conversationId=${conversationPublicIds[0]}`)
     .set('Cookie', owner.cookie)
     .expect(200);
   assert.equal(historyProfile.body.presenceVisible, false);
@@ -164,7 +166,7 @@ test('standard saved chats and the direct inbox are capped at five with server c
   assert.equal(anonymizedHistory.body.conversations.every((chat) => chat.partner_anonymized === true), true);
   assert.equal(anonymizedHistory.body.directInbox.active.every((chat) => chat.partner_anonymized === true), true);
   const anonymizedMessages = await request(baseUrl)
-    .get(`/api/conversations/${conversationIds[0]}/messages`)
+    .get(`/api/conversations/${conversationPublicIds[0]}/messages`)
     .set('Cookie', owner.cookie)
     .expect(200);
   const retainedMessage = anonymizedMessages.body.messages.find((message) => message.body === 'retained saved message');
@@ -196,9 +198,10 @@ test('direct message history is bounded to 200 while saved and moderation-protec
   const ownerId = Number(ids.rows.find((row) => row.public_id === owner.publicId).id);
   const partnerId = Number(ids.rows.find((row) => row.public_id === partner.publicId).id);
   const conversation = await db.query(
-    "INSERT INTO conversations (type, status) VALUES ('direct', 'active') RETURNING id"
+    "INSERT INTO conversations (type, status) VALUES ('direct', 'active') RETURNING id, public_id"
   );
   const conversationId = Number(conversation.rows[0].id);
+  const conversationPublicId = conversation.rows[0].public_id;
   await db.query(
     `INSERT INTO conversation_participants (conversation_id, user_id, socket_id, display_name)
      VALUES ($1, $2, 'message-cap-owner', 'Owner'), ($1, $3, 'message-cap-partner', 'Partner')`,
@@ -243,7 +246,7 @@ test('direct message history is bounded to 200 while saved and moderation-protec
   do {
     const suffix = beforeMessageId ? `&beforeMessageId=${beforeMessageId}` : '';
     const page = await request(baseUrl)
-      .get(`/api/conversations/${conversationId}/messages?limit=100${suffix}`)
+      .get(`/api/conversations/${conversationPublicId}/messages?limit=100${suffix}`)
       .set('Cookie', owner.cookie)
       .expect(200);
     visibleCount += page.body.messages.length;

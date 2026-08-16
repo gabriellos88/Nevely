@@ -189,7 +189,20 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
   });
   const [firstMatch, secondMatch] = await Promise.all([firstMatched, secondMatched]);
   assert.equal(firstMatch.conversationId, secondMatch.conversationId);
-  assert.equal(Number.isSafeInteger(firstMatch.conversationId), true);
+  assert.match(firstMatch.conversationId, /^cnv_[0-9a-f]{24}$/);
+  const internalConversationId = Number((await db.query(
+    'SELECT id FROM conversations WHERE public_id = $1',
+    [firstMatch.conversationId]
+  )).rows[0].id);
+  await request(baseUrl)
+    .put(`/api/conversations/${internalConversationId}/saved`)
+    .set('Cookie', secondAccount.cookie)
+    .send({})
+    .expect(404);
+  await request(baseUrl)
+    .get(`/api/conversations/${internalConversationId}/messages`)
+    .set('Cookie', secondAccount.cookie)
+    .expect(404);
   assert.equal(firstMatch.canAddFriend, true);
   assert.equal(secondMatch.canAddFriend, true);
 
@@ -222,14 +235,15 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
   first.emit('send-message', 'synthetic persisted message');
   const [receivedMessage, sentMessage] = await Promise.all([received, sent]);
   assert.equal(receivedMessage.id, sentMessage.id);
-  assert.equal(Number.isSafeInteger(Number(receivedMessage.id)), true);
+  assert.match(receivedMessage.id, /^msg_[0-9a-f]{24}$/);
 
   const beforeRead = await request(baseUrl)
     .get('/api/conversations')
     .set('Cookie', secondAccount.cookie)
     .expect(200);
   const conversationBeforeRead = beforeRead.body.conversations
-    .find((conversation) => Number(conversation.id) === Number(firstMatch.conversationId));
+    .find((conversation) => conversation.id === firstMatch.conversationId);
+  assert.equal(Object.hasOwn(conversationBeforeRead, 'conversation_id'), false);
   assert.equal(conversationBeforeRead.unread_count, 1);
 
   const readEvent = eventFrom(first, 'message-read');
@@ -242,34 +256,29 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
   assert.equal(acknowledgement.ok, true);
   assert.equal(acknowledgement.updated, 1);
   const readPayload = await readEvent;
-  assert.equal(Number(readPayload.conversationId), Number(firstMatch.conversationId));
-  assert.equal(Number(readPayload.upToMessageId), Number(receivedMessage.id));
+  assert.equal(readPayload.conversationId, firstMatch.conversationId);
+  assert.equal(readPayload.upToMessageId, receivedMessage.id);
 
   const afterRead = await request(baseUrl)
     .get('/api/conversations')
     .set('Cookie', secondAccount.cookie)
     .expect(200);
   const conversationAfterRead = afterRead.body.conversations
-    .find((conversation) => Number(conversation.id) === Number(firstMatch.conversationId));
+    .find((conversation) => conversation.id === firstMatch.conversationId);
   assert.equal(conversationAfterRead.unread_count, 0);
 
   const partnerLeftAfterSkip = eventFrom(second, 'partner-left');
   first.emit('leave-chat');
-  assert.equal(Number((await partnerLeftAfterSkip).conversationId), Number(firstMatch.conversationId));
+  assert.equal((await partnerLeftAfterSkip).conversationId, firstMatch.conversationId);
 
-  await request(baseUrl)
+  const concurrentSaves = await Promise.all([0, 1].map(() => request(baseUrl)
     .put(`/api/conversations/${firstMatch.conversationId}/saved`)
     .set('Cookie', secondAccount.cookie)
-    .send({})
-    .expect(201);
-  await request(baseUrl)
-    .put(`/api/conversations/${firstMatch.conversationId}/saved`)
-    .set('Cookie', secondAccount.cookie)
-    .send({})
-    .expect(200);
+    .send({})));
+  assert.deepEqual(concurrentSaves.map((response) => response.status).sort(), [200, 201]);
   const savedAfterPartnerLeft = await db.query(
     `SELECT COUNT(*)::integer AS count FROM saved_chats
-     WHERE conversation_id = $1
+     WHERE conversation_id = (SELECT id FROM conversations WHERE public_id = $1)
        AND user_id = (SELECT id FROM users WHERE public_id = $2)`,
     [firstMatch.conversationId, secondAccount.user.publicId]
   );

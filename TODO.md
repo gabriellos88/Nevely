@@ -232,6 +232,7 @@ deferred N1.12 transactional-email polish is now tracked unchanged as N9.6.
   - [x] Keep Save/Unsave individual and retain saved conversations in anonymized form when the partner identity is no longer product-visible.
   - [x] Persist chat-request notifications and include their server-counted pending total in the Messages badge.
   - [x] Route direct-chat notifications to Conversations, allow accepted-friend notifications to be dismissed and render only minimized public actor avatars with a safe fallback.
+  - [x] Replace product-visible conversation/message serial keys, cursors and read receipts with opaque public IDs while retaining server-side transactional keys.
   - [x] Keep history profile cards presence-free, preserve avatar aspect ratio and move destructive End to the left of the composer.
   - [x] Make normalized duplicate-message enforcement tolerant of four repeats in 30 seconds while retaining the separate 12/10-second burst limit.
 - [ ] **N5.4 — Refine the mobile chat workspace.**

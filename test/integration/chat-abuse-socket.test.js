@@ -214,7 +214,10 @@ test('Socket.IO blocks normalized duplicates, link flood and repeated-character 
     assert.ok(payload.retryAfterSeconds > 0);
   }
 
-  const stored = await db.query('SELECT COUNT(*)::integer AS count FROM messages WHERE conversation_id = $1', [match.conversationId]);
+  const stored = await db.query(
+    'SELECT COUNT(*)::integer AS count FROM messages WHERE conversation_id = (SELECT id FROM conversations WHERE public_id = $1)',
+    [match.conversationId]
+  );
   assert.equal(stored.rows[0].count, 10);
   const signals = await db.query("SELECT principal_id FROM moderation_rate_windows WHERE principal_type = 'signal'");
   assert.ok(signals.rowCount > 0);
@@ -254,7 +257,10 @@ test('Socket.IO message burst enforcement rejects flood at the server boundary',
   assert.deepEqual(Object.keys(payload).sort(), ['message', 'retryAfterSeconds']);
   assert.ok(payload.retryAfterSeconds > 0);
 
-  const stored = await db.query('SELECT COUNT(*)::integer AS count FROM messages WHERE conversation_id = $1', [match.conversationId]);
+  const stored = await db.query(
+    'SELECT COUNT(*)::integer AS count FROM messages WHERE conversation_id = (SELECT id FROM conversations WHERE public_id = $1)',
+    [match.conversationId]
+  );
   assert.equal(stored.rows[0].count, 12);
 });
 

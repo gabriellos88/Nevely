@@ -181,7 +181,7 @@ test('direct friend chat reserves one conversation across replicas and never con
   assert.equal(matchedAlice.payload.conversationId, matchedBob.payload.conversationId);
 
   const reserved = await db.query(
-    `SELECT cr.status, cr.conversation_id, c.type, c.status AS conversation_status
+    `SELECT cr.status, c.public_id AS conversation_id, c.type, c.status AS conversation_status
      FROM chat_requests cr JOIN conversations c ON c.id = cr.conversation_id
      WHERE cr.public_id = $1`,
     [created.requestId]
@@ -209,7 +209,7 @@ test('direct friend chat reserves one conversation across replicas and never con
   const stillReserved = await db.query(
     `SELECT c.status,
             EXISTS (SELECT 1 FROM direct_conversation_pairs pair WHERE pair.conversation_id = c.id) AS reserved
-     FROM conversations c WHERE c.id = $1`,
+     FROM conversations c WHERE c.public_id = $1`,
     [matchedAlice.payload.conversationId]
   );
   assert.deepEqual(stillReserved.rows[0], { status: 'active', reserved: true });
@@ -246,7 +246,10 @@ test('direct friend chat reserves one conversation across replicas and never con
     await emitWithAck(matchedAlice.socket, 'end-direct-chat', { confirmation: 'END DIRECT CONVERSATION' }),
     { ok: true, ended: false }
   );
-  const endedConversation = await db.query('SELECT status FROM conversations WHERE id = $1', [matchedAlice.payload.conversationId]);
+  const endedConversation = await db.query(
+    'SELECT status FROM conversations WHERE public_id = $1',
+    [matchedAlice.payload.conversationId]
+  );
   assert.equal(endedConversation.rows[0].status, 'ended');
   assert.equal(Number((await db.query(
     `SELECT COUNT(*)::int AS count FROM moderation_rate_windows
@@ -369,7 +372,7 @@ test('direct friend chat survives disconnect, restores once and ends on friendsh
     `SELECT c.status, COUNT(pair.conversation_id)::int AS reservations
      FROM conversations c
      LEFT JOIN direct_conversation_pairs pair ON pair.conversation_id = c.id
-     WHERE c.id = $1 GROUP BY c.status`,
+     WHERE c.public_id = $1 GROUP BY c.status`,
     [initial.conversationId]
   );
   assert.deepEqual(persisted.rows[0], { status: 'active', reservations: 1 });
@@ -413,7 +416,7 @@ test('direct friend chat survives disconnect, restores once and ends on friendsh
   const ended = await db.query(
     `SELECT c.status,
             EXISTS (SELECT 1 FROM direct_conversation_pairs pair WHERE pair.conversation_id = c.id) AS reserved
-     FROM conversations c WHERE c.id = $1`,
+     FROM conversations c WHERE c.public_id = $1`,
     [initial.conversationId]
   );
   assert.deepEqual(ended.rows[0], { status: 'ended', reserved: false });
