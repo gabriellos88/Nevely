@@ -416,7 +416,7 @@
           <div class="messages" id="messages" tabindex="0" aria-label="<%= copy.chat.conversation.messagesAria %>"></div>
 
           <div class="chat-composer-shell hidden" id="chatComposer">
-            <div class="chat-input-bar">
+            <div class="chat-input-bar" id="liveComposerBar">
               <div class="conversation-end-group">
                 <button class="end-chat-btn hidden" id="endDirectChatBtn" type="button">
                   <i data-lucide="phone-off" aria-hidden="true"></i>
@@ -435,6 +435,20 @@
                   <i data-lucide="skip-forward" aria-hidden="true"></i>
                 </button>
               </div>
+            </div>
+            <div class="history-action-bar hidden" id="historyActionBar" role="toolbar" aria-label="<%= copy.chat.conversation.historyActions %>">
+              <button class="history-action-btn hidden" id="historyAddFriendBtn" type="button">
+                <i data-lucide="user-plus" aria-hidden="true"></i>
+                <span><%= copy.common.addFriend %></span>
+              </button>
+              <button class="history-action-btn hidden" id="historySaveBtn" type="button">
+                <i data-lucide="bookmark" aria-hidden="true"></i>
+                <span><%= copy.chat.conversation.saveChat %></span>
+              </button>
+              <button class="history-action-btn history-action-btn--danger hidden" id="historyBlockBtn" type="button">
+                <i data-lucide="shield-off" aria-hidden="true"></i>
+                <span><%= copy.common.block %></span>
+              </button>
             </div>
           </div>
         </section>

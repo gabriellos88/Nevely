@@ -1242,6 +1242,58 @@ a:hover { text-decoration: underline; }
   flex: none;
 }
 
+.chat-app-page .history-action-bar {
+  min-height: var(--spacing-11);
+  display: flex;
+  align-items: center;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+  gap: var(--spacing-3);
+}
+
+.chat-app-page .history-action-bar.hidden {
+  display: none;
+}
+
+.chat-app-page .history-action-btn {
+  min-height: var(--spacing-11);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-1-5);
+  padding-inline: var(--spacing-4);
+  border: calc(var(--spacing-px) * 2) solid var(--color-border-medium);
+  border-radius: var(--radius-full);
+  background: var(--color-neutral-tertiary);
+  color: var(--color-heading);
+  font-family: var(--font-family);
+  font-size: var(--font-size-sm);
+  font-weight: var(--font-weight-semibold);
+  line-height: var(--line-height-component);
+  cursor: pointer;
+}
+
+.chat-app-page .history-action-btn:hover:not(:disabled) {
+  border-color: var(--color-brand-medium);
+  background: var(--color-neutral-quaternary);
+}
+
+.chat-app-page .history-action-btn:focus-visible {
+  outline: var(--spacing-0);
+  box-shadow: var(--focus-ring-brand);
+}
+
+.chat-app-page .history-action-btn--danger {
+  border-color: var(--color-danger);
+  background: var(--color-danger-soft);
+  color: var(--color-fg-danger);
+}
+
+.chat-app-page .history-action-btn .lucide {
+  width: var(--spacing-4);
+  height: var(--spacing-4);
+}
+
 .chat-app-page .conversation-menu button {
   display: flex;
   align-items: center;

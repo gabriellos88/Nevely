@@ -1,5 +1,108 @@
 const { expect, test } = require('@playwright/test');
 
+test('recent conversations show server-capability actions instead of the message composer', async ({ page }) => {
+  const pageErrors = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  await page.route('**/socket.io/socket.io.js', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/javascript',
+    body: `window.io = () => ({
+      connected: false,
+      on() { return this; },
+      emit() { return this; },
+      timeout() { return this; },
+      disconnect() { return this; },
+      connect() { return this; }
+    });`
+  }));
+  await page.route('**/api/**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: '{}'
+  }));
+  await page.addInitScript(() => {
+    Object.defineProperty(window, '__CURRENT_USER__', {
+      configurable: false,
+      writable: false,
+      value: {
+        publicId: 'nvy_aabbccddeeff',
+        displayName: 'Synthetic Account',
+        emailVerified: true,
+        role: 'user',
+        plan: 'free'
+      }
+    });
+  });
+  const conversation = {
+    id: 81,
+    type: 'direct',
+    status: 'ended',
+    started_at: new Date().toISOString(),
+    partner_name: 'History Partner',
+    partner_public_id: 'nvy_0123456789ab',
+    saved: false,
+    capabilities: {
+      canAddFriend: true,
+      canSave: true,
+      canUnsave: false,
+      canBlock: true,
+      canDeleteForEveryone: true
+    }
+  };
+  await page.route('**/api/conversations/81/messages**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ conversation, messages: [], page: { hasMore: false } })
+  }));
+  await page.route('**/api/conversations**', (route) => {
+    if (new URL(route.request().url()).pathname !== '/api/conversations') {
+      return route.fallback();
+    }
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        conversations: [conversation],
+        directInbox: { active: [], recent: [conversation], limit: 5 },
+        unreadCount: 0,
+        messageBadgeCount: 0,
+        page: { hasMore: false }
+      })
+    });
+  });
+  await page.route('**/api/friend-requests**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ requests: [], pendingCount: 0, page: { hasMore: false } })
+  }));
+  await page.route('**/api/notifications**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({ notifications: [], unreadCount: 0, page: { hasMore: false } })
+  }));
+
+  await page.goto('/chat?guest=1', { waitUntil: 'domcontentloaded' });
+  expect(pageErrors).toEqual([]);
+  await page.locator('#messagesToggle').click();
+  await expect(page.locator('#messagesDrawer')).toBeVisible();
+  await page.locator('#messagesTabRecent').click();
+  await page.getByRole('button', { name: /History Partner/ }).click();
+
+  await expect(page.locator('#liveComposerBar')).toBeHidden();
+  const toolbar = page.getByRole('toolbar', { name: 'Conversation actions' });
+  await expect(toolbar).toBeVisible();
+  await expect(toolbar.getByRole('button', { name: 'Add friend' })).toBeVisible();
+  await expect(toolbar.getByRole('button', { name: 'Save chat' })).toBeVisible();
+  await expect(toolbar.getByRole('button', { name: 'Block' })).toBeVisible();
+  await expect(page.locator('#statusText')).toHaveText('Viewing a recent conversation');
+
+  await page.locator('#conversationMenuBtn').click();
+  await expect(page.locator('#addFriendMenuBtn')).toBeVisible();
+  await expect(page.locator('#saveConversationBtn')).toBeVisible();
+  await expect(page.locator('#blockPartnerBtn')).toBeVisible();
+  await expect(page.locator('#historySaveBtn .lucide-bookmark')).toHaveCount(1);
+});
+
 test('friend list exposes only server capabilities with accessible responsive menus', async ({ page }, testInfo) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, '__CURRENT_USER__', {

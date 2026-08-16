@@ -25,6 +25,11 @@ const statusText = document.getElementById('statusText');
 const releaseNotice = document.getElementById('releaseNotice');
 const releaseNoticeBody = document.getElementById('releaseNoticeBody');
 const chatComposer = document.getElementById('chatComposer');
+const liveComposerBar = document.getElementById('liveComposerBar');
+const historyActionBar = document.getElementById('historyActionBar');
+const historyAddFriendBtn = document.getElementById('historyAddFriendBtn');
+const historySaveBtn = document.getElementById('historySaveBtn');
+const historyBlockBtn = document.getElementById('historyBlockBtn');
 const chatCard = document.getElementById('chatCard');
 const searchCard = document.getElementById('searchCard');
 const searchPhaseStatus = document.getElementById('searchPhaseStatus');
@@ -167,6 +172,7 @@ let pendingFriendSafetyAction = null;
 let friendSafetyRestoreFocus = null;
 let readOnlyConversation = false;
 let currentConversationSaved = false;
+let currentConversationCapabilities = {};
 let skipCooldownTimer = null;
 let messageCooldownTimer = null;
 let messageCooldownUntil = 0;
@@ -341,9 +347,12 @@ accountTabButtons.forEach((button) => {
   button.addEventListener('keydown', handleAccountTabKeydown);
 });
 if (conversationMenuBtn) conversationMenuBtn.addEventListener('click', () => conversationMenu.classList.toggle('hidden'));
-if (addFriendMenuBtn) addFriendMenuBtn.addEventListener('click', addCurrentPartnerFriend);
+if (addFriendMenuBtn) addFriendMenuBtn.addEventListener('click', () => addCurrentPartnerFriend(addFriendMenuBtn));
 if (saveConversationBtn) saveConversationBtn.addEventListener('click', saveCurrentConversation);
-if (blockPartnerBtn) blockPartnerBtn.addEventListener('click', blockCurrentPartner);
+if (blockPartnerBtn) blockPartnerBtn.addEventListener('click', () => blockCurrentPartner(conversationMenuBtn));
+if (historyAddFriendBtn) historyAddFriendBtn.addEventListener('click', () => addCurrentPartnerFriend(historyAddFriendBtn));
+if (historySaveBtn) historySaveBtn.addEventListener('click', saveCurrentConversation);
+if (historyBlockBtn) historyBlockBtn.addEventListener('click', () => blockCurrentPartner(historyBlockBtn));
 if (deleteConversationBtn) deleteConversationBtn.addEventListener('click', deleteCurrentConversation);
 if (partnerProfileBtn) partnerProfileBtn.addEventListener('click', openPartnerProfile);
 if (accountForm) accountForm.addEventListener('submit', saveAccount);
@@ -528,9 +537,14 @@ function setChatComposerState(mode, message = '') {
   const isLive = mode === 'live';
   const isSearching = mode === 'searching';
   const isDirect = currentConversationType === 'direct';
+  const isHistory = mode === 'history';
   const canSend = isLive && Date.now() >= messageCooldownUntil;
 
   chatComposerMode = mode;
+  liveComposerBar?.classList.toggle('hidden', isHistory);
+  const hasHistoryActions = [historyAddFriendBtn, historySaveBtn, historyBlockBtn]
+    .some((button) => button && !button.classList.contains('hidden'));
+  historyActionBar?.classList.toggle('hidden', !isHistory || !hasHistoryActions);
   messageInput.disabled = !canSend;
   sendBtn.disabled = !canSend;
   reportBtn.disabled = !isLive;
@@ -557,6 +571,31 @@ function setChatComposerState(mode, message = '') {
     endDirectChatBtn.disabled = (!isLive && mode !== 'paused') || directEndPending;
     endDirectChatBtn.toggleAttribute('aria-busy', directEndPending);
   }
+}
+
+function applyStoredConversationCapabilities(capabilities = {}) {
+  currentConversationCapabilities = {
+    canAddFriend: capabilities.canAddFriend === true,
+    canSave: capabilities.canSave === true,
+    canUnsave: capabilities.canUnsave === true,
+    canBlock: capabilities.canBlock === true,
+    canDeleteForEveryone: capabilities.canDeleteForEveryone === true
+  };
+  const canToggleSaved = currentConversationCapabilities.canSave
+    || currentConversationCapabilities.canUnsave;
+  addFriendMenuBtn?.classList.toggle('hidden', !currentConversationCapabilities.canAddFriend);
+  if (addFriendMenuBtn) addFriendMenuBtn.disabled = !currentConversationCapabilities.canAddFriend;
+  saveConversationBtn?.classList.toggle('hidden', !canToggleSaved);
+  blockPartnerBtn?.classList.toggle('hidden', !currentConversationCapabilities.canBlock);
+  deleteConversationBtn?.classList.toggle('hidden', !currentConversationCapabilities.canDeleteForEveryone);
+  historyAddFriendBtn?.classList.toggle('hidden', !currentConversationCapabilities.canAddFriend);
+  historySaveBtn?.classList.toggle('hidden', !canToggleSaved);
+  historyBlockBtn?.classList.toggle('hidden', !currentConversationCapabilities.canBlock);
+  const saveLabel = currentConversationCapabilities.canUnsave
+    ? chatCopy.conversation.removeSaved
+    : chatCopy.conversation.saveChat;
+  setControlLabel(saveConversationBtn, saveLabel);
+  setControlLabel(historySaveBtn, saveLabel);
 }
 
 function startMessageCooldown(retryAfterSeconds) {
@@ -1610,12 +1649,22 @@ socket.on('matched', async (data) => {
   currentConversationType = data.conversationType;
   currentPartner = data.partner || null;
   currentConversationSaved = false;
+  currentConversationCapabilities = {
+    canAddFriend: data.canAddFriend === true,
+    canSave: true,
+    canUnsave: false,
+    canBlock: data.capabilities?.canBlock === true,
+    canDeleteForEveryone: false
+  };
   addFriendMenuBtn?.classList.toggle('hidden', !data.canAddFriend);
   if (addFriendMenuBtn) {
     addFriendMenuBtn.disabled = !data.canAddFriend;
     addFriendMenuBtn.removeAttribute('aria-busy');
   }
   setControlLabel(saveConversationBtn, chatCopy.conversation.saveChat);
+  saveConversationBtn?.classList.remove('hidden');
+  blockPartnerBtn?.classList.toggle('hidden', !currentConversationCapabilities.canBlock);
+  deleteConversationBtn?.classList.add('hidden');
   partnerAvatar.textContent = (data.partner?.displayName || fallbackName).charAt(0).toUpperCase();
   partnerName.textContent = data.partner?.displayName || fallbackName;
   readOnlyConversation = false;
@@ -2562,10 +2611,7 @@ async function openStoredConversation(item) {
       ? { publicId: item.partner_public_id, displayName: item.partner_name }
       : null;
     currentConversationSaved = Boolean(item.saved);
-    setControlLabel(
-      saveConversationBtn,
-      currentConversationSaved ? chatCopy.conversation.removeSaved : chatCopy.conversation.saveChat
-    );
+    applyStoredConversationCapabilities(item.capabilities);
     const resumableDirect = item.sourceContext === 'messages'
       && item.type === 'direct' && item.status === 'active';
     readOnlyConversation = !resumableDirect;
@@ -2614,39 +2660,52 @@ async function saveCurrentConversation() {
   conversationMenu.classList.add('hidden');
   if (!currentUser && !guestProfile) return openAccountSettings();
   if (!currentConversationId) return alert(chatCopy.feedback.nothingToSave);
+  if (readOnlyConversation
+      && !(currentConversationCapabilities.canSave || currentConversationCapabilities.canUnsave)) return;
   try {
     if (currentConversationSaved) {
       await api(`/api/conversations/${currentConversationId}/saved`, { method: 'DELETE' });
       currentConversationSaved = false;
-      setControlLabel(saveConversationBtn, chatCopy.conversation.saveChat);
+      currentConversationCapabilities.canSave = true;
+      currentConversationCapabilities.canUnsave = false;
     } else {
       await api(`/api/conversations/${currentConversationId}/saved`, { method: 'PUT', body: '{}' });
       currentConversationSaved = true;
-      setControlLabel(saveConversationBtn, chatCopy.conversation.removeSaved);
+      currentConversationCapabilities.canSave = false;
+      currentConversationCapabilities.canUnsave = true;
     }
+    applyStoredConversationCapabilities(currentConversationCapabilities);
     loadPanel('saved');
   } catch (error) {
     alert(error.message);
   }
 }
 
-async function addCurrentPartnerFriend() {
+async function addCurrentPartnerFriend(trigger = addFriendMenuBtn) {
   conversationMenu.classList.add('hidden');
-  if (!currentUser || !currentPartner?.publicId || !addFriendMenuBtn || addFriendMenuBtn.disabled) return;
-  addFriendMenuBtn.disabled = true;
-  addFriendMenuBtn.setAttribute('aria-busy', 'true');
+  if (!currentUser || !currentPartner?.publicId || currentConversationCapabilities.canAddFriend !== true) return;
+  [addFriendMenuBtn, historyAddFriendBtn].forEach((button) => {
+    if (!button) return;
+    button.disabled = true;
+    button.setAttribute('aria-busy', 'true');
+  });
   try {
     await api('/api/friend-requests', {
       method: 'POST',
       body: JSON.stringify({ publicId: currentPartner.publicId })
     });
-    addFriendMenuBtn.classList.add('hidden');
+    currentConversationCapabilities.canAddFriend = false;
+    applyStoredConversationCapabilities(currentConversationCapabilities);
     addMessage(chatCopy.feedback.friendRequestSent, 'system');
   } catch (error) {
     alert(error.message);
-    addFriendMenuBtn.disabled = false;
+    trigger?.focus();
   } finally {
-    addFriendMenuBtn.removeAttribute('aria-busy');
+    [addFriendMenuBtn, historyAddFriendBtn].forEach((button) => {
+      if (!button) return;
+      button.disabled = currentConversationCapabilities.canAddFriend !== true;
+      button.removeAttribute('aria-busy');
+    });
   }
 }
 
@@ -2666,20 +2725,23 @@ async function deleteCurrentConversation() {
   }
 }
 
-async function blockCurrentPartner() {
+async function blockCurrentPartner(trigger = conversationMenuBtn) {
   conversationMenu.classList.add('hidden');
   if (!currentUser) return openAccountSettings();
   if (!currentPartner?.publicId) return alert(chatCopy.feedback.guestBlockUnavailable);
+  if (readOnlyConversation && currentConversationCapabilities.canBlock !== true) return;
   openFriendSafetyConfirmation({
     title: uiCopy.common.block,
     description: formatCopy(chatCopy.feedback.confirmBlockFriend, {
       name: currentPartner.displayName || uiCopy.common.unknownUser
     }),
     confirmLabel: uiCopy.common.block,
-    trigger: conversationMenuBtn,
+    trigger,
     action: async () => {
       await api(`/api/blocks/${currentPartner.publicId}`, { method: 'PUT', body: '{}' });
-      blockPartnerBtn.textContent = chatCopy.conversation.blocked;
+      currentConversationCapabilities.canBlock = false;
+      currentConversationCapabilities.canAddFriend = false;
+      applyStoredConversationCapabilities(currentConversationCapabilities);
     }
   });
 }

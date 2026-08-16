@@ -63,3 +63,19 @@ test('Inbox separates active and past direct chats and history uses contextual r
   assert.match(client, /window\.lucide\?\.createIcons\(\);/);
   assert.doesNotMatch(view, />Recent Direct Chats</);
 });
+
+test('recent and saved conversations replace the composer with server-capability actions', () => {
+  const view = read('views/chat.ejs');
+  const client = read('public/js/chat-client.js');
+  const api = read('lib/api.js');
+  assert.match(view, /id="liveComposerBar"[\s\S]*?id="historyActionBar"/);
+  assert.match(view, /id="historyAddFriendBtn"[\s\S]*?data-lucide="user-plus"/);
+  assert.match(view, /id="historySaveBtn"[\s\S]*?data-lucide="bookmark"/);
+  assert.match(view, /id="historyBlockBtn"[\s\S]*?data-lucide="shield-off"/);
+  assert.match(client, /function applyStoredConversationCapabilities\(capabilities = \{\}\)/);
+  assert.match(client, /capabilities\.canAddFriend === true/);
+  assert.match(client, /capabilities\.canBlock === true/);
+  assert.match(client, /liveComposerBar\?\.classList\.toggle\('hidden', isHistory\)/);
+  assert.match(api, /conversationSocialCapabilities[\s\S]*?can_add_friend[\s\S]*?can_block/);
+  assert.doesNotMatch(client, /partner_public_id[\s\S]{0,120}canAddFriend/);
+});

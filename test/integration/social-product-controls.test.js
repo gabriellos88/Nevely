@@ -81,6 +81,22 @@ test('standard saved chats and the direct inbox are capped at five with server c
   assert.deepEqual(inbox.body.limits.saved, 5);
   assert.equal(inbox.body.conversations[0].capabilities.canSave, true);
   assert.equal(inbox.body.conversations[0].capabilities.canDeleteForEveryone, true);
+  assert.equal(inbox.body.conversations[0].capabilities.canAddFriend, true);
+  assert.equal(inbox.body.conversations[0].capabilities.canBlock, true);
+
+  await db.query(
+    `INSERT INTO friendships (user_id, friend_id)
+     VALUES ($1, $2), ($2, $1)`,
+    [ownerId, partnerId]
+  );
+  const friendInbox = await request(baseUrl).get('/api/conversations').set('Cookie', owner.cookie).expect(200);
+  assert.equal(friendInbox.body.conversations[0].capabilities.canAddFriend, false);
+  assert.equal(friendInbox.body.conversations[0].capabilities.canBlock, true);
+  await db.query(
+    `DELETE FROM friendships
+     WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)`,
+    [ownerId, partnerId]
+  );
 
   for (const conversationId of conversationIds.slice(0, 5)) {
     await request(baseUrl)
@@ -99,6 +115,8 @@ test('standard saved chats and the direct inbox are capped at five with server c
   assert.equal(saved.body.used, 5);
   assert.equal(saved.body.chats.every((chat) => chat.capabilities.canUnsave === true), true);
   assert.equal(saved.body.chats.every((chat) => chat.capabilities.canDeleteForEveryone === true), true);
+  assert.equal(saved.body.chats.every((chat) => chat.capabilities.canAddFriend === true), true);
+  assert.equal(saved.body.chats.every((chat) => chat.capabilities.canBlock === true), true);
 
   const historyProfile = await request(baseUrl)
     .get(`/api/users/${partner.publicId}/profile?context=history&conversationId=${conversationIds[0]}`)
