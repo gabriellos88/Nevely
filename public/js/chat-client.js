@@ -11,6 +11,7 @@ const socket = io();
 const startBtn = document.getElementById('startBtn');
 const startBtnSidebar = document.getElementById('startBtnSidebar');
 const startBtnBottom = document.getElementById('startBtnBottom');
+const newRandomChatBtn = document.getElementById('newRandomChatBtn');
 const newBtn = document.getElementById('newBtn');
 const endDirectChatBtn = document.getElementById('endDirectChatBtn');
 const cancelSearchBtn = document.getElementById('cancelSearchBtn');
@@ -328,6 +329,11 @@ function handleGuestCountryKeydown(event) {
 if (startBtn) startBtn.addEventListener('click', startSearch);
 if (startBtnSidebar) startBtnSidebar.addEventListener('click', startSearch);
 if (startBtnBottom) startBtnBottom.addEventListener('click', startSearch);
+newRandomChatBtn?.addEventListener('click', () => {
+  closeActiveDrawer({ restoreFocus: false });
+  showSetupView();
+  startBtnBottom?.focus();
+});
 newBtn.addEventListener('click', startSearch);
 endDirectChatBtn?.addEventListener('click', endDirectConversation);
 cancelSearchBtn?.addEventListener('click', cancelSearch);
@@ -579,7 +585,8 @@ function applyStoredConversationCapabilities(capabilities = {}) {
     canSave: capabilities.canSave === true,
     canUnsave: capabilities.canUnsave === true,
     canBlock: capabilities.canBlock === true,
-    canDeleteForEveryone: capabilities.canDeleteForEveryone === true
+    canDeleteForEveryone: capabilities.canDeleteForEveryone === true,
+    canResumeDirect: capabilities.canResumeDirect === true
   };
   const canToggleSaved = currentConversationCapabilities.canSave
     || currentConversationCapabilities.canUnsave;
@@ -1391,7 +1398,6 @@ function updateWaitingTimeControl() {
 
 function startSearch() {
   if (nextSearchPending) return;
-  if (currentConversationType === 'direct' && chatComposerMode === 'live') return;
   if (releaseDraining) {
     if (!currentConversationId) setChatComposerState('error', uiCopy.release.drainingTitle);
     return;
@@ -2612,8 +2618,7 @@ async function openStoredConversation(item) {
       : null;
     currentConversationSaved = Boolean(item.saved);
     applyStoredConversationCapabilities(item.capabilities);
-    const resumableDirect = item.sourceContext === 'messages'
-      && item.type === 'direct' && item.status === 'active';
+    const resumableDirect = currentConversationCapabilities.canResumeDirect === true;
     readOnlyConversation = !resumableDirect;
     showChatView();
     closeActiveDrawer({ restoreFocus: false });
@@ -2640,6 +2645,14 @@ async function openStoredConversation(item) {
     if (resumableDirect) {
       addMessage(chatCopy.feedback.directChatPaused, 'system');
       setChatComposerState('paused', chatCopy.feedback.directChatPaused);
+      const response = await new Promise((resolve) => {
+        socket.timeout(6000).emit(
+          'resume-direct-chat',
+          { partnerPublicId: item.partner_public_id },
+          (error, result = {}) => resolve(error ? { ok: false } : result)
+        );
+      });
+      if (!response.ok) statusText.textContent = chatCopy.feedback.directChatPaused;
     } else {
       const contextualStatus = item.sourceContext === 'saved'
         ? chatCopy.feedback.viewingSavedConversation

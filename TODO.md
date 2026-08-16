@@ -227,6 +227,7 @@ deferred N1.12 transactional-email polish is now tracked unchanged as N9.6.
   - [x] Keep at most five direct conversations in Inbox, split active/recent, and expose server-derived Save/Unsave/Delete capabilities across Inbox, Recent and Saved.
   - [x] Raise the standard account saved-chat allowance to five while retaining guest and Premium policy server-side.
   - [x] Keep direct conversations active across disconnect/reconnect; end them only explicitly, by friendship removal or by block, with one PostgreSQL reservation per pair.
+  - [x] Allow an active direct conversation to be parked for random matching and resumed from Inbox without consuming skip; bound ordinary visible message history to 200 while preserving saved and moderation-retained data.
   - [x] Persist chat-request notifications and include their server-counted pending total in the Messages badge.
   - [x] Keep history profile cards presence-free, preserve avatar aspect ratio and move destructive End to the left of the composer.
   - [x] Make normalized duplicate-message enforcement tolerant of four repeats in 30 seconds while retaining the separate 12/10-second burst limit.

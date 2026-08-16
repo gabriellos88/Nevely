@@ -220,6 +220,11 @@ test('direct friend chat replaces Next with an accessible destructive End action
     expect(composer.x).toBeGreaterThanOrEqual(0);
     expect(composer.x + composer.width).toBeLessThanOrEqual(viewport.width + 1);
   }
+  await page.setViewportSize({ width: 1366, height: 768 });
+  await page.locator('#newRandomChatBtn').click();
+  await expect(page.locator('#matchSetup')).toBeVisible();
+  await expect(page.locator('#chatCard')).toBeHidden();
+  await expect(page.locator('#startBtnBottom')).toBeFocused();
 });
 
 test('report feedback waits for the server response and stays generic', async ({ page }) => {

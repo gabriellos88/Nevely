@@ -9467,13 +9467,31 @@ body.guest-passport-open .chat-layout {
 }
 
 .chat-app-page .chat-topbar-context {
+  min-height: var(--spacing-11);
   display: inline-flex;
   align-items: center;
   gap: var(--spacing-2);
+  padding-inline: var(--spacing-3);
+  border: var(--spacing-px) solid transparent;
+  border-radius: var(--radius-full);
+  background: transparent;
   color: var(--color-body-subtle);
+  font-family: var(--font-family);
   font-size: var(--font-size-sm);
   font-weight: var(--font-weight-medium);
   line-height: var(--line-height-component);
+  cursor: pointer;
+}
+
+.chat-app-page .chat-topbar-context:hover {
+  border-color: var(--color-border-medium);
+  background: var(--color-neutral-tertiary);
+  color: var(--color-heading);
+}
+
+.chat-app-page .chat-topbar-context:focus-visible {
+  outline: var(--spacing-0);
+  box-shadow: var(--focus-ring-brand);
 }
 
 .chat-app-page .chat-status-dot {

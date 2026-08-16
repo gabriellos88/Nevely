@@ -169,7 +169,13 @@ test('direct friend chat reserves one conversation across replicas and never con
   const matchedBob = await bobMatched;
   for (const match of [matchedAlice.payload, matchedBob.payload]) {
     assert.equal(match.conversationType, 'direct');
-    assert.deepEqual(match.capabilities, { canNext: false, canEnd: true, canReport: true });
+    assert.deepEqual(match.capabilities, {
+      canNext: false,
+      canEnd: true,
+      canReport: true,
+      canAddFriend: false,
+      canBlock: true
+    });
     assert.equal(match.canAddFriend, false);
   }
   assert.equal(matchedAlice.payload.conversationId, matchedBob.payload.conversationId);
@@ -189,21 +195,44 @@ test('direct friend chat reserves one conversation across replicas and never con
   });
   assert.equal(Number((await db.query("SELECT COUNT(*)::int AS count FROM conversations WHERE type = 'direct'")).rows[0].count), 1);
 
-  const activeSearchError = eventFrom(matchedAlice.socket, 'chat-error');
+  const directPaused = eventFrom(matchedBob.socket, 'direct-chat-paused');
+  const randomWaiting = eventFrom(matchedAlice.socket, 'waiting');
+  const randomSearchState = eventFrom(matchedAlice.socket, 'search-state');
   matchedAlice.socket.emit('find-partner', {
     interests: [],
     profile: { username: 'Browser supplied', age: 28, gender: 'non-binary', country: 'Switzerland' },
     waitingTimeSeconds: 5
   });
-  assert.equal((await activeSearchError).message, require('../../public/i18n/en.json').errors.directChatActive);
+  assert.deepEqual(await randomWaiting, { status: 'searching' });
+  assert.deepEqual(await randomSearchState, { phase: 'general' });
+  assert.deepEqual(await directPaused, {});
+  const stillReserved = await db.query(
+    `SELECT c.status,
+            EXISTS (SELECT 1 FROM direct_conversation_pairs pair WHERE pair.conversation_id = c.id) AS reserved
+     FROM conversations c WHERE c.id = $1`,
+    [matchedAlice.payload.conversationId]
+  );
+  assert.deepEqual(stillReserved.rows[0], { status: 'active', reserved: true });
   const randomCounters = await db.query(
     `SELECT action FROM moderation_rate_windows
      WHERE principal_type = 'user' AND principal_id = $1 AND action IN ('skip', 'match')`,
     [String(aliceId)]
   );
-  assert.equal(randomCounters.rowCount, 0);
+  assert.deepEqual(randomCounters.rows.map((row) => row.action), ['match']);
 
-  const partnerLeft = eventFrom(matchedBob.socket, 'partner-left');
+  assert.deepEqual(await emitWithAck(matchedAlice.socket, 'cancel-search'), { ok: true, cancelled: true });
+  const resumedAlice = eventFrom(matchedAlice.socket, 'matched');
+  const resumedBob = eventFromAny([bobFirst, bobSecond], 'matched');
+  assert.deepEqual(
+    await emitWithAck(matchedAlice.socket, 'resume-direct-chat', { partnerPublicId: bob.publicId }),
+    { ok: true, resumed: true }
+  );
+  const [aliceResumePayload, bobResume] = await Promise.all([resumedAlice, resumedBob]);
+  assert.equal(aliceResumePayload.conversationId, matchedAlice.payload.conversationId);
+  assert.equal(bobResume.payload.conversationId, matchedAlice.payload.conversationId);
+  assert.equal(aliceResumePayload.restored, true);
+
+  const partnerLeft = eventFrom(bobResume.socket, 'partner-left');
   assert.deepEqual(
     await emitWithAck(matchedAlice.socket, 'end-direct-chat'),
     { ok: true, ended: true }

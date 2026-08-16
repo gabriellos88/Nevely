@@ -198,9 +198,21 @@ start safely; no presence detail is returned.
   A finite preference relaxes in place and keeps the socket queued; `null`
   remains in the shared-topic phase without imposing a maximum search duration.
   Filters, blocks, bans, authorization and rate limits remain active throughout.
+  Starting random matching while a direct conversation is active parks its
+  realtime pairing but leaves the persisted direct conversation active and does
+  not consume a random skip.
 - `cancel-search`: removes the current socket from matchmaking. Its optional
   acknowledgement contains only `{ ok, cancelled }` and no queue or presence data.
+- `resume-direct-chat`: requests resumption of the authenticated account's
+  active direct reservation using only the partner public ID. The server
+  revalidates friendship, block, account and conversation state, applies a
+  distributed cooldown and returns only `{ ok, resumed, retryAfterSeconds? }`.
+  A waiting random search is cancelled only when the account explicitly uses
+  this event; an active random conversation is never ended implicitly.
 - `send-message`: sends one text message, maximum 1,000 characters.
+  Unsaved/unreported conversation storage is progressively bounded to the most
+  recent 200 messages. Saved or moderation-retained records are not pruned, but
+  product history APIs expose at most the latest 200 messages.
 - `leave-chat`: leaves the active conversation, subject to skip cooldown. An
   optional Socket.IO acknowledgement returns `{ ok: true, ended }` only after
   the server transition completes, or `{ ok: false, retryAfterSeconds }` for a

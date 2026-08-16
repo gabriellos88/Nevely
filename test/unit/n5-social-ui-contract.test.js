@@ -79,3 +79,19 @@ test('recent and saved conversations replace the composer with server-capability
   assert.match(api, /conversationSocialCapabilities[\s\S]*?can_add_friend[\s\S]*?can_block/);
   assert.doesNotMatch(client, /partner_public_id[\s\S]{0,120}canAddFriend/);
 });
+
+test('direct conversations can be parked for random matching and resumed only by server capability', () => {
+  const view = read('views/chat.ejs');
+  const client = read('public/js/chat-client.js');
+  const chat = read('lib/chat.js');
+  const messages = read('lib/conversation-messages.js');
+  assert.match(view, /id="newRandomChatBtn"/);
+  assert.match(client, /capabilities\.canResumeDirect === true/);
+  assert.match(client, /socket\.timeout\(6000\)\.emit\([\s\S]*?'resume-direct-chat'[\s\S]*?partnerPublicId/);
+  assert.doesNotMatch(client, /currentConversationType === 'direct' && chatComposerMode === 'live'\) return/);
+  assert.match(chat, /currentPair\?\.type === 'direct'\) detachDirectPair/);
+  assert.match(chat, /consumeRateLimit\(profileForSocket\(socket\), 'direct-chat-resume'\)/);
+  assert.match(messages, /MAX_VISIBLE_CONVERSATION_MESSAGES = 200/);
+  assert.match(messages, /saved_chats[\s\S]*?reports[\s\S]*?retention_until/);
+  assert.doesNotMatch(messages, /console\.|safeLog|body\s*:/);
+});
