@@ -229,6 +229,7 @@ deferred N1.12 transactional-email polish is now tracked unchanged as N9.6.
   - [x] Keep direct conversations active across disconnect/reconnect; end them only explicitly, by friendship removal or by block, with one PostgreSQL reservation per pair.
   - [x] Allow an active direct conversation to be parked for random matching and resumed from Inbox without consuming skip; bound ordinary visible message history to 200 while preserving saved and moderation-retained data.
   - [x] Separate confirmed End conversation, per-participant Remove from my history and distributed-cooldown Delete unsaved messages; preserve saved, report, evidence and moderation retention.
+  - [x] Keep Save/Unsave individual and retain saved conversations in anonymized form when the partner identity is no longer product-visible.
   - [x] Persist chat-request notifications and include their server-counted pending total in the Messages badge.
   - [x] Keep history profile cards presence-free, preserve avatar aspect ratio and move destructive End to the left of the composer.
   - [x] Make normalized duplicate-message enforcement tolerant of four repeats in 30 seconds while retaining the separate 12/10-second burst limit.

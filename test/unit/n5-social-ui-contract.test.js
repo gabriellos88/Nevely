@@ -121,3 +121,17 @@ test('end, personal history removal and retained message deletion are distinct c
     'Delete unsaved messages for both participants? Safety records may be retained.'
   );
 });
+
+test('saved history keeps content but removes unavailable partner identity and capabilities', () => {
+  const api = read('lib/api.js');
+  const client = read('public/js/chat-client.js');
+  const copy = JSON.parse(read('public/i18n/en.json'));
+  assert.equal(copy.common.unavailableParticipant, 'Unavailable participant');
+  assert.match(api, /partner_anonymized/);
+  assert.match(api, /COALESCE\(u\.deleted_at IS NULL, FALSE\) AS account_available/);
+  assert.match(api, /guest\.status = 'active' AND guest\.retention_until > NOW\(\)/);
+  assert.match(api, /canViewPartnerProfile: Boolean\(chat\.partner_public_id\)/);
+  assert.match(api, /ELSE \$7[\s\S]*?AS sender_display_name/);
+  assert.match(client, /capabilities\.canViewPartnerProfile === true/);
+  assert.match(client, /partnerProfileBtn\.disabled = !currentConversationCapabilities\.canViewPartnerProfile/);
+});

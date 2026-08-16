@@ -70,6 +70,11 @@ Implemented in N1:
   retention record is left untouched without revealing the reason. Body
   confirmation: `DELETE UNSAVED MESSAGES`; a distributed generic cooldown applies.
 - `GET /api/saved-chats`: saved chats and the current account/guest limit.
+  Save/Unsave is an individual preference. If a retained partner account or
+  guest can no longer be shown, the saved row and its messages remain available
+  with `partner_anonymized: true`, a neutral label, no partner public ID, photo
+  or presence, and no partner-dependent capability. Historical message sender
+  identity is minimized by the same rule.
 - `PUT /api/conversations/:id/saved`, `DELETE /api/conversations/:id/saved`: save or unsave a chat.
 
 Unsaved conversations are deleted 7 days after last activity, or oldest first

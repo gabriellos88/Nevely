@@ -129,6 +129,48 @@ test('standard saved chats and the direct inbox are capped at five with server c
     .expect(200);
   assert.equal(historyProfile.body.presenceVisible, false);
   assert.equal(Object.hasOwn(historyProfile.body, 'online'), false);
+
+  await persistConversationMessage(db, {
+    conversationId: conversationIds[0],
+    user: { userId: partnerId, guestId: null, displayName: 'Partner retained name' }
+  }, 'partner-retention-test', 'retained saved message');
+  await db.query(
+    `UPDATE users
+     SET deleted_at = NOW(), retention_until = NOW() + INTERVAL '30 days'
+     WHERE id = $1`,
+    [partnerId]
+  );
+
+  const anonymizedSaved = await request(baseUrl)
+    .get('/api/saved-chats')
+    .set('Cookie', owner.cookie)
+    .expect(200);
+  assert.equal(anonymizedSaved.body.used, 5);
+  assert.equal(anonymizedSaved.body.chats.every((chat) => chat.partner_anonymized === true), true);
+  assert.equal(anonymizedSaved.body.chats.every((chat) => chat.partner_name === 'Unavailable participant'), true);
+  assert.equal(anonymizedSaved.body.chats.every((chat) => chat.partner_public_id === null), true);
+  assert.equal(anonymizedSaved.body.chats.every((chat) => chat.profile_image_url === null), true);
+  assert.equal(anonymizedSaved.body.chats.every((chat) => (
+    chat.capabilities.canAddFriend === false
+    && chat.capabilities.canBlock === false
+    && chat.capabilities.canResumeDirect === false
+    && chat.capabilities.canViewPartnerProfile === false
+  )), true);
+
+  const anonymizedHistory = await request(baseUrl)
+    .get('/api/conversations')
+    .set('Cookie', owner.cookie)
+    .expect(200);
+  assert.equal(anonymizedHistory.body.conversations.every((chat) => chat.partner_anonymized === true), true);
+  assert.equal(anonymizedHistory.body.directInbox.active.every((chat) => chat.partner_anonymized === true), true);
+  const anonymizedMessages = await request(baseUrl)
+    .get(`/api/conversations/${conversationIds[0]}/messages`)
+    .set('Cookie', owner.cookie)
+    .expect(200);
+  const retainedMessage = anonymizedMessages.body.messages.find((message) => message.body === 'retained saved message');
+  assert.ok(retainedMessage);
+  assert.equal(retainedMessage.sender_public_id, null);
+  assert.equal(retainedMessage.sender_display_name, 'Unavailable participant');
 });
 
 test('direct message history is bounded to 200 while saved and moderation-protected content is retained', {

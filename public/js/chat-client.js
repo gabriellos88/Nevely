@@ -590,7 +590,8 @@ function applyStoredConversationCapabilities(capabilities = {}) {
     canBlock: capabilities.canBlock === true,
     canRemoveFromHistory: capabilities.canRemoveFromHistory === true,
     canDeleteUnsavedMessages: capabilities.canDeleteUnsavedMessages === true,
-    canResumeDirect: capabilities.canResumeDirect === true
+    canResumeDirect: capabilities.canResumeDirect === true,
+    canViewPartnerProfile: capabilities.canViewPartnerProfile === true
   };
   const canToggleSaved = currentConversationCapabilities.canSave
     || currentConversationCapabilities.canUnsave;
@@ -608,6 +609,10 @@ function applyStoredConversationCapabilities(capabilities = {}) {
     : chatCopy.conversation.saveChat;
   setControlLabel(saveConversationBtn, saveLabel);
   setControlLabel(historySaveBtn, saveLabel);
+  if (partnerProfileBtn) {
+    partnerProfileBtn.disabled = !currentConversationCapabilities.canViewPartnerProfile;
+    partnerProfileBtn.setAttribute('aria-disabled', String(!currentConversationCapabilities.canViewPartnerProfile));
+  }
 }
 
 function startMessageCooldown(retryAfterSeconds) {
@@ -1691,8 +1696,13 @@ socket.on('matched', async (data) => {
     canUnsave: false,
     canBlock: data.capabilities?.canBlock === true,
     canRemoveFromHistory: false,
-    canDeleteUnsavedMessages: false
+    canDeleteUnsavedMessages: false,
+    canViewPartnerProfile: true
   };
+  if (partnerProfileBtn) {
+    partnerProfileBtn.disabled = false;
+    partnerProfileBtn.removeAttribute('aria-disabled');
+  }
   addFriendMenuBtn?.classList.toggle('hidden', !data.canAddFriend);
   if (addFriendMenuBtn) {
     addFriendMenuBtn.disabled = !data.canAddFriend;

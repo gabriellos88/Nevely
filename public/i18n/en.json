@@ -59,7 +59,8 @@
     "addFriend": "Add friend",
     "removeFriend": "Remove friend",
     "requestSent": "Friend request sent",
-    "unknownUser": "Unknown user"
+    "unknownUser": "Unknown user",
+    "unavailableParticipant": "Unavailable participant"
   },
   "nav": {
     "primaryAria": "Primary navigation",
