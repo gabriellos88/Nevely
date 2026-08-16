@@ -115,12 +115,17 @@ evidence window for 24 months.
   opaque `ntf_...` IDs and public-ID keyset cursors. Ban notifications are not
   returned; suspension state is authoritative server state. JSON `data` is
   minimized per notification type and can contain only validated public IDs or
-  fixed actions.
+  fixed actions. Friendship and direct-chat-request rows may include a minimized
+  `actor` with public account ID, public display name and public profile image;
+  deleted/unavailable actors return `null`. No presence or internal key is
+  included. The client routes friendship rows to Friend requests and chat
+  request rows to the Conversations inbox.
 - `PATCH /api/notifications/:id/read`: idempotently mark an owned product
   notification as read.
 - `DELETE /api/notifications/:id`: idempotently soft-dismiss an allowlisted
   product notification. The row remains in PostgreSQL; security, moderation and
-  audit records cannot be deleted or dismissed through this endpoint.
+  audit records cannot be deleted or dismissed through this endpoint. This
+  includes dismissing `friend_accepted` product notifications.
 
 Guest notifications use the same endpoints and are authorized by the current
 guest principal session.

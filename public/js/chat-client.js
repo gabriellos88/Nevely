@@ -2065,13 +2065,23 @@ function renderAccountRequired(name) {
   showListState(name, true);
 }
 
-function makeListItem(title, meta, onClick, badge) {
+function makeListItem(title, meta, onClick, badge, avatarUrl = '') {
   const item = document.createElement(onClick ? 'button' : 'div');
   if (onClick) item.type = 'button';
   item.className = 'panel-data-item';
   const initial = document.createElement('span');
   initial.className = 'panel-item-avatar';
   initial.textContent = title?.charAt(0).toUpperCase() || '?';
+  if (avatarUrl) {
+    const image = document.createElement('img');
+    image.className = 'panel-item-avatar-image';
+    image.src = avatarUrl;
+    image.alt = '';
+    image.loading = 'lazy';
+    image.referrerPolicy = 'no-referrer';
+    image.addEventListener('error', () => image.remove(), { once: true });
+    initial.appendChild(image);
+  }
   const copy = document.createElement('span');
   copy.className = 'panel-item-copy';
   const strong = document.createElement('strong');
@@ -2254,6 +2264,23 @@ function openFriendRequestsFromNotification(item) {
     requestAnimationFrame(() => {
       requestTab?.click();
       requestTab?.focus();
+    });
+  };
+  navigate().catch((error) => alert(error.message));
+}
+
+function openConversationsFromNotification(item) {
+  const navigate = async () => {
+    if (!item.read_at) {
+      await api(`/api/notifications/${item.id}/read`, { method: 'PATCH', body: '{}' });
+    }
+    closeActiveDrawer({ restoreFocus: false });
+    openDrawer('messages');
+    const inboxTab = document.getElementById('messagesTabInbox');
+    requestAnimationFrame(() => {
+      inboxTab?.click();
+      document.getElementById('chatRequestsSection')?.scrollIntoView({ block: 'nearest' });
+      inboxTab?.focus();
     });
   };
   navigate().catch((error) => alert(error.message));
@@ -2612,23 +2639,44 @@ async function loadNotificationsPanel() {
 
 function makeNotificationListItem(item) {
   const isFriendshipNotification = ['friend_request', 'friend_accepted'].includes(item.type);
+  const isChatRequestNotification = item.type === 'chat_request';
+  const destination = isFriendshipNotification
+    ? () => openFriendRequestsFromNotification(item)
+    : isChatRequestNotification
+      ? () => openConversationsFromNotification(item)
+      : null;
   const row = makeListItem(
     item.title,
     `${item.body || ''} ${new Date(item.created_at).toLocaleString()}`,
-    isFriendshipNotification ? () => openFriendRequestsFromNotification(item) : null,
-    item.read_at ? '' : uiCopy.common.new
+    null,
+    item.read_at ? '' : uiCopy.common.new,
+    item.actor?.profileImageUrl || ''
   );
   row.classList.add('notification-list-item');
-  if (isFriendshipNotification) {
+  if (destination) {
     row.classList.add('notification-list-item--link');
     row.setAttribute('role', 'button');
     row.tabIndex = 0;
-    row.setAttribute('aria-label', `${item.title}. ${chatCopy.feedback.openFriendRequests}`);
+    const destinationLabel = isChatRequestNotification
+      ? chatCopy.feedback.openConversations
+      : chatCopy.feedback.openFriendRequests;
+    row.setAttribute('aria-label', `${item.title}. ${destinationLabel}`);
+    row.addEventListener('click', destination);
     row.addEventListener('keydown', (event) => {
+      if (event.target !== row) return;
       if (!['Enter', ' '].includes(event.key)) return;
       event.preventDefault();
-      openFriendRequestsFromNotification(item);
+      destination();
     });
+    if (item.type === 'friend_accepted') {
+      const actions = document.createElement('span');
+      actions.className = 'panel-inline-actions';
+      actions.append(actionButton(chatCopy.feedback.dismissNotification, async () => {
+        await api(`/api/notifications/${item.id}`, { method: 'DELETE', body: '{}' });
+        await loadNotificationsPanel();
+      }, 'x'));
+      row.appendChild(actions);
+    }
     return row;
   }
   const actions = document.createElement('span');

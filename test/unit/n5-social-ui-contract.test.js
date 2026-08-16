@@ -16,8 +16,13 @@ test('friendship surfaces require confirmation, exact feedback and a request-tab
   assert.match(client, /confirmRemoveFriend/);
   assert.match(client, /confirmBlockFriend/);
   assert.match(client, /\['friend_request', 'friend_accepted'\][\s\S]*?return row;/);
+  assert.match(client, /isChatRequestNotification[\s\S]*?openConversationsFromNotification/);
+  assert.match(client, /item\.type === 'friend_accepted'[\s\S]*?dismissNotification/);
+  assert.match(client, /item\.actor\?\.profileImageUrl/);
+  assert.match(read('lib/api.js'), /actor\.public_id AS actor_public_id[\s\S]*?actor: actorPublicId/);
   assert.equal(copy.chat.feedback.friendRequestSent, 'Friend request sent');
   assert.equal(copy.chat.feedback.chatRequestSent, 'Chat request sent');
+  assert.equal(copy.chat.feedback.openConversations, 'Open Conversations');
 });
 
 test('direct End is left of the joined message and Send control', () => {

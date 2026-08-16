@@ -149,7 +149,20 @@ test('chat requests are durable, expiring, idempotent and rate-limited across re
   );
   assert.equal(persistentNotification.rowCount, 1);
   assert.equal(persistentNotification.rows[0].data.requestPublicId, created.requestId);
-  assert.deepEqual(Object.keys(persistentNotification.rows[0].data), ['requestPublicId']);
+  assert.equal(persistentNotification.rows[0].data.userPublicId, alice.publicId);
+  assert.deepEqual(Object.keys(persistentNotification.rows[0].data).sort(), ['requestPublicId', 'userPublicId']);
+  const notificationFeed = await request(secondUrl)
+    .get('/api/notifications')
+    .set('Cookie', bob.cookie)
+    .expect(200);
+  const chatRequestNotification = notificationFeed.body.notifications.find((item) => item.type === 'chat_request');
+  assert.ok(chatRequestNotification);
+  assert.deepEqual(chatRequestNotification.data, {
+    requestPublicId: created.requestId,
+    userPublicId: alice.publicId
+  });
+  assert.equal(chatRequestNotification.actor.publicId, alice.publicId);
+  assert.equal(chatRequestNotification.actor.displayName, 'chat_request_alice');
   const messageBadge = await request(secondUrl)
     .get('/api/conversations')
     .set('Cookie', bob.cookie)

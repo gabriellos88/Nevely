@@ -228,6 +228,8 @@
 
 .panel-data-item:hover { border-color: rgba(108, 78, 228, 0.32); background: #fbfaff; }
 .panel-item-avatar { width: 34px; height: 34px; flex: none; display: grid; place-items: center; border-radius: 50%; background: var(--accent-soft); color: var(--accent); font-weight: 800; }
+.panel-item-avatar { position: relative; overflow: hidden; }
+.panel-item-avatar-image { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; border-radius: inherit; }
 .panel-item-copy { min-width: 0; flex: 1; display: grid; gap: 2px; }
 .panel-item-copy strong, .panel-item-copy small { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .panel-item-copy strong { font-size: 13px; }

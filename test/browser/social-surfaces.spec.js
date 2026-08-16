@@ -248,7 +248,7 @@ test('friend list exposes only server capabilities with accessible responsive me
   await expect(page.locator('.friend-list-item')).toHaveCount(0);
 });
 
-test('friendship notifications are one accessible link to Friend requests without inline controls', async ({ page }, testInfo) => {
+test('friendship notifications link to Friend requests and accepted notices can be dismissed', async ({ page }, testInfo) => {
   await page.addInitScript(() => {
     Object.defineProperty(window, '__CURRENT_USER__', {
       configurable: false,
@@ -270,6 +270,11 @@ test('friendship notifications are one accessible link to Friend requests withou
     title: 'Friend request accepted',
     body: 'Astra Friend accepted your request.',
     data: { userPublicId: 'nvy_0123456789ab' },
+    actor: {
+      publicId: 'nvy_0123456789ab',
+      displayName: 'Astra Friend',
+      profileImageUrl: '/vendor/dicebear-presets-10.2.0/astra.svg'
+    },
     read_at: null,
     created_at: new Date().toISOString()
   };
@@ -322,7 +327,11 @@ test('friendship notifications are one accessible link to Friend requests withou
   const friendshipNotification = page.getByRole('button', { name: /Friend request accepted.*Open Friend requests/ });
   await expect(friendshipNotification).toBeVisible();
   await expect(page.getByRole('button', { name: 'Mark as read' })).toHaveCount(0);
-  await expect(page.getByRole('button', { name: 'Dismiss notification' })).toHaveCount(0);
+  await expect(page.getByRole('button', { name: 'Dismiss notification' })).toBeVisible();
+  await expect(friendshipNotification.locator('.panel-item-avatar-image')).toHaveAttribute(
+    'src',
+    '/vendor/dicebear-presets-10.2.0/astra.svg'
+  );
 
   const screenshot = testInfo.outputPath('n5.3.2-notifications-390x844.png');
   await page.screenshot({ path: screenshot });
@@ -331,6 +340,73 @@ test('friendship notifications are one accessible link to Friend requests withou
   await friendshipNotification.click();
   await expect(page.locator('#friendsDrawer')).toHaveAttribute('aria-hidden', 'false');
   await expect(page.locator('#friendsTabRequests')).toHaveAttribute('aria-selected', 'true');
+});
+
+test('direct chat request notifications open Conversations and preserve inline controls', async ({ page }) => {
+  await page.addInitScript(() => {
+    Object.defineProperty(window, '__CURRENT_USER__', {
+      configurable: false,
+      writable: false,
+      value: {
+        publicId: 'nvy_aabbccddeeff', displayName: 'Synthetic Account',
+        emailVerified: true, role: 'user', plan: 'free'
+      }
+    });
+  });
+  const requestId = 'crq_0123456789abcdef01234567';
+  await page.route('**/api/notifications**', (route) => {
+    if (route.request().method() === 'PATCH') return route.fulfill({ status: 204, body: '' });
+    return route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        notifications: [{
+          id: 'ntf_0123456789abcdef01234567', type: 'chat_request',
+          title: 'New chat request', body: 'Astra Friend wants to chat.',
+          data: { requestPublicId: requestId, userPublicId: 'nvy_0123456789ab' },
+          actor: {
+            publicId: 'nvy_0123456789ab', displayName: 'Astra Friend',
+            profileImageUrl: '/vendor/dicebear-presets-10.2.0/astra.svg'
+          },
+          read_at: null, created_at: new Date().toISOString()
+        }],
+        unreadCount: 1,
+        page: { limit: 30, hasMore: false, nextCursor: null }
+      })
+    });
+  });
+  await page.route('**/api/conversations**', (route) => route.fulfill({
+    status: 200, contentType: 'application/json',
+    body: JSON.stringify({ conversations: [], directInbox: { active: [], recent: [], limit: 5 }, messageBadgeCount: 1 })
+  }));
+  await page.route('**/api/friend-requests**', (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ requests: [], pendingCount: 0 })
+  }));
+  await page.route('**/api/chat-requests**', (route) => route.fulfill({
+    status: 200,
+    contentType: 'application/json',
+    body: JSON.stringify({
+      requests: [{
+        id: requestId, public_id: requestId, person_public_id: 'nvy_0123456789ab',
+        display_name: 'Astra Friend', expires_at: new Date(Date.now() + 60_000).toISOString()
+      }],
+      direction: 'incoming', pendingCount: 1, page: { hasMore: false }
+    })
+  }));
+  await page.route('**/api/friends**', (route) => route.fulfill({
+    status: 200, contentType: 'application/json', body: JSON.stringify({ friends: [] })
+  }));
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.goto('/chat?guest=1', { waitUntil: 'domcontentloaded' });
+  await page.locator('#notificationsToggle').click();
+  const notification = page.getByRole('button', { name: /New chat request.*Open Conversations/ });
+  await notification.click();
+  await expect(page.locator('#messagesDrawer')).toHaveAttribute('aria-hidden', 'false');
+  await expect(page.locator('#messagesTabInbox')).toHaveAttribute('aria-selected', 'true');
+  await expect(page.locator('#chatRequestsSection')).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Accept chat request' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Decline chat request' })).toBeVisible();
 });
 
 test('chat requests stay hidden when empty and render incoming and outgoing actions responsively', async ({ page }, testInfo) => {

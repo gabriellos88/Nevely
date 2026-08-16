@@ -82,6 +82,10 @@ test('notifications use public IDs and persist read and dismiss state across tab
   const baseUrl = `http://127.0.0.1:${address.port}`;
   const owner = await registerVerified(baseUrl, db, 'notify_owner');
   const other = await registerVerified(baseUrl, db, 'notify_other');
+  await db.query(
+    'UPDATE users SET profile_image_url = $1 WHERE public_id = $2',
+    ['/vendor/dicebear-presets-10.2.0/astra.svg', other.publicId]
+  );
   const ownerId = Number((await db.query('SELECT id FROM users WHERE public_id = $1', [owner.publicId])).rows[0].id);
   const firstSocket = await connectAccount(baseUrl, owner.cookie);
   const secondSocket = await connectAccount(baseUrl, owner.cookie);
@@ -131,6 +135,12 @@ test('notifications use public IDs and persist read and dismiss state across tab
     .expect(200);
   assert.equal(secondPage.body.notifications[0].id, older.rows[0].public_id);
   assert.deepEqual(secondPage.body.notifications[0].data, { userPublicId: other.publicId });
+  assert.deepEqual(secondPage.body.notifications[0].actor, {
+    publicId: other.publicId,
+    displayName: 'notify_other',
+    profileImageUrl: '/vendor/dicebear-presets-10.2.0/astra.svg'
+  });
+  assert.equal(Object.hasOwn(secondPage.body.notifications[0], 'actor_public_id'), false);
 
   await request(baseUrl)
     .patch(`/api/notifications/${newer.rows[0].public_id}/read`)
@@ -209,4 +219,14 @@ test('notifications use public IDs and persist read and dismiss state across tab
     .expect(200);
   assert.deepEqual(afterReconnect.body.notifications.map((item) => item.id), [older.rows[0].public_id]);
   assert.equal(afterReconnect.body.unreadCount, 1);
+  await request(baseUrl)
+    .delete(`/api/notifications/${older.rows[0].public_id}`)
+    .set('Cookie', owner.cookie)
+    .send({})
+    .expect(204);
+  const afterAcceptedDismiss = await request(baseUrl)
+    .get('/api/notifications')
+    .set('Cookie', owner.cookie)
+    .expect(200);
+  assert.deepEqual(afterAcceptedDismiss.body.notifications, []);
 });

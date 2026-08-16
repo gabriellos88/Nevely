@@ -662,6 +662,7 @@
       "dismissNotification": "Dismiss notification",
       "openNotification": "Open notification",
       "openFriendRequests": "Open Friend requests",
+      "openConversations": "Open Conversations",
       "guestNotificationTitle": "Keep your Nevely moments",
       "guestNotificationBody": "Save chats, unread messages, friends, and your profile.",
       "historyReadOnly": "This conversation is read-only.",
