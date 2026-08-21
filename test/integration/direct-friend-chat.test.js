@@ -398,8 +398,11 @@ test('direct friend chat survives disconnect, restores once and ends on friendsh
   const duplicateTab = await connectAccount(baseUrl, alice.cookie);
   sockets.push(duplicateTab);
   const duplicateRequest = await emitWithAck(duplicateTab, 'direct-chat-request', { publicId: bob.publicId });
-  assert.equal(duplicateRequest.ok, false);
-  assert.equal(duplicateRequest.error, require('../../public/i18n/en.json').errors.requestSend);
+  assert.deepEqual(duplicateRequest, {
+    ok: true,
+    status: 'active',
+    conversationId: initial.conversationId
+  });
   assert.equal(Number((await db.query(
     `SELECT COUNT(*)::int AS count FROM conversations
      WHERE type = 'direct' AND status = 'active'`
@@ -420,4 +423,81 @@ test('direct friend chat survives disconnect, restores once and ends on friendsh
     [initial.conversationId]
   );
   assert.deepEqual(ended.rows[0], { status: 'ended', reserved: false });
+});
+
+test('accepting a direct chat request while the sender is offline creates a resumable conversation', {
+  skip: hasDatabase ? false : 'DATABASE_URL is unavailable outside the disposable CI database'
+}, async (t) => {
+  const db = require('../../db');
+  await resetDatabase(db);
+  const runtime = createRuntime({
+    db,
+    closeDatabaseOnShutdown: false,
+    env: {
+      ...process.env,
+      NODE_ENV: 'test',
+      SESSION_SECRET: 'direct-chat-offline-session-secret',
+      SHUTDOWN_GRACE_MS: '1000'
+    },
+    log: quietLog
+  });
+  const address = await runtime.start({ port: 0, host: '127.0.0.1' });
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  const alice = await registerVerified(baseUrl, db, 'direct_offline_alice');
+  const bob = await registerVerified(baseUrl, db, 'direct_offline_bob');
+  const identities = await db.query(
+    'SELECT id, public_id FROM users WHERE public_id = ANY($1::text[])',
+    [[alice.publicId, bob.publicId]]
+  );
+  const aliceId = Number(identities.rows.find((row) => row.public_id === alice.publicId).id);
+  const bobId = Number(identities.rows.find((row) => row.public_id === bob.publicId).id);
+  await db.query(
+    'INSERT INTO friendships (user_id, friend_id) VALUES ($1, $2), ($2, $1)',
+    [aliceId, bobId]
+  );
+  const aliceSocket = await connectAccount(baseUrl, alice.cookie);
+  const bobSocket = await connectAccount(baseUrl, bob.cookie);
+  const sockets = [aliceSocket, bobSocket];
+  t.after(async () => {
+    sockets.forEach((socket) => socket.disconnect());
+    await runtime.shutdown();
+  });
+
+  const created = await emitWithAck(aliceSocket, 'direct-chat-request', { publicId: bob.publicId });
+  aliceSocket.disconnect();
+  const resumable = eventFrom(bobSocket, 'direct-chat-resumable');
+  const accepted = await emitWithAck(bobSocket, 'direct-chat-response', {
+    requestId: created.requestId,
+    action: 'accept'
+  });
+  assert.deepEqual(accepted, { ok: true, status: 'accepted', started: true, resumed: false });
+  const parked = await resumable;
+  assert.equal(parked.conversationType, 'direct');
+  assert.match(parked.conversationId, /^cnv_[0-9a-f]{24}$/);
+  const persisted = await db.query(
+    `SELECT c.status, EXISTS (
+       SELECT 1 FROM direct_conversation_pairs pair WHERE pair.conversation_id = c.id
+     ) AS reserved
+     FROM conversations c WHERE c.public_id = $1`,
+    [parked.conversationId]
+  );
+  assert.deepEqual(persisted.rows[0], { status: 'active', reserved: true });
+
+  const restoredAlice = createClient(baseUrl, {
+    autoConnect: false,
+    forceNew: true,
+    reconnection: false,
+    transports: ['websocket'],
+    extraHeaders: { Cookie: alice.cookie }
+  });
+  sockets.push(restoredAlice);
+  const connected = eventFrom(restoredAlice, 'connect');
+  const restoredForAlice = eventFrom(restoredAlice, 'matched');
+  const restoredForBob = eventFrom(bobSocket, 'matched');
+  restoredAlice.connect();
+  await connected;
+  const [aliceMatch, bobMatch] = await Promise.all([restoredForAlice, restoredForBob]);
+  assert.equal(aliceMatch.conversationId, parked.conversationId);
+  assert.equal(bobMatch.conversationId, parked.conversationId);
+  assert.equal(aliceMatch.restored, true);
 });

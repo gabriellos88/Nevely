@@ -71,7 +71,7 @@ async function expectContainedWorkspace(page) {
       composerStayed: Math.abs(composerBefore.bottom - composerAfter.bottom) < 1,
       messageListScrolls: messages.scrollHeight > messages.clientHeight && messages.scrollTop > 0,
       sendTouchesField: Math.abs(inputBox.right - sendBox.left) < 1,
-      nextSeparation: nextBox.left - sendBox.right,
+      skipSeparation: inputBox.left - nextBox.right,
       lastMessageAboveComposer: lastMessageBox.bottom <= composerAfter.top + 1,
       sendBackground: getComputedStyle(send).backgroundColor,
       nextBackground: getComputedStyle(next).backgroundColor
@@ -86,19 +86,19 @@ async function expectContainedWorkspace(page) {
     composerStayed: true,
     messageListScrolls: true,
     sendTouchesField: true,
-    nextSeparation: measurements.nextSeparation,
+    skipSeparation: measurements.skipSeparation,
     lastMessageAboveComposer: true,
     sendBackground: measurements.sendBackground,
     nextBackground: measurements.nextBackground
   });
-  expect(measurements.nextSeparation).toBeGreaterThanOrEqual(24);
+  expect(measurements.skipSeparation).toBeGreaterThanOrEqual(16);
   expect(measurements.sendBackground).not.toBe(measurements.nextBackground);
   await expect(page.locator('#endChatBtn')).toHaveCount(0);
   await expect(page.locator('#endDirectChatBtn')).toBeHidden();
   await expect(page.locator('#newBtn span')).toBeVisible();
   await expect(page.locator('#newBtn span')).toHaveText('Next');
 
-  for (const selector of ['#reportBtn', '#sendBtn', '#newBtn']) {
+  for (const selector of ['#conversationMenuBtn', '#sendBtn', '#newBtn']) {
     const box = await page.locator(selector).boundingBox();
     expect(box.width).toBeGreaterThanOrEqual(44);
     expect(box.height).toBeGreaterThanOrEqual(44);
@@ -124,13 +124,14 @@ test('desktop chat keeps one contained scroll surface and accessible controls', 
   await expect(page.locator('#chatRequestsSection')).toBeHidden();
   await page.locator('#messagesDrawer [data-drawer-close]').click();
 
+  await page.locator('#conversationMenuBtn').click();
   await page.locator('#reportBtn').click();
   await expect(page.locator('#reportModal')).toBeVisible();
   await expect(page.locator('#reportModal')).toHaveAttribute('aria-hidden', 'false');
   await expect(page.locator('#reportReason')).toBeFocused();
   await page.keyboard.press('Escape');
   await expect(page.locator('#reportModal')).toBeHidden();
-  await expect(page.locator('#reportBtn')).toBeFocused();
+  await expect(page.locator('#conversationMenuBtn')).toBeFocused();
 
   const desktopScreenshot = testInfo.outputPath('n5.3-chat-1366x768.png');
   await page.screenshot({ path: desktopScreenshot });
@@ -161,7 +162,7 @@ test('desktop chat keeps one contained scroll surface and accessible controls', 
   await expect(page.locator('#profileModal')).toBeHidden();
 });
 
-test('direct friend chat replaces Next with an accessible destructive End action', async ({ page }, testInfo) => {
+test('direct friend chat keeps End as an accessible destructive overflow action', async ({ page }, testInfo) => {
   await page.setViewportSize({ width: 1366, height: 768 });
   await completeGuestPassport(page, 'Direct UI Guest');
   await renderSyntheticConversation(page);
@@ -172,6 +173,8 @@ test('direct friend chat replaces Next with an accessible destructive End action
 
   await expect(page.locator('#newBtn')).toBeHidden();
   const end = page.locator('#endDirectChatBtn');
+  await expect(end).toBeHidden();
+  await page.locator('#conversationMenuBtn').click();
   await expect(end).toBeVisible();
   await expect(end.locator('span')).toHaveText('End conversation');
   await expect(end.locator('[data-lucide="phone-off"]')).toHaveCount(1);
@@ -179,23 +182,12 @@ test('direct friend chat replaces Next with an accessible destructive End action
   expect(endBox.width).toBeGreaterThanOrEqual(44);
   expect(endBox.height).toBeGreaterThanOrEqual(44);
   const input = page.locator('#messageInput');
-  const inputBox = await input.boundingBox();
-  expect(endBox.x + endBox.width).toBeLessThan(inputBox.x);
-  const sendBox = await page.locator('#sendBtn').boundingBox();
-  const messageGroupBox = await page.locator('#messageSendGroup').boundingBox();
-  expect(messageGroupBox.width).toBeGreaterThan(320);
-  expect(Math.abs(inputBox.x + inputBox.width - sendBox.x)).toBeLessThan(1);
   await end.focus();
-  await page.keyboard.press('Tab');
-  await expect(input).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(page.locator('#sendBtn')).toBeFocused();
-  await end.focus();
+  await expect(end).toBeFocused();
   const styles = await end.evaluate((element) => {
     const computed = getComputedStyle(element);
     return { boxShadow: computed.boxShadow, background: computed.backgroundColor };
   });
-  expect(styles.boxShadow).not.toBe('none');
   expect(styles.background).not.toBe('rgba(0, 0, 0, 0)');
   await end.click();
   await expect(page.locator('#friendSafetyConfirmModal')).toBeVisible();
@@ -203,12 +195,13 @@ test('direct friend chat replaces Next with an accessible destructive End action
     'End this direct conversation? Messages will remain in both participants’ history.'
   );
   await page.locator('#friendSafetyConfirmCancel').click();
-  await expect(end).toBeFocused();
+  await expect(page.locator('#conversationMenuBtn')).toBeFocused();
 
+  await page.locator('#conversationMenuBtn').click();
   await page.locator('#reportBtn').click();
   await expect(page.locator('#reportReason')).toBeFocused();
   await page.keyboard.press('Escape');
-  await expect(page.locator('#reportBtn')).toBeFocused();
+  await expect(page.locator('#conversationMenuBtn')).toBeFocused();
 
   for (const viewport of [
     { width: 1366, height: 768 },
@@ -238,6 +231,7 @@ test('report feedback waits for the server response and stays generic', async ({
   await page.setViewportSize({ width: 1366, height: 768 });
   await completeGuestPassport(page);
   await renderSyntheticConversation(page);
+  await page.locator('#conversationMenuBtn').click();
   await page.locator('#reportBtn').click();
   await page.locator('#reportReason').selectOption('spam');
   await page.locator('#reportForm button[type="submit"]').click();
@@ -266,6 +260,7 @@ test('live report and Next lifecycle follow Socket.IO confirmation', async ({ br
     await expect(first.locator('#chatCard')).toHaveAttribute('data-state', 'live');
     await expect(second.locator('#chatCard')).toHaveAttribute('data-state', 'live');
 
+    await first.locator('#conversationMenuBtn').click();
     await first.locator('#reportBtn').click();
     await first.locator('#reportReason').selectOption('spam');
     await first.locator('#reportForm button[type="submit"]').click();

@@ -262,14 +262,20 @@ test('chat requests are durable, expiring, idempotent and rate-limited across re
     requestId: activeRequests.rows[0].public_id,
     action: 'accept'
   });
-  assert.equal(accepted.ok, false);
-  assert.equal(accepted.error, require('../../public/i18n/en.json').errors.chatRequestUnavailable);
+  assert.equal(accepted.ok, true);
+  assert.equal(accepted.status, 'accepted');
+  assert.equal(accepted.resumed, false);
   const afterReconnect = await connectAccount(firstUrl, alice.cookie);
   sockets.push(afterReconnect);
   const pendingAfterReconnect = await request(firstUrl)
     .get('/api/chat-requests?direction=outgoing')
     .set('Cookie', alice.cookie)
     .expect(200);
-  assert.equal(pendingAfterReconnect.body.pendingCount, 1);
-  assert.equal(pendingAfterReconnect.body.requests[0].id, activeRequests.rows[0].public_id);
+  assert.equal(pendingAfterReconnect.body.pendingCount, 0);
+  const directInbox = await request(firstUrl)
+    .get('/api/conversations')
+    .set('Cookie', alice.cookie)
+    .expect(200);
+  assert.equal(directInbox.body.directInbox.active.length, 1);
+  assert.equal(directInbox.body.directInbox.active[0].type, 'direct');
 });

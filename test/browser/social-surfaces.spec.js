@@ -39,6 +39,7 @@ test('recent conversations show server-capability actions instead of the message
     type: 'direct',
     status: 'ended',
     started_at: new Date().toISOString(),
+    ended_at: '2026-08-21T12:30:00.000Z',
     partner_name: 'History Partner',
     partner_public_id: 'nvy_0123456789ab',
     saved: false,
@@ -88,6 +89,8 @@ test('recent conversations show server-capability actions instead of the message
   await page.locator('#messagesToggle').click();
   await expect(page.locator('#messagesDrawer')).toBeVisible();
   await page.locator('#messagesTabRecent').click();
+  await expect(page.locator('#historyPanelList .conversation-actions-trigger')).toBeVisible();
+  await expect(page.locator('#historyPanelList .panel-item-copy small')).toContainText('Ended');
   await page.getByRole('button', { name: /History Partner/ }).click();
 
   await expect(page.locator('#liveComposerBar')).toBeHidden();

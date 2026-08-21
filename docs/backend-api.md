@@ -93,7 +93,8 @@ evidence window for 24 months.
 
 - `GET /api/friends`: list friends with public-ID keyset cursors and a
   server-derived `capabilities` object. The browser renders only capabilities
-  whose value is exactly `true`; it never supplies friendship or availability
+  whose value is exactly `true`; an active direct reservation instead exposes
+  only `canOpenDirectChat` plus its opaque `cnv_...` conversation ID. It never supplies friendship or availability
   state back to the server.
 - `DELETE /api/friends/:id`: remove both directed friendship rows atomically,
   cancel pending friend/chat requests for the pair and remain idempotent on
@@ -254,11 +255,18 @@ start safely; no presence detail is returned.
   It also resolves the authenticated account's persisted direct reservation
   when the partner is offline; the browser never supplies the conversation type.
 - `report`: reports the active partner with optional `reason` and `details`.
+  If a random partner leaves, the server may retain this capability only for
+  the remaining connected socket until it starts another action or disconnects.
 - `direct-chat-request`: requests a direct chat with a friend using only the
   friend’s public account ID. Its acknowledgement is `{ ok, requestId, status }`
   or generic `{ ok: false, error, retryAfterSeconds? }`.
+  If the pair already has an active reservation, it returns the public
+  conversation ID with `status: "active"` rather than treating that expected
+  state as an error.
 - `direct-chat-response`: accepts or declines an incoming request using its
-  opaque public ID. Repeated matching terminal actions are idempotent.
+  opaque public ID. Repeated matching terminal actions are idempotent. Accepting
+  while the sender is offline creates the same persistent direct reservation;
+  the accepting account receives a resumable conversation after commit.
 - `direct-chat-cancel`: cancels an outgoing pending request; repeated
   cancellation is idempotent.
 
@@ -282,6 +290,8 @@ start safely; no presence detail is returned.
   message events expose only the opaque `msg_...` identifier.
 - `partner-left`, `skip-cooldown`: conversation lifecycle. `partner-left` retains
   the public conversation ID so an authorized participant can save the ended conversation.
+  For a random conversation it may additionally carry the boolean `canReport`;
+  it reveals no reason, presence detail or moderation signal.
   Guest conversations have no duration timeout.
   A direct pair can be parked when its participant explicitly starts random
   matching; this does not end the direct conversation or consume skip. The

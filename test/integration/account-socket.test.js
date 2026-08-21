@@ -269,7 +269,13 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
 
   const partnerLeftAfterSkip = eventFrom(second, 'partner-left');
   first.emit('leave-chat');
-  assert.equal((await partnerLeftAfterSkip).conversationId, firstMatch.conversationId);
+  assert.deepEqual(await partnerLeftAfterSkip, {
+    conversationId: firstMatch.conversationId,
+    canReport: true
+  });
+  const reportAfterPartnerLeft = eventFrom(second, 'report-submitted');
+  second.emit('report', { reason: 'spam', details: 'Synthetic post-chat report' });
+  assert.deepEqual(await reportAfterPartnerLeft, { stored: true });
 
   const concurrentSaves = await Promise.all([0, 1].map(() => request(baseUrl)
     .put(`/api/conversations/${firstMatch.conversationId}/saved`)

@@ -236,8 +236,10 @@ test('friend requests use public IDs and remain transactional, idempotent and ra
   assert.equal(Object.hasOwn(friendList.body.friends[0], 'id'), false);
   assert.deepEqual(friendList.body.friends[0].capabilities, {
     canStartDirectChat: true,
+    canOpenDirectChat: false,
     canRemoveFriend: true,
-    canBlock: true
+    canBlock: true,
+    activeDirectConversationId: null
   });
   const aliceId = Number((await db.query('SELECT id FROM users WHERE public_id = $1', [alice.publicId])).rows[0].id);
   const bobId = Number((await db.query('SELECT id FROM users WHERE public_id = $1', [bob.publicId])).rows[0].id);

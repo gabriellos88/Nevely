@@ -397,19 +397,17 @@
               <button type="button" class="partner-action-btn premium-camera" aria-label="<%= copy.chat.conversation.photoAria %>" title="<%= copy.chat.conversation.photoComingSoon %>" disabled>
                 <i data-lucide="image" aria-hidden="true"></i><span class="premium-dot">P</span>
               </button>
-              <button class="report-btn" id="reportBtn" type="button" disabled>
-                <i data-lucide="flag" aria-hidden="true"></i>
-                <span><%= copy.chat.conversation.reportShort %></span>
-              </button>
-              <button type="button" class="partner-action-btn" id="conversationMenuBtn" aria-label="<%= copy.chat.conversation.moreOptions %>" title="<%= copy.chat.conversation.moreOptions %>">
+              <button type="button" class="partner-action-btn" id="conversationMenuBtn" aria-label="<%= copy.chat.conversation.moreOptions %>" title="<%= copy.chat.conversation.moreOptions %>" aria-haspopup="menu" aria-expanded="false" aria-controls="conversationMenu">
                 <i data-lucide="ellipsis-vertical" aria-hidden="true"></i>
               </button>
-              <div class="conversation-menu hidden" id="conversationMenu">
-                <button type="button" class="hidden" id="addFriendMenuBtn"><i data-lucide="user-plus" aria-hidden="true"></i><span><%= copy.common.addFriend %></span></button>
-                <button type="button" id="saveConversationBtn"><i data-lucide="bookmark" aria-hidden="true"></i><span><%= copy.chat.conversation.saveChat %></span></button>
-                <button type="button" id="blockPartnerBtn"><i data-lucide="shield-off" aria-hidden="true"></i><span><%= copy.chat.conversation.blockUser %></span></button>
-                <button type="button" class="danger hidden" id="removeConversationHistoryBtn"><i data-lucide="trash-2" aria-hidden="true"></i><span><%= copy.chat.conversation.removeFromHistory %></span></button>
-                <button type="button" class="danger hidden" id="deleteUnsavedMessagesBtn"><i data-lucide="eraser" aria-hidden="true"></i><span><%= copy.chat.conversation.deleteUnsavedMessages %></span></button>
+              <div class="conversation-menu hidden" id="conversationMenu" role="menu">
+                <button type="button" class="hidden" id="addFriendMenuBtn" role="menuitem"><i data-lucide="user-plus" aria-hidden="true"></i><span><%= copy.common.addFriend %></span></button>
+                <button type="button" id="saveConversationBtn" role="menuitem"><i data-lucide="bookmark" aria-hidden="true"></i><span><%= copy.chat.conversation.saveChat %></span></button>
+                <button type="button" class="hidden" id="reportBtn" role="menuitem"><i data-lucide="flag" aria-hidden="true"></i><span><%= copy.chat.conversation.report %></span></button>
+                <button type="button" id="blockPartnerBtn" role="menuitem"><i data-lucide="shield-off" aria-hidden="true"></i><span><%= copy.chat.conversation.blockUser %></span></button>
+                <button type="button" class="danger hidden" id="endDirectChatBtn" role="menuitem"><i data-lucide="phone-off" aria-hidden="true"></i><span><%= copy.chat.conversation.end %></span></button>
+                <button type="button" class="danger hidden" id="removeConversationHistoryBtn" role="menuitem"><i data-lucide="trash-2" aria-hidden="true"></i><span><%= copy.chat.conversation.removeFromHistory %></span></button>
+                <button type="button" class="danger hidden" id="deleteUnsavedMessagesBtn" role="menuitem"><i data-lucide="eraser" aria-hidden="true"></i><span><%= copy.chat.conversation.deleteUnsavedMessages %></span></button>
               </div>
             </div>
           </header>
@@ -418,22 +416,16 @@
 
           <div class="chat-composer-shell hidden" id="chatComposer">
             <div class="chat-input-bar" id="liveComposerBar">
-              <div class="conversation-end-group">
-                <button class="end-chat-btn hidden" id="endDirectChatBtn" type="button">
-                  <i data-lucide="phone-off" aria-hidden="true"></i>
-                  <span><%= copy.chat.conversation.end %></span>
+              <div class="next-chat-group">
+                <button class="skip-btn" id="newBtn" type="button">
+                  <span><%= copy.chat.conversation.next %></span>
+                  <i data-lucide="skip-forward" aria-hidden="true"></i>
                 </button>
               </div>
               <div class="message-send-group" id="messageSendGroup">
                 <input id="messageInput" type="text" maxlength="1000" autocomplete="off" placeholder="<%= copy.chat.composer.idle %>" disabled>
                 <button class="send-btn" id="sendBtn" type="button" aria-label="<%= copy.chat.conversation.send %>" disabled>
                   <i data-lucide="send" aria-hidden="true"></i>
-                </button>
-              </div>
-              <div class="next-chat-group">
-                <button class="skip-btn" id="newBtn" type="button">
-                  <span><%= copy.chat.conversation.next %></span>
-                  <i data-lucide="skip-forward" aria-hidden="true"></i>
                 </button>
               </div>
             </div>

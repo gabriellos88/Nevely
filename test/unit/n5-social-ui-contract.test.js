@@ -25,14 +25,15 @@ test('friendship surfaces require confirmation, exact feedback and a request-tab
   assert.equal(copy.chat.feedback.openConversations, 'Open Conversations');
 });
 
-test('direct End is left of the joined message and Send control', () => {
+test('direct End is a confirmed overflow action while Skip stays left of Send', () => {
   const view = read('views/chat.ejs');
-  const end = view.indexOf('id="endDirectChatBtn"');
   const input = view.indexOf('id="messageInput"');
   const send = view.indexOf('id="sendBtn"');
   const next = view.indexOf('id="newBtn"');
-  assert.ok(end > 0 && end < input && input < send && send < next);
-  assert.match(read('public/css/style.css'), /\.conversation-end-group[\s\S]*?border-inline-end/);
+  const end = view.indexOf('id="endDirectChatBtn"');
+  assert.ok(end > 0 && end < next && next < input && input < send);
+  assert.match(view, /id="conversationMenu"[\s\S]*?id="endDirectChatBtn"/);
+  assert.match(read('public/css/style.css'), /grid-template-columns: auto minmax\(0, 1fr\)/);
 });
 
 test('ordinary duplicate messages have a tolerant window while sustained repetition still escalates', () => {
@@ -67,6 +68,15 @@ test('Inbox separates active and past direct chats and history uses contextual r
   assert.match(client, /sourceContext === 'history'[\s\S]*?viewingRecentConversation/);
   assert.match(client, /window\.lucide\?\.createIcons\(\);/);
   assert.doesNotMatch(view, />Recent Direct Chats</);
+});
+
+test('conversation history keeps its actions in one accessible overflow and retains the end date', () => {
+  const client = read('public/js/chat-client.js');
+  const copy = JSON.parse(read('public/i18n/en.json'));
+  assert.match(client, /conversation-actions-trigger[\s\S]*?aria-haspopup.*menu/);
+  assert.match(client, /conversation-actions-menu[\s\S]*?role.*menu/);
+  assert.match(client, /ended_at[\s\S]*?endedOn/);
+  assert.equal(copy.chat.dynamic.endedOn, 'Ended {date}');
 });
 
 test('recent and saved conversations replace the composer with server-capability actions', () => {

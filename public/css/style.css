@@ -9485,6 +9485,59 @@ body.guest-passport-open .chat-layout {
   cursor: pointer;
 }
 
+/* N5 follow-up: Keep Skip distinct on the left while the joined message field
+   owns all remaining width at desktop, tablet and mobile sizes. */
+.chat-app-page .chat-composer-shell .chat-input-bar {
+  grid-template-columns: auto minmax(0, 1fr);
+  width: 100%;
+  column-gap: var(--spacing-4);
+}
+
+.chat-app-page .chat-composer-shell .message-send-group {
+  min-width: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) var(--spacing-11);
+  align-items: center;
+}
+
+.chat-app-page .chat-composer-shell .next-chat-group {
+  min-width: var(--spacing-11);
+  margin-inline-end: var(--spacing-2);
+}
+
+.chat-app-page .chat-composer-shell .skip-btn {
+  border: var(--spacing-px) solid var(--color-border-medium);
+  background: var(--color-neutral-tertiary);
+  color: var(--color-body);
+}
+
+.chat-app-page .chat-composer-shell .skip-btn:hover:not(:disabled) {
+  border-color: var(--color-brand-medium);
+  background: var(--color-brand-soft);
+  color: var(--color-heading);
+}
+
+.chat-app-page .conversation-menu button.danger {
+  background: var(--color-danger-soft);
+  color: var(--color-fg-danger);
+}
+
+.chat-app-page .conversation-menu button.danger:hover:not(:disabled) {
+  background: var(--color-danger-medium);
+  color: var(--color-heading);
+}
+
+.chat-app-page .public-profile-card,
+.chat-app-page .public-profile-card h2 {
+  text-align: center;
+}
+
+@media (max-width: 700px) {
+  .chat-app-page .chat-composer-shell .chat-input-bar {
+    grid-template-columns: var(--spacing-11) minmax(0, 1fr);
+  }
+}
+
 .chat-app-page .chat-topbar-context:hover {
   border-color: var(--color-border-medium);
   background: var(--color-neutral-tertiary);

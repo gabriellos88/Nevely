@@ -191,6 +191,7 @@ let guestPassportRestoreFocus = null;
 let accountModalRestoreFocus = null;
 let reportModalRestoreFocus = null;
 let reportPending = false;
+let reportAvailable = false;
 let nextSearchPending = false;
 let directEndPending = false;
 let pendingSearchTopics = [];
@@ -356,7 +357,32 @@ accountTabButtons.forEach((button) => {
   button.addEventListener('click', () => setAccountTab(button.dataset.accountTab));
   button.addEventListener('keydown', handleAccountTabKeydown);
 });
-if (conversationMenuBtn) conversationMenuBtn.addEventListener('click', () => conversationMenu.classList.toggle('hidden'));
+function setConversationMenuOpen(open, { focusFirst = false, restoreFocus = false } = {}) {
+  if (!conversationMenu || !conversationMenuBtn) return;
+  conversationMenu.classList.toggle('hidden', !open);
+  conversationMenuBtn.setAttribute('aria-expanded', String(open));
+  if (focusFirst && open) conversationMenu.querySelector('[role="menuitem"]:not(.hidden)')?.focus();
+  if (restoreFocus && !open) conversationMenuBtn.focus();
+}
+
+if (conversationMenuBtn) conversationMenuBtn.addEventListener('click', () => {
+  setConversationMenuOpen(conversationMenu?.classList.contains('hidden') === true, { focusFirst: true });
+});
+conversationMenu?.addEventListener('keydown', (event) => {
+  if (event.key === 'Escape') {
+    event.preventDefault();
+    setConversationMenuOpen(false, { restoreFocus: true });
+    return;
+  }
+  if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+  event.preventDefault();
+  const items = Array.from(conversationMenu.querySelectorAll('[role="menuitem"]:not(.hidden)'));
+  const index = items.indexOf(document.activeElement);
+  const next = event.key === 'Home' ? 0 : event.key === 'End' ? items.length - 1
+    : event.key === 'ArrowDown' ? (index + 1) % items.length
+      : (index - 1 + items.length) % items.length;
+  items[next]?.focus();
+});
 if (addFriendMenuBtn) addFriendMenuBtn.addEventListener('click', () => addCurrentPartnerFriend(addFriendMenuBtn));
 if (saveConversationBtn) saveConversationBtn.addEventListener('click', saveCurrentConversation);
 if (blockPartnerBtn) blockPartnerBtn.addEventListener('click', () => blockCurrentPartner(conversationMenuBtn));
@@ -465,7 +491,7 @@ interestsInput.addEventListener('keydown', (event) => {
   }
 });
 document.addEventListener('click', (event) => {
-  if (!event.target.closest('.partner-actions')) conversationMenu?.classList.add('hidden');
+  if (!event.target.closest('.partner-actions')) setConversationMenuOpen(false);
 });
 
 function updateInterestTags() {
@@ -558,7 +584,9 @@ function setChatComposerState(mode, message = '') {
   historyActionBar?.classList.toggle('hidden', !isHistory || !hasHistoryActions);
   messageInput.disabled = !canSend;
   sendBtn.disabled = !canSend;
-  reportBtn.disabled = !isLive;
+  const canReport = isLive || (mode === 'ended' && reportAvailable);
+  reportBtn.disabled = !canReport;
+  reportBtn.classList.toggle('hidden', !canReport);
   if (cancelSearchBtn) {
     cancelSearchBtn.disabled = !isSearching;
     cancelSearchBtn.toggleAttribute('aria-busy', false);
@@ -593,7 +621,8 @@ function applyStoredConversationCapabilities(capabilities = {}) {
     canRemoveFromHistory: capabilities.canRemoveFromHistory === true,
     canDeleteUnsavedMessages: capabilities.canDeleteUnsavedMessages === true,
     canResumeDirect: capabilities.canResumeDirect === true,
-    canViewPartnerProfile: capabilities.canViewPartnerProfile === true
+    canViewPartnerProfile: capabilities.canViewPartnerProfile === true,
+    canReport: capabilities.canReport === true
   };
   const canToggleSaved = currentConversationCapabilities.canSave
     || currentConversationCapabilities.canUnsave;
@@ -615,6 +644,7 @@ function applyStoredConversationCapabilities(capabilities = {}) {
     partnerProfileBtn.disabled = !currentConversationCapabilities.canViewPartnerProfile;
     partnerProfileBtn.setAttribute('aria-disabled', String(!currentConversationCapabilities.canViewPartnerProfile));
   }
+  reportAvailable = currentConversationCapabilities.canReport;
 }
 
 function startMessageCooldown(retryAfterSeconds) {
@@ -1479,11 +1509,12 @@ function sendMessage() {
 function requestEndDirectConversation() {
   if (directEndPending || currentConversationType !== 'direct'
       || !['live', 'paused'].includes(chatComposerMode)) return;
+  setConversationMenuOpen(false);
   openFriendSafetyConfirmation({
     title: chatCopy.conversation.end,
     description: chatCopy.feedback.confirmEndConversation,
     confirmLabel: chatCopy.conversation.end,
-    trigger: endDirectChatBtn,
+    trigger: conversationMenuBtn,
     action: endDirectConversation
   });
 }
@@ -1563,8 +1594,9 @@ function setReportModalOpen(open) {
 }
 
 function reportUser() {
-  if (chatComposerMode !== 'live' || !reportModal) return;
-  reportModalRestoreFocus = document.activeElement instanceof HTMLElement ? document.activeElement : reportBtn;
+  if (!(chatComposerMode === 'live' || (chatComposerMode === 'ended' && reportAvailable)) || !reportModal) return;
+  setConversationMenuOpen(false);
+  reportModalRestoreFocus = conversationMenuBtn || reportBtn;
   reportForm?.reset();
   reportFeedback.textContent = '';
   reportCancel.textContent = chatCopy.report.cancel;
@@ -1587,7 +1619,7 @@ function closeReportModal() {
 
 function submitReport(event) {
   event.preventDefault();
-  if (reportPending || chatComposerMode !== 'live') return;
+  if (reportPending || !(chatComposerMode === 'live' || (chatComposerMode === 'ended' && reportAvailable))) return;
   if (!reportForm?.reportValidity()) return;
   const values = Object.fromEntries(new FormData(reportForm));
   reportPending = true;
@@ -1698,8 +1730,10 @@ socket.on('matched', async (data) => {
     canBlock: data.capabilities?.canBlock === true,
     canRemoveFromHistory: false,
     canDeleteUnsavedMessages: false,
-    canViewPartnerProfile: true
+    canViewPartnerProfile: true,
+    canReport: data.capabilities?.canReport === true
   };
+  reportAvailable = currentConversationCapabilities.canReport;
   if (partnerProfileBtn) {
     partnerProfileBtn.disabled = false;
     partnerProfileBtn.removeAttribute('aria-disabled');
@@ -1751,7 +1785,7 @@ socket.on('message-read', ({ conversationId, upToMessageId } = {}) => {
   markOutgoingMessagesRead(upToMessageId);
 });
 
-socket.on('partner-left', ({ conversationId } = {}) => {
+socket.on('partner-left', ({ conversationId, canReport } = {}) => {
   nextSearchPending = false;
   showChatView();
   statusText.textContent = chatCopy.feedback.chatEnded;
@@ -1761,6 +1795,7 @@ socket.on('partner-left', ({ conversationId } = {}) => {
   }
   addFriendMenuBtn?.classList.add('hidden');
   readOnlyConversation = true;
+  reportAvailable = canReport === true;
   setChatComposerState('ended');
   loadPanel('history');
 });
@@ -2102,9 +2137,15 @@ function makeListItem(title, meta, onClick, badge, avatarUrl = '') {
 function makeConversationListItem(item, context, meta = '') {
   const row = document.createElement('div');
   row.className = 'conversation-list-row';
+  const endedAt = item.status !== 'active' && item.ended_at
+    ? formatCopy(chatCopy.dynamic.endedOn, { date: new Date(item.ended_at).toLocaleString() })
+    : '';
+  const rowMeta = [meta || item.last_message || new Date(item.started_at).toLocaleString(), endedAt]
+    .filter(Boolean)
+    .join(' · ');
   const open = makeListItem(
     item.partner_name,
-    meta || item.last_message || new Date(item.started_at).toLocaleString(),
+    rowMeta,
     () => openStoredConversation({ ...item, sourceContext: context }),
     Number(item.unread_count) > 0
       ? formatCopy(chatCopy.dynamic.unread, { count: Number(item.unread_count) > 99 ? '99+' : item.unread_count })
@@ -2113,8 +2154,7 @@ function makeConversationListItem(item, context, meta = '') {
   row.appendChild(open);
   const capabilities = item.capabilities || {};
   const conversationPublicId = item.public_id || item.conversation_public_id || '';
-  const actions = document.createElement('span');
-  actions.className = 'panel-inline-actions conversation-row-actions';
+  const actions = [];
   const reload = async () => {
     if (context === 'messages') await loadMessagesPanel();
     if (context === 'history') await loadHistoryPanel();
@@ -2122,19 +2162,19 @@ function makeConversationListItem(item, context, meta = '') {
     refreshTopbarBadges();
   };
   if (capabilities.canSave === true) {
-    actions.append(actionButton(chatCopy.feedback.saveConversation, async () => {
+    actions.push(friendMenuAction(chatCopy.feedback.saveConversation, 'bookmark', async () => {
       await api(`/api/conversations/${item.id}/saved`, { method: 'PUT', body: '{}' });
       await reload();
-    }, 'bookmark'));
+    }));
   }
   if (capabilities.canUnsave === true) {
-    actions.append(actionButton(chatCopy.feedback.unsaveConversation, async () => {
+    actions.push(friendMenuAction(chatCopy.feedback.unsaveConversation, 'bookmark-x', async () => {
       await api(`/api/conversations/${item.id}/saved`, { method: 'DELETE' });
       await reload();
-    }, 'bookmark-x'));
+    }));
   }
   if (capabilities.canRemoveFromHistory === true && conversationPublicId) {
-    actions.append(actionButton(chatCopy.feedback.removeConversation, (trigger) => {
+    actions.push(friendMenuAction(chatCopy.feedback.removeConversation, 'trash-2', (trigger) => {
       openFriendSafetyConfirmation({
         title: chatCopy.feedback.removeConversation,
         description: chatCopy.feedback.removeHistoryConfirm,
@@ -2148,10 +2188,10 @@ function makeConversationListItem(item, context, meta = '') {
           await reload();
         }
       });
-    }, 'trash-2'));
+    }));
   }
   if (capabilities.canDeleteUnsavedMessages === true && conversationPublicId) {
-    actions.append(actionButton(chatCopy.feedback.deleteUnsavedMessages, (trigger) => {
+    actions.push(friendMenuAction(chatCopy.feedback.deleteUnsavedMessages, 'eraser', (trigger) => {
       openFriendSafetyConfirmation({
         title: chatCopy.feedback.deleteUnsavedMessages,
         description: chatCopy.feedback.deleteUnsavedMessagesConfirm,
@@ -2165,9 +2205,51 @@ function makeConversationListItem(item, context, meta = '') {
           await reload();
         }
       });
-    }, 'eraser'));
+    }));
   }
-  if (actions.childElementCount) row.appendChild(actions);
+  if (!actions.length) return row;
+  const shell = document.createElement('span');
+  shell.className = 'friend-actions-shell conversation-actions-shell';
+  const trigger = document.createElement('button');
+  trigger.type = 'button';
+  trigger.className = 'friend-actions-trigger conversation-actions-trigger';
+  trigger.setAttribute('aria-haspopup', 'menu');
+  trigger.setAttribute('aria-expanded', 'false');
+  trigger.setAttribute('aria-label', chatCopy.conversation.historyActions);
+  trigger.innerHTML = '<i data-lucide="ellipsis-vertical" aria-hidden="true"></i>';
+  const menu = document.createElement('span');
+  menu.className = 'friend-actions-menu conversation-actions-menu';
+  menu.setAttribute('role', 'menu');
+  menu.hidden = true;
+  menu.append(...actions);
+  trigger.addEventListener('click', (event) => {
+    event.stopPropagation();
+    const opening = menu.hidden;
+    closeFriendMenus(opening ? menu : null);
+    menu.hidden = !opening;
+    trigger.setAttribute('aria-expanded', String(opening));
+    if (opening) menu.querySelector('[role="menuitem"]')?.focus();
+  });
+  shell.addEventListener('keydown', (event) => {
+    if (menu.hidden) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      menu.hidden = true;
+      trigger.setAttribute('aria-expanded', 'false');
+      trigger.focus();
+      return;
+    }
+    if (!['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) return;
+    event.preventDefault();
+    const menuItems = Array.from(menu.querySelectorAll('[role="menuitem"]'));
+    const index = menuItems.indexOf(document.activeElement);
+    const next = event.key === 'Home' ? 0 : event.key === 'End' ? menuItems.length - 1
+      : event.key === 'ArrowDown' ? (index + 1) % menuItems.length
+        : (index - 1 + menuItems.length) % menuItems.length;
+    menuItems[next]?.focus();
+  });
+  shell.append(trigger, menu);
+  row.appendChild(shell);
   return row;
 }
 
@@ -2239,7 +2321,26 @@ async function cancelChatRequest(requestId) {
   await loadChatRequestsPanel();
 }
 
-async function sendDirectChatRequest(publicId) {
+async function openActiveDirectConversation(friend, conversationId) {
+  if (!PUBLIC_CONVERSATION_ID_PATTERN.test(String(conversationId || ''))) return;
+  await openStoredConversation({
+    id: conversationId,
+    public_id: conversationId,
+    type: 'direct',
+    status: 'active',
+    partner_name: friend.display_name,
+    partner_public_id: friend.public_id,
+    profile_image_url: friend.profile_image_url || null,
+    capabilities: {
+      canResumeDirect: true,
+      canBlock: friend.capabilities?.canBlock === true,
+      canViewPartnerProfile: true
+    }
+  });
+}
+
+async function sendDirectChatRequest(friend) {
+  const publicId = friend?.public_id;
   const response = await new Promise((resolve, reject) => {
     socket.timeout(6000).emit('direct-chat-request', { publicId }, (error, result = {}) => {
       if (error) return reject(new Error(chatCopy.feedback.chatRequestTimeout));
@@ -2248,6 +2349,10 @@ async function sendDirectChatRequest(publicId) {
     });
   });
   await loadChatRequestsPanel();
+  if (response.status === 'active' && response.conversationId) {
+    await openActiveDirectConversation(friend, response.conversationId);
+    return response;
+  }
   if (friendsActionFeedback) friendsActionFeedback.textContent = chatCopy.feedback.chatRequestSent;
   return response;
 }
@@ -2469,7 +2574,14 @@ function makeFriendListItem(friend) {
     actions.push(friendMenuAction(
       chatCopy.feedback.startDirectChat,
       'message-circle',
-      () => sendDirectChatRequest(friend.public_id)
+      () => sendDirectChatRequest(friend)
+    ));
+  }
+  if (capabilities.canOpenDirectChat === true && capabilities.activeDirectConversationId) {
+    actions.push(friendMenuAction(
+      chatCopy.feedback.openConversation,
+      'message-circle',
+      () => openActiveDirectConversation(friend, capabilities.activeDirectConversationId)
     ));
   }
   if (capabilities.canRemoveFriend === true) {
@@ -2782,7 +2894,7 @@ async function openStoredConversation(item) {
 }
 
 async function saveCurrentConversation() {
-  conversationMenu.classList.add('hidden');
+  setConversationMenuOpen(false);
   if (!currentUser && !guestProfile) return openAccountSettings();
   if (!currentConversationId) return alert(chatCopy.feedback.nothingToSave);
   if (readOnlyConversation
@@ -2807,7 +2919,7 @@ async function saveCurrentConversation() {
 }
 
 async function addCurrentPartnerFriend(trigger = addFriendMenuBtn) {
-  conversationMenu.classList.add('hidden');
+  setConversationMenuOpen(false);
   if (!currentUser || !currentPartner?.publicId || currentConversationCapabilities.canAddFriend !== true) return;
   [addFriendMenuBtn, historyAddFriendBtn].forEach((button) => {
     if (!button) return;
@@ -2835,7 +2947,7 @@ async function addCurrentPartnerFriend(trigger = addFriendMenuBtn) {
 }
 
 function requestRemoveConversationHistory(trigger = removeConversationHistoryBtn) {
-  conversationMenu.classList.add('hidden');
+  setConversationMenuOpen(false);
   if (!currentConversationPublicId || currentConversationCapabilities.canRemoveFromHistory !== true) return;
   openFriendSafetyConfirmation({
     title: chatCopy.feedback.removeConversation,
@@ -2858,7 +2970,7 @@ function requestRemoveConversationHistory(trigger = removeConversationHistoryBtn
 }
 
 function requestDeleteUnsavedMessages(trigger = deleteUnsavedMessagesBtn) {
-  conversationMenu.classList.add('hidden');
+  setConversationMenuOpen(false);
   if (!currentUser || !currentConversationPublicId
       || currentConversationCapabilities.canDeleteUnsavedMessages !== true) return;
   openFriendSafetyConfirmation({
@@ -2881,7 +2993,7 @@ function requestDeleteUnsavedMessages(trigger = deleteUnsavedMessagesBtn) {
 }
 
 async function blockCurrentPartner(trigger = conversationMenuBtn) {
-  conversationMenu.classList.add('hidden');
+  setConversationMenuOpen(false);
   if (!currentUser) return openAccountSettings();
   if (!currentPartner?.publicId) return alert(chatCopy.feedback.guestBlockUnavailable);
   if (readOnlyConversation && currentConversationCapabilities.canBlock !== true) return;
