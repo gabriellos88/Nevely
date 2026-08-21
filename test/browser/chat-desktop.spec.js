@@ -97,6 +97,7 @@ async function expectContainedWorkspace(page) {
   await expect(page.locator('#endDirectChatBtn')).toBeHidden();
   await expect(page.locator('#newBtn span')).toBeVisible();
   await expect(page.locator('#newBtn span')).toHaveText('Next');
+  await expect(page.locator('#newBtn [data-lucide]')).toHaveCount(0);
 
   for (const selector of ['#conversationMenuBtn', '#sendBtn', '#newBtn']) {
     const box = await page.locator(selector).boundingBox();
