@@ -119,6 +119,12 @@ test('desktop chat keeps one contained scroll surface and accessible controls', 
   await expect(page.locator('#waitingTimeRange')).toHaveAttribute('aria-valuetext', 'Unlimited');
   await renderSyntheticConversation(page);
   await expectContainedWorkspace(page);
+  await page.evaluate(() => { currentConversationType = 'random'; });
+  await page.locator('#newBtn').focus();
+  await page.keyboard.press('Space');
+  await expect(page.locator('#newBtn span')).toHaveText('Confirm?');
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#newBtn span')).toHaveText('Next');
 
   await page.locator('#messagesToggle').click();
   await expect(page.locator('#chatRequestsSection')).toBeHidden();
@@ -148,6 +154,12 @@ test('desktop chat keeps one contained scroll surface and accessible controls', 
   const tabletScreenshot = testInfo.outputPath('n5.3-chat-768x1024.png');
   await page.screenshot({ path: tabletScreenshot });
   await testInfo.attach('N5.3 chat 768x1024', { path: tabletScreenshot, contentType: 'image/png' });
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await expectContainedWorkspace(page);
+  const mobileScreenshot = testInfo.outputPath('n5.3-chat-390x844.png');
+  await page.screenshot({ path: mobileScreenshot });
+  await testInfo.attach('N5.3 chat 390x844', { path: mobileScreenshot, contentType: 'image/png' });
 
   await page.evaluate(() => document.querySelector('#profileModal').classList.remove('hidden'));
   const profileSurface = await page.locator('.public-profile-card').evaluate((element) => getComputedStyle(element).backgroundColor);
@@ -219,12 +231,28 @@ test('direct friend chat keeps End as an accessible destructive overflow action'
     const composer = await page.locator('#chatComposer').boundingBox();
     expect(composer.x).toBeGreaterThanOrEqual(0);
     expect(composer.x + composer.width).toBeLessThanOrEqual(viewport.width + 1);
+    const messageGroup = await page.locator('#messageSendGroup').boundingBox();
+    expect(messageGroup.x - composer.x).toBeLessThanOrEqual(20);
   }
   await page.setViewportSize({ width: 1366, height: 768 });
   await page.locator('#newRandomChatBtn').click();
   await expect(page.locator('#matchSetup')).toBeVisible();
   await expect(page.locator('#chatCard')).toBeHidden();
   await expect(page.locator('#startBtnBottom')).toBeFocused();
+});
+
+test('Nevely navigation always returns to the match composer', async ({ page }) => {
+  await page.goto('/', { waitUntil: 'domcontentloaded' });
+  await page.getByRole('link', { name: 'Start chatting' }).click();
+  await expect(page).toHaveURL(/\/chat$/);
+  await expect(page.locator('#matchSetup')).toBeVisible();
+
+  await page.evaluate(() => closeGuestPassport());
+  await renderSyntheticConversation(page);
+  await page.locator('.chat-brand').click();
+  await expect(page).toHaveURL(/\/chat$/);
+  await expect(page.locator('#matchSetup')).toBeVisible();
+  await expect(page.locator('#chatCard')).toBeHidden();
 });
 
 test('report feedback waits for the server response and stays generic', async ({ page }) => {
@@ -269,6 +297,9 @@ test('live report and Next lifecycle follow Socket.IO confirmation', async ({ br
     await first.locator('#reportCancel').click();
 
     const secondPartnerName = await second.locator('#partnerName').textContent();
+    await first.locator('#newBtn').click();
+    await expect(first.locator('#newBtn span')).toHaveText('Confirm?');
+    await expect(first.locator('#chatCard')).toHaveAttribute('data-state', 'live');
     await first.locator('#newBtn').click();
     await expect(first.locator('#searchCard')).toBeVisible();
     await expect(second.locator('#statusText')).toHaveText('Conversation ended');

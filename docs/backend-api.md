@@ -287,7 +287,11 @@ start safely; no presence detail is returned.
   `canNext` and `canEnd` mutually exclusive. The browser rejects an unknown
   conversation type instead of inferring one.
 - `receive-message`, `message-sent`, `message-error`: message lifecycle. Successful
-  message events expose only the opaque `msg_...` identifier.
+  message events expose only the opaque `msg_...` identifier. Random messages
+  require the paired socket. A direct message may instead carry its opaque
+  conversation ID; the server revalidates participant, friendship, block, ban,
+  direct type and active status in the persistence transaction before accepting it.
+  The acknowledgement remains generic and never reports delivery or presence.
 - `partner-left`, `skip-cooldown`: conversation lifecycle. `partner-left` retains
   the public conversation ID so an authorized participant can save the ended conversation.
   For a random conversation it may additionally carry the boolean `canReport`;
@@ -299,8 +303,12 @@ start safely; no presence detail is returned.
   confirmed `end-direct-chat` event.
 - `direct-chat-paused`: the direct partner disconnected. It exposes no presence
   precision or timeout; the PostgreSQL conversation remains active and can be
-  restored after reconnect. A unique ordered-pair reservation prevents a
+  restored only by an explicit Inbox action. Reconnecting never opens a direct
+  conversation automatically. A unique ordered-pair reservation prevents a
   second active direct conversation, including concurrent and multi-tab accepts.
+- `direct-messages-available`: generic reconnect signal for an active direct
+  conversation with unread persisted messages. It contains no message, partner,
+  presence, delivery or internal identifier; the client refreshes its Inbox.
 - `message-error`: message delivery or temporary abuse/rate protection rejection. Its
   optional `retryAfterSeconds` is generic; it never identifies a duplicate, link,
   repeated-character, burst, or other server-side signal. The chat client temporarily

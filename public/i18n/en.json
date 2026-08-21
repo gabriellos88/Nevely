@@ -392,7 +392,7 @@
   "chat": {
     "strangerNames": ["Fox", "Panda", "Koala", "Owl", "Octopus", "Butterfly", "Turtle", "Lion"],
     "topbar": {
-      "homeAria": "Nevely home",
+      "homeAria": "Open match composer",
       "modeAria": "Current chat mode",
       "mode": "Meet someone new",
       "actionsAria": "Chat actions",
@@ -507,6 +507,7 @@
       "removeFromHistory": "Remove from my history",
       "deleteUnsavedMessages": "Delete unsaved messages",
       "next": "Next",
+      "confirmNext": "Confirm?",
       "end": "End conversation",
       "cancelSearch": "Cancel search",
       "report": "Report this chat",

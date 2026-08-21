@@ -34,14 +34,20 @@ test('chat client applies only the generic server retry interval to message cont
   );
   assert.match(
     source,
-    /const canSend = isLive && Date\.now\(\) >= messageCooldownUntil;[\s\S]*messageInput\.disabled = !canSend;[\s\S]*sendBtn\.disabled = !canSend;/
+    /const canSend = \(isLive \|\| \(isDirect && mode === 'paused'\)\) && Date\.now\(\) >= messageCooldownUntil;[\s\S]*messageInput\.disabled = !canSend;[\s\S]*sendBtn\.disabled = !canSend;/
   );
   assert.match(
     source,
-    /const pendingMessage = addMessage\(text, 'me'\);[\s\S]*socket\.emit\('send-message', text, \(response = \{\}\) => \{[\s\S]*pendingMessage\.remove\(\)/
+    /const pendingMessage = addMessage\(text, 'me'\);[\s\S]*socket\.emit\('send-message', \{[\s\S]*conversationId: currentConversationPublicId \|\| currentConversationId[\s\S]*pendingMessage\.remove\(\)/
   );
   assert.doesNotMatch(source, /pendingSentMessages/);
   assert.doesNotMatch(source, /data\.(?:signal|threshold|normalized|counter)/);
+});
+
+test('random Next requires an inline confirmation while direct restore stays user-initiated', () => {
+  assert.match(source, /function requestNextChat\(\)[\s\S]*chatComposerMode !== 'live'[\s\S]*nextConfirmationPending = true[\s\S]*confirmNext[\s\S]*setTimeout\(\(\) => clearNextConfirmation\(\), 4500\)/);
+  assert.match(source, /event\.key !== 'Escape' \|\| !nextConfirmationPending/);
+  assert.match(source, /socket\.on\('direct-messages-available',[\s\S]*refreshTopbarBadges\(\)/);
 });
 
 test('chat search and ended-conversation UI follow authoritative lifecycle events', () => {

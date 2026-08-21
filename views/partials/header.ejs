@@ -18,7 +18,7 @@
     <% if (typeof hideSiteHeader === 'undefined' || !hideSiteHeader) { %>
       <header class="site-header">
         <div class="header-inner">
-          <a class="brand" href="/"><%= copy.common.brand %></a>
+          <a class="brand" href="/chat"><%= copy.common.brand %></a>
           <nav class="site-nav" aria-label="<%= copy.nav.primaryAria %>">
             <a href="/#home"><%= copy.nav.home %></a>
             <a href="/#features"><%= copy.nav.features %></a>
@@ -26,7 +26,7 @@
             <a href="/about"><%= copy.nav.about %></a>
           </nav>
           <div class="header-actions">
-            <a href="/chat?guest=1" class="btn btn-primary"><%= copy.nav.guestCta %></a>
+            <a href="/chat" class="btn btn-primary"><%= copy.nav.guestCta %></a>
           </div>
         </div>
       </header>

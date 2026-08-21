@@ -193,6 +193,8 @@ let reportModalRestoreFocus = null;
 let reportPending = false;
 let reportAvailable = false;
 let nextSearchPending = false;
+let nextConfirmationPending = false;
+let nextConfirmationTimer = null;
 let directEndPending = false;
 let pendingSearchTopics = [];
 let guestCountryActiveIndex = -1;
@@ -339,7 +341,7 @@ newRandomChatBtn?.addEventListener('click', () => {
   showSetupView();
   startBtnBottom?.focus();
 });
-newBtn.addEventListener('click', startSearch);
+newBtn.addEventListener('click', requestNextChat);
 endDirectChatBtn?.addEventListener('click', requestEndDirectConversation);
 cancelSearchBtn?.addEventListener('click', cancelSearch);
 sendBtn.addEventListener('click', sendMessage);
@@ -409,6 +411,11 @@ if (deleteAccountConfirm) deleteAccountConfirm.addEventListener('click', confirm
 document.addEventListener('keydown', handleDeleteAccountKeydown);
 document.addEventListener('keydown', handleAccountModalKeydown);
 document.addEventListener('keydown', handleReportModalKeydown);
+document.addEventListener('keydown', (event) => {
+  if (event.key !== 'Escape' || !nextConfirmationPending) return;
+  event.preventDefault();
+  clearNextConfirmation({ restoreFocus: true });
+});
 if (guestReminderDismiss) guestReminderDismiss.addEventListener('click', () => guestReminderDismiss.closest('.guest-access-reminder')?.remove());
 guestGenderChips?.addEventListener('click', (event) => {
   const button = event.target.closest('[data-gender-value]');
@@ -575,7 +582,7 @@ function setChatComposerState(mode, message = '') {
   const isSearching = mode === 'searching';
   const isDirect = currentConversationType === 'direct';
   const isHistory = mode === 'history';
-  const canSend = isLive && Date.now() >= messageCooldownUntil;
+  const canSend = (isLive || (isDirect && mode === 'paused')) && Date.now() >= messageCooldownUntil;
 
   chatComposerMode = mode;
   liveComposerBar?.classList.toggle('hidden', isHistory);
@@ -593,7 +600,7 @@ function setChatComposerState(mode, message = '') {
   }
   messageInput.placeholder = isLive ? chatCopy.conversation.messagePlaceholder : stateMessage;
   chatCard?.setAttribute('data-state', mode);
-  setControlLabel(newBtn, chatCopy.conversation.next);
+  if (!nextConfirmationPending) setControlLabel(newBtn, chatCopy.conversation.next);
   const showNext = !isDirect && (isLive || mode === 'ended');
   const showDirectEnd = isDirect && (isLive || mode === 'ending' || mode === 'paused');
   newBtn.classList.toggle('hidden', !showNext);
@@ -1440,6 +1447,7 @@ function updateWaitingTimeControl() {
 
 function startSearch() {
   if (nextSearchPending) return;
+  clearNextConfirmation();
   if (releaseDraining) {
     if (!currentConversationId) setChatComposerState('error', uiCopy.release.drainingTitle);
     return;
@@ -1473,6 +1481,26 @@ function startSearch() {
   });
 }
 
+function clearNextConfirmation({ restoreFocus = false } = {}) {
+  clearTimeout(nextConfirmationTimer);
+  nextConfirmationTimer = null;
+  if (!nextConfirmationPending) return;
+  nextConfirmationPending = false;
+  newBtn?.classList.remove('is-confirming');
+  setControlLabel(newBtn, chatCopy.conversation.next);
+  if (restoreFocus) newBtn?.focus();
+}
+
+function requestNextChat() {
+  if (nextSearchPending || currentConversationType !== 'random') return;
+  if (chatComposerMode !== 'live') return startSearch();
+  if (nextConfirmationPending) return startSearch();
+  nextConfirmationPending = true;
+  newBtn.classList.add('is-confirming');
+  setControlLabel(newBtn, chatCopy.conversation.confirmNext);
+  nextConfirmationTimer = setTimeout(() => clearNextConfirmation(), 4500);
+}
+
 // Aggiunge un messaggio mantenendo lo scroll ancorato in basso, ma solo
 // all'interno del contenitore messaggi (mai la pagina intera).
 function addMessage(text, who, messageId = null) {
@@ -1492,7 +1520,10 @@ function sendMessage() {
   const text = messageInput.value.trim();
   if (!text) return;
   const pendingMessage = addMessage(text, 'me');
-  socket.emit('send-message', text, (response = {}) => {
+  socket.emit('send-message', {
+    text,
+    conversationId: currentConversationPublicId || currentConversationId
+  }, (response = {}) => {
     if (!response.ok) {
       pendingMessage.remove();
       addMessage(response.message || chatCopy.feedback.messageSendError, 'system');
@@ -1677,6 +1708,7 @@ socket.on('waiting', () => {
 socket.on('search-state', ({ phase } = {}) => {
   if (phase !== 'topic-preference' && phase !== 'general') return;
   nextSearchPending = false;
+  clearNextConfirmation();
   currentConversationId = null;
   currentConversationPublicId = null;
   currentConversationType = null;
@@ -1693,6 +1725,7 @@ socket.on('search-state', ({ phase } = {}) => {
 
 socket.on('search-cancelled', () => {
   nextSearchPending = false;
+  clearNextConfirmation();
   pendingSearchTopics = [];
   showSetupView();
   statusText.textContent = chatCopy.feedback.searchCancelled;
@@ -1707,6 +1740,7 @@ socket.on('matched', async (data) => {
     return;
   }
   nextSearchPending = false;
+  clearNextConfirmation();
   if (reportModal && !reportModal.classList.contains('hidden') && !reportPending) closeReportModal();
   showChatView();
   closeActiveDrawer({ restoreFocus: false });
@@ -1787,6 +1821,7 @@ socket.on('message-read', ({ conversationId, upToMessageId } = {}) => {
 
 socket.on('partner-left', ({ conversationId, canReport } = {}) => {
   nextSearchPending = false;
+  clearNextConfirmation();
   showChatView();
   statusText.textContent = chatCopy.feedback.chatEnded;
   addMessage(chatCopy.feedback.partnerLeft, 'system');
@@ -1830,6 +1865,11 @@ socket.on('direct-chat-resumable', async (data = {}) => {
   }
   statusText.textContent = chatCopy.feedback.directChatPaused;
   setChatComposerState('paused', chatCopy.feedback.directChatPaused);
+});
+
+socket.on('direct-messages-available', () => {
+  refreshTopbarBadges();
+  if (activeDrawerConfig?.name === 'messages') loadMessagesPanel();
 });
 
 socket.on('message-error', (data) => {

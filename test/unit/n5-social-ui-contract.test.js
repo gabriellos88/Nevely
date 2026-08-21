@@ -106,6 +106,9 @@ test('direct conversations can be parked for random matching and resumed only by
   assert.doesNotMatch(client, /currentConversationType === 'direct' && chatComposerMode === 'live'\) return/);
   assert.match(chat, /currentPair\?\.type === 'direct'\) detachDirectPair/);
   assert.match(chat, /consumeRateLimit\(profileForSocket\(socket\), 'direct-chat-resume'\)/);
+  assert.doesNotMatch(chat, /setImmediate\(\(\) => void resumeDirectConversation\(socket\)\)/);
+  assert.match(chat, /directMessageContext\(socket, requestedConversationId\)/);
+  assert.match(chat, /validateDirectMessageParticipant/);
   assert.match(messages, /MAX_VISIBLE_CONVERSATION_MESSAGES = 200/);
   assert.match(messages, /saved_chats[\s\S]*?reports[\s\S]*?retention_until/);
   assert.doesNotMatch(messages, /console\.|safeLog|body\s*:/);

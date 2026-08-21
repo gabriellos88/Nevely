@@ -11141,3 +11141,53 @@ body.guest-passport-open .chat-layout {
     grid-template-columns: var(--spacing-11) minmax(0, 1fr) var(--spacing-11);
   }
 }
+
+/* N5 follow-up: the durable direct action now lives in overflow, so the
+   composer has only an optional Next column and one fluid input/send group. */
+.chat-app-page .live-chat-card .chat-input-bar,
+.chat-app-page .chat-composer-shell .chat-input-bar {
+  grid-template-columns: auto minmax(0, 1fr);
+  width: 100%;
+  column-gap: var(--spacing-4);
+}
+
+.chat-app-page .next-chat-group {
+  min-width: 0;
+  margin-inline-end: var(--spacing-2);
+  padding-left: var(--spacing-0);
+  border-left: var(--spacing-0);
+}
+
+.chat-app-page .next-chat-group:has(.skip-btn.hidden) {
+  display: none;
+}
+
+.chat-app-page .chat-input-bar:has(.next-chat-group .skip-btn.hidden) .message-send-group {
+  grid-column: 1 / -1;
+  width: 100%;
+}
+
+.chat-app-page .next-chat-group .skip-btn {
+  width: auto;
+  min-width: var(--spacing-28);
+}
+
+.chat-app-page .next-chat-group .skip-btn.is-confirming {
+  border-color: var(--color-brand-medium);
+  background: var(--color-brand-soft);
+  color: var(--color-heading);
+}
+
+@media (max-width: 700px) {
+  .chat-app-page .live-chat-card .chat-input-bar,
+  .chat-app-page .chat-composer-shell .chat-input-bar {
+    grid-template-columns: auto minmax(0, 1fr);
+    column-gap: var(--spacing-2);
+  }
+
+  .chat-app-page .next-chat-group .skip-btn {
+    width: auto;
+    min-width: var(--spacing-28);
+    padding-inline: var(--spacing-3);
+  }
+}

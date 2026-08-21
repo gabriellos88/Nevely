@@ -232,6 +232,19 @@ test('direct friend chat reserves one conversation across replicas and never con
   assert.equal(bobResume.payload.conversationId, matchedAlice.payload.conversationId);
   assert.equal(aliceResumePayload.restored, true);
 
+  const idleAliceSocket = [aliceFirst, aliceSecond].find((socket) => socket.id !== matchedAlice.socket.id);
+  const parallelWaiting = eventFrom(idleAliceSocket, 'waiting');
+  idleAliceSocket.emit('find-partner', {
+    interests: [],
+    profile: { username: 'Ignored client profile', age: 28, gender: 'non-binary', country: 'Switzerland' },
+    waitingTimeSeconds: 5
+  });
+  assert.deepEqual(await parallelWaiting, { status: 'searching' });
+  const directDelivery = eventFrom(bobResume.socket, 'receive-message');
+  matchedAlice.socket.emit('send-message', 'The random tab must not close this direct conversation.');
+  assert.equal((await directDelivery).text, 'The random tab must not close this direct conversation.');
+  assert.deepEqual(await emitWithAck(idleAliceSocket, 'cancel-search'), { ok: true, cancelled: true });
+
   const partnerLeft = eventFrom(bobResume.socket, 'partner-left');
   assert.deepEqual(await emitWithAck(matchedAlice.socket, 'end-direct-chat'), {
     ok: false,
@@ -376,6 +389,19 @@ test('direct friend chat survives disconnect, restores once and ends on friendsh
     [initial.conversationId]
   );
   assert.deepEqual(persisted.rows[0], { status: 'active', reservations: 1 });
+  const offlineSent = await emitWithAck(bobSocket, 'send-message', {
+    text: 'A persisted direct message for an offline friend',
+    conversationId: initial.conversationId
+  });
+  assert.equal(offlineSent.ok, true);
+  assert.match(offlineSent.id, /^msg_[0-9a-f]{24}$/);
+  const storedOfflineMessage = await db.query(
+    `SELECT COUNT(*)::int AS count FROM messages m
+     JOIN conversations c ON c.id = m.conversation_id
+     WHERE c.public_id = $1 AND m.body = $2`,
+    [initial.conversationId, 'A persisted direct message for an offline friend']
+  );
+  assert.equal(storedOfflineMessage.rows[0].count, 1);
 
   const restoredAlice = createClient(baseUrl, {
     autoConnect: false,
@@ -386,11 +412,15 @@ test('direct friend chat survives disconnect, restores once and ends on friendsh
   });
   sockets.push(restoredAlice);
   const connected = eventFrom(restoredAlice, 'connect');
+  const backlogAvailable = eventFrom(restoredAlice, 'direct-messages-available');
   const restoredForAlice = eventFrom(restoredAlice, 'matched');
   const restoredForBob = eventFrom(bobSocket, 'matched');
   restoredAlice.connect();
   await connected;
+  await backlogAvailable;
+  const resume = emitWithAck(restoredAlice, 'resume-direct-chat', { partnerPublicId: bob.publicId });
   const [aliceRestored, bobRestored] = await Promise.all([restoredForAlice, restoredForBob]);
+  assert.equal((await resume).ok, true);
   assert.equal(aliceRestored.restored, true);
   assert.equal(bobRestored.restored, true);
   assert.equal(aliceRestored.conversationId, initial.conversationId);
@@ -496,7 +526,9 @@ test('accepting a direct chat request while the sender is offline creates a resu
   const restoredForBob = eventFrom(bobSocket, 'matched');
   restoredAlice.connect();
   await connected;
+  const resume = emitWithAck(restoredAlice, 'resume-direct-chat', { partnerPublicId: bob.publicId });
   const [aliceMatch, bobMatch] = await Promise.all([restoredForAlice, restoredForBob]);
+  assert.equal((await resume).ok, true);
   assert.equal(aliceMatch.conversationId, parked.conversationId);
   assert.equal(bobMatch.conversationId, parked.conversationId);
   assert.equal(aliceMatch.restored, true);
