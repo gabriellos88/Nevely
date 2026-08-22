@@ -115,6 +115,23 @@ test('history removal is per-user and unsaved deletion preserves saved and moder
     'SELECT COUNT(*)::int AS count FROM saved_chats WHERE conversation_id = $1',
     [sharedSaved.id]
   )).rows[0].count), 1);
+  const historyAudit = await db.query(
+    `SELECT actor_user_id, target_type, before_state, after_state
+     FROM audit_log
+     WHERE action = 'product.conversation_history_removed'
+       AND actor_user_id = $1`,
+    [ownerId]
+  );
+  assert.equal(historyAudit.rowCount, 1);
+  assert.equal(historyAudit.rows[0].target_type, 'conversation');
+  assert.deepEqual(historyAudit.rows[0].before_state, {
+    conversationId: sharedSaved.id,
+    visible: true
+  });
+  assert.deepEqual(historyAudit.rows[0].after_state, {
+    conversationId: sharedSaved.id,
+    visible: false
+  });
 
   await request(baseUrl)
     .post(`/api/conversations/${sharedSaved.publicId}/delete-unsaved`)
@@ -147,6 +164,27 @@ test('history removal is per-user and unsaved deletion preserves saved and moder
     'SELECT deleted_for_everyone_at FROM messages WHERE conversation_id = $1',
     [unsaved.id]
   )).rows[0].deleted_for_everyone_at, null);
+  const deleteAudit = await db.query(
+    `SELECT actor_user_id, target_type, before_state, after_state
+     FROM audit_log
+     WHERE action = 'product.unsaved_messages_deleted'
+       AND actor_user_id = $1`,
+    [ownerId]
+  );
+  assert.equal(deleteAudit.rowCount, 1);
+  assert.equal(deleteAudit.rows[0].target_type, 'conversation');
+  assert.deepEqual(deleteAudit.rows[0].before_state, {
+    conversationId: unsaved.id,
+    deletedMessageCount: 0
+  });
+  assert.deepEqual(deleteAudit.rows[0].after_state, {
+    conversationId: unsaved.id,
+    deletedMessageCount: 1
+  });
+  const serializedAudit = JSON.stringify([historyAudit.rows[0], deleteAudit.rows[0]]);
+  assert.equal(serializedAudit.includes('Synthetic history message'), false);
+  assert.equal(serializedAudit.includes(sharedSaved.publicId), false);
+  assert.equal(serializedAudit.includes(unsaved.publicId), false);
 
   const protectedConversation = await seedConversation(db, ownerId, partnerId);
   await db.query(

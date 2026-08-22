@@ -176,12 +176,44 @@ test('friend requests use public IDs and remain transactional, idempotent and ra
     .set('Cookie', dana.cookie)
     .send({})
     .expect(200);
+  const blockAudit = await db.query(
+    `SELECT actor_user_id, target_user_id, target_type, before_state, after_state
+     FROM audit_log
+     WHERE action = 'social.account_blocked'
+       AND actor_user_id = $1 AND target_user_id = $2`,
+    [danaId, carolId]
+  );
+  assert.equal(blockAudit.rowCount, 1);
+  assert.deepEqual(blockAudit.rows[0].before_state, { blocked: false });
+  assert.deepEqual(blockAudit.rows[0].after_state, { blocked: true });
+  assert.equal(blockAudit.rows[0].target_type, 'account');
   const blockedFriendship = await db.query(
     `SELECT COUNT(*)::int AS count FROM friendships
      WHERE (user_id = $1 AND friend_id = $2) OR (user_id = $2 AND friend_id = $1)`,
     [carolId, danaId]
   );
   assert.equal(blockedFriendship.rows[0].count, 0);
+  await request(baseUrl)
+    .delete(`/api/blocks/${carol.publicId}`)
+    .set('Cookie', dana.cookie)
+    .send({})
+    .expect(204);
+  await request(baseUrl)
+    .delete(`/api/blocks/${carol.publicId}`)
+    .set('Cookie', dana.cookie)
+    .send({})
+    .expect(204);
+  const unblockAudit = await db.query(
+    `SELECT actor_user_id, target_user_id, target_type, before_state, after_state
+     FROM audit_log
+     WHERE action = 'social.account_unblocked'
+       AND actor_user_id = $1 AND target_user_id = $2`,
+    [danaId, carolId]
+  );
+  assert.equal(unblockAudit.rowCount, 1);
+  assert.deepEqual(unblockAudit.rows[0].before_state, { blocked: true });
+  assert.deepEqual(unblockAudit.rows[0].after_state, { blocked: false });
+  assert.equal(unblockAudit.rows[0].target_type, 'account');
 
   await request(baseUrl)
     .delete(`/api/friend-requests/${created.body.requestId}`)
@@ -264,6 +296,17 @@ test('friend requests use public IDs and remain transactional, idempotent and ra
   );
   assert.equal(removedState.rows[0].friendships, 0);
   assert.equal(removedState.rows[0].chat_status, 'cancelled');
+  const removalAudit = await db.query(
+    `SELECT actor_user_id, target_user_id, target_type, before_state, after_state
+     FROM audit_log
+     WHERE action = 'social.friendship_removed'
+       AND actor_user_id = $1 AND target_user_id = $2`,
+    [aliceId, bobId]
+  );
+  assert.equal(removalAudit.rowCount, 1);
+  assert.deepEqual(removalAudit.rows[0].before_state, { friends: true });
+  assert.deepEqual(removalAudit.rows[0].after_state, { friends: false });
+  assert.equal(removalAudit.rows[0].target_type, 'account');
 
   const declined = await request(baseUrl)
     .post('/api/friend-requests')

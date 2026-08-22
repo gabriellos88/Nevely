@@ -345,6 +345,16 @@ no message body, raw IP, device fingerprint, or derived bucket key is emitted to
 client, logs, or audit stream. Configure `MODERATION_MESSAGE_HMAC_KEY` (or the shared
 `SESSION_SECRET`) consistently on every replica. `BANNED_WORDS` can hold a comma-separated fallback list. Perspective API or an equivalent multilingual moderation provider is planned but not enabled. Photo/audio WebRTC, payment processing, email flows and production avatar storage are also planned.
 
+Destructive N5 social/product transitions are audited atomically only when they
+change persisted state. The covered actions are friendship removal, block and
+unblock, explicit direct-conversation End, per-principal history removal and
+server-authorized deletion of unsaved messages. Audit metadata contains only
+internal actor/target references, an internal conversation reference where
+needed, boolean state or an aggregate deletion count, timestamp and correlation
+ID. It never contains message bodies, public identifiers, raw network data,
+device fingerprints or anti-abuse signals. Idempotent retries do not append a
+second audit row.
+
 ## Database migrations
 
 Run `npm run db:migrate` with `DATABASE_URL` configured. The runner records

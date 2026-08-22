@@ -260,10 +260,27 @@ test('direct friend chat reserves one conversation across replicas and never con
     { ok: true, ended: false }
   );
   const endedConversation = await db.query(
-    'SELECT status FROM conversations WHERE public_id = $1',
+    'SELECT id, status FROM conversations WHERE public_id = $1',
     [matchedAlice.payload.conversationId]
   );
   assert.equal(endedConversation.rows[0].status, 'ended');
+  const directEndAudit = await db.query(
+    `SELECT actor_user_id, target_user_id, target_type, before_state, after_state
+     FROM audit_log
+     WHERE action = 'social.direct_conversation_ended'
+       AND actor_user_id = $1 AND target_user_id = $2`,
+    [aliceId, bobId]
+  );
+  assert.equal(directEndAudit.rowCount, 1);
+  assert.equal(directEndAudit.rows[0].target_type, 'conversation');
+  assert.deepEqual(directEndAudit.rows[0].before_state, {
+    conversationId: Number(endedConversation.rows[0].id),
+    status: 'active'
+  });
+  assert.deepEqual(directEndAudit.rows[0].after_state, {
+    conversationId: Number(endedConversation.rows[0].id),
+    status: 'ended'
+  });
   assert.equal(Number((await db.query(
     `SELECT COUNT(*)::int AS count FROM moderation_rate_windows
      WHERE principal_type = 'user' AND principal_id = $1 AND action = 'skip'`,
