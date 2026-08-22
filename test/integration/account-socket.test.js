@@ -189,21 +189,61 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
   });
   const [firstMatch, secondMatch] = await Promise.all([firstMatched, secondMatched]);
   assert.equal(firstMatch.conversationId, secondMatch.conversationId);
-  assert.equal(Number.isSafeInteger(firstMatch.conversationId), true);
+  assert.match(firstMatch.conversationId, /^cnv_[0-9a-f]{24}$/);
+  const internalConversationId = Number((await db.query(
+    'SELECT id FROM conversations WHERE public_id = $1',
+    [firstMatch.conversationId]
+  )).rows[0].id);
+  await request(baseUrl)
+    .put(`/api/conversations/${internalConversationId}/saved`)
+    .set('Cookie', secondAccount.cookie)
+    .send({})
+    .expect(404);
+  await request(baseUrl)
+    .get(`/api/conversations/${internalConversationId}/messages`)
+    .set('Cookie', secondAccount.cookie)
+    .expect(404);
+  assert.equal(firstMatch.canAddFriend, true);
+  assert.equal(secondMatch.canAddFriend, true);
+
+  const createdFriendRequest = await request(baseUrl)
+    .post('/api/friend-requests')
+    .set('Cookie', firstAccount.cookie)
+    .send({ publicId: secondAccount.user.publicId })
+    .expect(201);
+  const repeatedFriendRequest = await request(baseUrl)
+    .post('/api/friend-requests')
+    .set('Cookie', firstAccount.cookie)
+    .send({ publicId: secondAccount.user.publicId })
+    .expect(200);
+  assert.equal(repeatedFriendRequest.body.requestId, createdFriendRequest.body.requestId);
+  await request(baseUrl)
+    .post('/api/friend-requests')
+    .set('Cookie', secondAccount.cookie)
+    .send({ publicId: firstAccount.user.publicId })
+    .expect(409);
+  const friendNotifications = await db.query(
+    `SELECT COUNT(*)::integer AS count FROM notifications
+     WHERE user_id = (SELECT id FROM users WHERE public_id = $1)
+       AND type = 'friend_request'`,
+    [secondAccount.user.publicId]
+  );
+  assert.equal(friendNotifications.rows[0].count, 1);
 
   const received = eventFrom(second, 'receive-message');
   const sent = eventFrom(first, 'message-sent');
   first.emit('send-message', 'synthetic persisted message');
   const [receivedMessage, sentMessage] = await Promise.all([received, sent]);
   assert.equal(receivedMessage.id, sentMessage.id);
-  assert.equal(Number.isSafeInteger(Number(receivedMessage.id)), true);
+  assert.match(receivedMessage.id, /^msg_[0-9a-f]{24}$/);
 
   const beforeRead = await request(baseUrl)
     .get('/api/conversations')
     .set('Cookie', secondAccount.cookie)
     .expect(200);
   const conversationBeforeRead = beforeRead.body.conversations
-    .find((conversation) => Number(conversation.id) === Number(firstMatch.conversationId));
+    .find((conversation) => conversation.id === firstMatch.conversationId);
+  assert.equal(Object.hasOwn(conversationBeforeRead, 'conversation_id'), false);
   assert.equal(conversationBeforeRead.unread_count, 1);
 
   const readEvent = eventFrom(first, 'message-read');
@@ -216,27 +256,41 @@ test('account sockets match, persist messages, enforce cooldown, report disconne
   assert.equal(acknowledgement.ok, true);
   assert.equal(acknowledgement.updated, 1);
   const readPayload = await readEvent;
-  assert.equal(Number(readPayload.conversationId), Number(firstMatch.conversationId));
-  assert.equal(Number(readPayload.upToMessageId), Number(receivedMessage.id));
+  assert.equal(readPayload.conversationId, firstMatch.conversationId);
+  assert.equal(readPayload.upToMessageId, receivedMessage.id);
 
   const afterRead = await request(baseUrl)
     .get('/api/conversations')
     .set('Cookie', secondAccount.cookie)
     .expect(200);
   const conversationAfterRead = afterRead.body.conversations
-    .find((conversation) => Number(conversation.id) === Number(firstMatch.conversationId));
+    .find((conversation) => conversation.id === firstMatch.conversationId);
   assert.equal(conversationAfterRead.unread_count, 0);
 
-  const cooldown = eventFrom(first, 'skip-cooldown');
+  const partnerLeftAfterSkip = eventFrom(second, 'partner-left');
   first.emit('leave-chat');
-  const cooldownPayload = await cooldown;
-  assert.ok(cooldownPayload.remainingMs > 0);
-  assert.ok(cooldownPayload.remainingMs <= 10_000);
+  assert.deepEqual(await partnerLeftAfterSkip, {
+    conversationId: firstMatch.conversationId,
+    canReport: true
+  });
+  const reportAfterPartnerLeft = eventFrom(second, 'report-submitted');
+  second.emit('report', { reason: 'spam', details: 'Synthetic post-chat report' });
+  assert.deepEqual(await reportAfterPartnerLeft, { stored: true });
 
-  const partnerLeft = eventFrom(second, 'partner-left');
+  const concurrentSaves = await Promise.all([0, 1].map(() => request(baseUrl)
+    .put(`/api/conversations/${firstMatch.conversationId}/saved`)
+    .set('Cookie', secondAccount.cookie)
+    .send({})));
+  assert.deepEqual(concurrentSaves.map((response) => response.status).sort(), [200, 201]);
+  const savedAfterPartnerLeft = await db.query(
+    `SELECT COUNT(*)::integer AS count FROM saved_chats
+     WHERE conversation_id = (SELECT id FROM conversations WHERE public_id = $1)
+       AND user_id = (SELECT id FROM users WHERE public_id = $2)`,
+    [firstMatch.conversationId, secondAccount.user.publicId]
+  );
+  assert.equal(savedAfterPartnerLeft.rows[0].count, 1);
+
   first.disconnect();
-  const partnerLeftPayload = await partnerLeft;
-  assert.equal(Number(partnerLeftPayload.conversationId), Number(firstMatch.conversationId));
 
   const banned = eventFrom(second, 'account-banned');
   await request(baseUrl)

@@ -143,6 +143,7 @@ segreti dalla produzione allo staging.
 | `PUBLIC_ORIGIN` | dominio HTTPS esatto dello staging, mai `nevely.app` |
 | `DATABASE_URL` | database PostgreSQL dello staging |
 | `SESSION_SECRET` | almeno 32 caratteri, distinto dagli altri segreti |
+| `MODERATION_MESSAGE_HMAC_KEY` | opzionale; almeno 16 caratteri, solo staging e identico su tutte le repliche; altrimenti viene usato `SESSION_SECRET` |
 | `ADMIN_TOTP_ENCRYPTION_KEY` | almeno 32 caratteri, distinto da `SESSION_SECRET` |
 | `GOOGLE_CLIENT_ID` | client OAuth Web di **staging**, con sola origine staging esatta |
 | `SUPPORT_EMAIL` | `support@nevely.app` |

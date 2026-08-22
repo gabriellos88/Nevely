@@ -171,4 +171,14 @@ test('production refuses memory sessions and missing security secrets', () => {
     },
     log: quietLog
   }), /ADMIN_TOTP_ENCRYPTION_KEY/);
+
+  assert.throws(() => createRuntime({
+    db: disabledDb(),
+    env: {
+      NODE_ENV: 'test',
+      SESSION_SECRET: 'unit-test-session-secret',
+      MODERATION_MESSAGE_HMAC_KEY: 'too-short'
+    },
+    log: quietLog
+  }), /MODERATION_MESSAGE_HMAC_KEY/);
 });

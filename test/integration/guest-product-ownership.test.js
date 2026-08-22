@@ -89,7 +89,7 @@ async function seedEndedConversation(db, guestId, suffix) {
   const conversation = await db.query(
     `INSERT INTO conversations (type, status, ended_at, last_activity_at, expires_at)
      VALUES ('random', 'ended', NOW(), NOW(), NOW() + INTERVAL '7 days')
-     RETURNING id`
+     RETURNING id, public_id`
   );
   const conversationId = Number(conversation.rows[0].id);
   await db.query(
@@ -104,7 +104,7 @@ async function seedEndedConversation(db, guestId, suffix) {
      VALUES ($1, $2, $3, 'Owned Guest', $4)`,
     [conversationId, guestId, `seed-${suffix}`, `Synthetic guest history ${suffix}`]
   );
-  return conversationId;
+  return conversation.rows[0].public_id;
 }
 
 test('guest sessions own conversations, messages, receipts, reports and bounded saved history', {
@@ -168,7 +168,7 @@ test('guest sessions own conversations, messages, receipts, reports and bounded 
 
   const participants = (await db.query(
     `SELECT user_id, guest_id FROM conversation_participants
-     WHERE conversation_id = $1 ORDER BY joined_at`,
+     WHERE conversation_id = (SELECT id FROM conversations WHERE public_id = $1) ORDER BY joined_at`,
     [firstMatch.conversationId]
   )).rows;
   assert.deepEqual(
@@ -178,13 +178,15 @@ test('guest sessions own conversations, messages, receipts, reports and bounded 
   assert.equal(participants.every((row) => row.user_id === null), true);
 
   const storedMessage = (await db.query(
-    `SELECT sender_user_id, sender_guest_id FROM messages WHERE id = $1`,
+    `SELECT sender_user_id, sender_guest_id FROM messages WHERE public_id = $1`,
     [receivedMessage.id]
   )).rows[0];
   assert.equal(storedMessage.sender_user_id, null);
   assert.equal(storedMessage.sender_guest_id, firstGuestId);
   const receipt = (await db.query(
-    `SELECT user_id, guest_id, read_at FROM message_receipts WHERE message_id = $1`,
+    `SELECT receipt.user_id, receipt.guest_id, receipt.read_at
+     FROM message_receipts receipt JOIN messages message ON message.id = receipt.message_id
+     WHERE message.public_id = $1`,
     [receivedMessage.id]
   )).rows[0];
   assert.equal(receipt.user_id, null);
@@ -193,7 +195,7 @@ test('guest sessions own conversations, messages, receipts, reports and bounded 
 
   const storedReport = (await db.query(
     `SELECT reporter_user_id, reporter_guest_id, reported_user_id, reported_guest_id
-     FROM reports WHERE conversation_id = $1`,
+     FROM reports WHERE conversation_id = (SELECT id FROM conversations WHERE public_id = $1)`,
     [firstMatch.conversationId]
   )).rows[0];
   assert.equal(storedReport.reporter_user_id, null);

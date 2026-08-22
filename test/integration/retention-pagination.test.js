@@ -262,6 +262,10 @@ test('N2 retention, evidence, capacity and cursor contracts', {
     });
     if (index === 0) messageConversationId = id;
   }
+  const messageConversationPublicId = (await db.query(
+    'SELECT public_id FROM conversations WHERE id = $1',
+    [messageConversationId]
+  )).rows[0].public_id;
 
   const firstConversations = await paginationOwner.agent
     .get('/api/conversations?limit=20')
@@ -282,17 +286,18 @@ test('N2 retention, evidence, capacity and cursor contracts', {
   await paginationOwner.agent.get('/api/conversations?cursor=invalid').expect(400);
 
   const newestMessages = await paginationOwner.agent
-    .get(`/api/conversations/${messageConversationId}/messages?limit=20`)
+    .get(`/api/conversations/${messageConversationPublicId}/messages?limit=20`)
     .expect(200);
   assert.equal(newestMessages.body.messages.length, 20);
   assert.equal(newestMessages.body.page.hasMore, true);
+  assert.match(newestMessages.body.messages[0].id, /^msg_[0-9a-f]{24}$/);
   assert.ok(
-    Number(newestMessages.body.messages[0].id)
-      < Number(newestMessages.body.messages.at(-1).id)
+    new Date(newestMessages.body.messages[0].created_at)
+      < new Date(newestMessages.body.messages.at(-1).created_at)
   );
   const olderMessages = await paginationOwner.agent
     .get(
-      `/api/conversations/${messageConversationId}/messages?limit=20`
+      `/api/conversations/${messageConversationPublicId}/messages?limit=20`
       + `&beforeMessageId=${newestMessages.body.page.nextBeforeMessageId}`
     )
     .expect(200);

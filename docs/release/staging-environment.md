@@ -31,6 +31,7 @@ NODE_ENV=production
 PUBLIC_ORIGIN=https://<staging-host>
 DATABASE_URL=${{Postgres.DATABASE_URL}}
 SESSION_SECRET=<staging-only sealed secret>
+MODERATION_MESSAGE_HMAC_KEY=<optional staging-only shared replica secret>
 ADMIN_TOTP_ENCRYPTION_KEY=<staging-only sealed secret>
 PRODUCTION_RAILWAY_ENVIRONMENT_ID=<production environment ID>
 EMAIL_DELIVERY_MODE=test
@@ -43,8 +44,9 @@ ANALYTICS_MODE=disabled
 ROBOTS_INDEXING=disabled
 ```
 
-Do not reuse the production session secret, TOTP encryption key, Google client
-ID or Resend API key. Until the
+Do not reuse the production session secret, message-signal HMAC key, TOTP
+encryption key, Google client ID or Resend API key. If the optional message key
+is omitted, all staging replicas must share the same `SESSION_SECRET`. Until the
 analytics implementation has its own separate non-production property,
 staging analytics remains disabled. Staging must also emit a no-index policy.
 

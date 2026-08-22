@@ -180,7 +180,8 @@ maximum of 100.
 | Admin users, reports and bans | `cursor` for `(created_at, id)` | `page.nextCursor` |
 
 The cursor is an opaque API value. Invalid values return HTTP 400. Saved chats
-remain inherently bounded to 2 for free accounts and 10 for premium accounts.
+remain inherently bounded to 2 for guests, 5 for standard registered accounts
+and 10 for premium accounts.
 N3.1 adds the persistent guest collection with a bounded admin cursor and its
 own retention metadata; product authorization still depends exclusively on the
 guest principal bound to the server session.
