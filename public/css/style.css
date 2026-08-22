@@ -11189,3 +11189,85 @@ body.guest-passport-open .chat-layout {
     padding-inline: var(--spacing-3);
   }
 }
+
+/* N5.4 — mobile viewport hardening. The conversation remains a single
+   contained workspace when browser chrome or the software keyboard reduces
+   the visual viewport, while device cutouts keep controls reachable. */
+.chat-app-page,
+.chat-app-page .chat-layout {
+  height: 100svh;
+  height: 100dvh;
+}
+
+.chat-app-page .chat-topbar {
+  min-height: calc(var(--chat-topbar-height) + env(safe-area-inset-top));
+  padding-top: env(safe-area-inset-top);
+  padding-inline-start: max(var(--spacing-6), env(safe-area-inset-left));
+  padding-inline-end: max(var(--spacing-6), env(safe-area-inset-right));
+}
+
+.chat-app-page .activity-drawer {
+  padding-top: max(var(--spacing-6), env(safe-area-inset-top));
+  padding-right: max(var(--spacing-6), env(safe-area-inset-right));
+  padding-bottom: max(var(--spacing-6), env(safe-area-inset-bottom));
+  padding-left: max(var(--spacing-6), env(safe-area-inset-left));
+}
+
+.chat-app-page .activity-close,
+.chat-app-page .app-modal .modal-close {
+  width: var(--spacing-11);
+  height: var(--spacing-11);
+}
+
+.chat-app-page .app-modal {
+  padding-top: max(var(--spacing-4), env(safe-area-inset-top));
+  padding-right: max(var(--spacing-4), env(safe-area-inset-right));
+  padding-bottom: max(var(--spacing-4), env(safe-area-inset-bottom));
+  padding-left: max(var(--spacing-4), env(safe-area-inset-left));
+}
+
+.chat-app-page .live-chat-card .chat-composer-shell {
+  padding-bottom: max(var(--spacing-3), env(safe-area-inset-bottom));
+}
+
+@media (max-width: 768px) {
+  .chat-app-page .chat-topbar {
+    padding-inline-start: max(var(--spacing-4), env(safe-area-inset-left));
+    padding-inline-end: max(var(--spacing-4), env(safe-area-inset-right));
+  }
+
+  .chat-app-page .activity-drawer {
+    padding-top: max(var(--spacing-4), env(safe-area-inset-top));
+    padding-right: max(var(--spacing-4), env(safe-area-inset-right));
+    padding-bottom: max(var(--spacing-4), env(safe-area-inset-bottom));
+    padding-left: max(var(--spacing-4), env(safe-area-inset-left));
+  }
+}
+
+@media (max-width: 700px) {
+  .chat-app-page .live-chat-card .chat-composer-shell {
+    padding-bottom: max(var(--spacing-2), env(safe-area-inset-bottom));
+  }
+}
+
+@media (max-height: 520px) and (orientation: landscape) {
+  .chat-app-page .chat-main.is-conversation-active {
+    padding-block: var(--spacing-2);
+  }
+
+  .chat-app-page .chat-partner-bar,
+  .chat-app-page .messages {
+    padding-block: var(--spacing-2);
+  }
+
+  .chat-app-page .activity-drawer-header {
+    margin-block-end: var(--spacing-3);
+    padding-bottom: var(--spacing-3);
+  }
+
+  .chat-app-page .app-modal {
+    place-items: start center;
+    padding-top: max(var(--spacing-2), env(safe-area-inset-top));
+    padding-bottom: max(var(--spacing-2), env(safe-area-inset-bottom));
+  }
+}

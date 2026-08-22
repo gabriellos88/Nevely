@@ -235,9 +235,10 @@ deferred N1.12 transactional-email polish is now tracked unchanged as N9.6.
   - [x] Replace product-visible conversation/message serial keys, cursors and read receipts with opaque public IDs while retaining server-side transactional keys.
   - [x] Keep history profile cards presence-free, preserve avatar aspect ratio and move destructive End to the left of the composer.
   - [x] Make normalized duplicate-message enforcement tolerant of four repeats in 30 seconds while retaining the separate 12/10-second burst limit.
-- [ ] **N5.4 — Refine the mobile chat workspace.**
-  - Verify `390×844`, portrait/landscape transitions, on-screen keyboard and safe-area insets.
-  - Stabilize the composer, drawers, modals, touch targets and message/command overflow.
+- [x] **N5.4 — Refine the mobile chat workspace.**
+  - [x] Verify `390×844`, `844×390`, a reduced `390×520` keyboard viewport and safe-area-aware layout.
+  - [x] Keep the composer contained and usable; keep drawers and modals in the viewport with keyboard-visible focus and 44px close targets.
+  - [x] Cover message overflow and the responsive Friends/Chat requests drawers with Playwright screenshots.
 - [x] **N5.5 — Remove the guest conversation duration limit.** Retain anti-abuse, retention, session, report and disconnect controls.
 
 ---

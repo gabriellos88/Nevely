@@ -217,7 +217,8 @@ test('friend list exposes only server capabilities with accessible responsive me
     { width: 1366, height: 768 },
     { width: 1366, height: 640 },
     { width: 768, height: 1024 },
-    { width: 390, height: 844 }
+    { width: 390, height: 844 },
+    { width: 844, height: 390 }
   ]) {
     await page.setViewportSize(viewport);
     const screenshot = testInfo.outputPath(`n5.3.2-friends-${viewport.width}x${viewport.height}.png`);
@@ -230,6 +231,9 @@ test('friend list exposes only server capabilities with accessible responsive me
     expect(bounds.x).toBeGreaterThanOrEqual(0);
     expect(bounds.x + bounds.width).toBeLessThanOrEqual(viewport.width + 1);
   }
+  const drawerCloseBox = await page.locator('#friendsDrawer [data-drawer-close]').boundingBox();
+  expect(drawerCloseBox.width).toBeGreaterThanOrEqual(44);
+  expect(drawerCloseBox.height).toBeGreaterThanOrEqual(44);
 
   friendsError = true;
   await page.evaluate(() => loadFriendsPanel());
@@ -503,7 +507,8 @@ test('chat requests stay hidden when empty and render incoming and outgoing acti
     { width: 1366, height: 768 },
     { width: 1366, height: 640 },
     { width: 768, height: 1024 },
-    { width: 390, height: 844 }
+    { width: 390, height: 844 },
+    { width: 844, height: 390 }
   ]) {
     await page.setViewportSize(viewport);
     await expect.poll(async () => {

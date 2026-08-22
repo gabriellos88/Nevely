@@ -72,6 +72,8 @@ async function expectContainedWorkspace(page) {
       messageListScrolls: messages.scrollHeight > messages.clientHeight && messages.scrollTop > 0,
       sendTouchesField: Math.abs(inputBox.right - sendBox.left) < 1,
       skipSeparation: inputBox.left - nextBox.right,
+      inputUsable: inputBox.width >= 120,
+      noHorizontalOverflow: document.documentElement.scrollWidth <= window.innerWidth + 1,
       lastMessageAboveComposer: lastMessageBox.bottom <= composerAfter.top + 1,
       sendBackground: getComputedStyle(send).backgroundColor,
       nextBackground: getComputedStyle(next).backgroundColor
@@ -87,6 +89,8 @@ async function expectContainedWorkspace(page) {
     messageListScrolls: true,
     sendTouchesField: true,
     skipSeparation: measurements.skipSeparation,
+    inputUsable: true,
+    noHorizontalOverflow: true,
     lastMessageAboveComposer: true,
     sendBackground: measurements.sendBackground,
     nextBackground: measurements.nextBackground
@@ -162,6 +166,56 @@ test('desktop chat keeps one contained scroll surface and accessible controls', 
   await page.screenshot({ path: mobileScreenshot });
   await testInfo.attach('N5.3 chat 390x844', { path: mobileScreenshot, contentType: 'image/png' });
 
+  await page.setViewportSize({ width: 844, height: 390 });
+  await expectContainedWorkspace(page);
+  const landscapeScreenshot = testInfo.outputPath('n5.4-chat-844x390.png');
+  await page.screenshot({ path: landscapeScreenshot });
+  await testInfo.attach('N5.4 chat landscape 844x390', {
+    path: landscapeScreenshot,
+    contentType: 'image/png'
+  });
+
+  await page.locator('#messagesToggle').click();
+  await expect(page.locator('#messagesDrawer')).toBeVisible();
+  await expect.poll(() => page.locator('#messagesDrawer').evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return bounds.left >= 0 && bounds.right <= window.innerWidth + 1
+      && bounds.top >= 0 && bounds.bottom <= window.innerHeight + 1;
+  })).toBe(true);
+  const drawerMeasurements = await page.locator('#messagesDrawer').evaluate((element) => {
+    const closeBounds = element.querySelector('[data-drawer-close]').getBoundingClientRect();
+    return { closeWidth: closeBounds.width, closeHeight: closeBounds.height };
+  });
+  expect(drawerMeasurements.closeWidth).toBeGreaterThanOrEqual(44);
+  expect(drawerMeasurements.closeHeight).toBeGreaterThanOrEqual(44);
+  await page.locator('#messagesDrawer [data-drawer-close]').click();
+  await expect(page.locator('#messagesDrawer')).toBeHidden();
+
+  await page.locator('#conversationMenuBtn').click();
+  await page.locator('#reportBtn').click();
+  const modalMeasurements = await page.locator('#reportModal .report-modal-card').evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return {
+      contained: bounds.left >= 0 && bounds.right <= window.innerWidth + 1
+        && bounds.top >= 0 && bounds.bottom <= window.innerHeight + 1,
+      scrollable: element.scrollHeight <= element.clientHeight || getComputedStyle(element).overflowY === 'auto'
+    };
+  });
+  expect(modalMeasurements).toEqual({ contained: true, scrollable: true });
+  await page.keyboard.press('Escape');
+  await expect(page.locator('#reportModal')).toBeHidden();
+
+  await page.setViewportSize({ width: 390, height: 520 });
+  await page.locator('#messageInput').focus();
+  await expectContainedWorkspace(page);
+  const keyboardScreenshot = testInfo.outputPath('n5.4-chat-390x520-keyboard-viewport.png');
+  await page.screenshot({ path: keyboardScreenshot });
+  await testInfo.attach('N5.4 chat reduced keyboard viewport 390x520', {
+    path: keyboardScreenshot,
+    contentType: 'image/png'
+  });
+
+  await page.setViewportSize({ width: 390, height: 844 });
   await page.evaluate(() => document.querySelector('#profileModal').classList.remove('hidden'));
   const profileSurface = await page.locator('.public-profile-card').evaluate((element) => getComputedStyle(element).backgroundColor);
   expect(profileSurface).not.toBe('rgb(255, 255, 255)');
