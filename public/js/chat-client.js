@@ -2017,6 +2017,7 @@ socket.on('direct-chat-requested', () => {
 });
 socket.on('direct-chat-request-updated', () => {
   loadChatRequestsPanel();
+  refreshTopbarBadges();
 });
 socket.on('account-banned', () => {
   window.location.assign('/login');

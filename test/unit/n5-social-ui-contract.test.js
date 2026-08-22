@@ -27,13 +27,24 @@ test('friendship surfaces require confirmation, exact feedback and a request-tab
 
 test('direct End is a confirmed overflow action while Skip stays left of Send', () => {
   const view = read('views/chat.ejs');
+  const css = read('public/css/style.css');
   const input = view.indexOf('id="messageInput"');
   const send = view.indexOf('id="sendBtn"');
   const next = view.indexOf('id="newBtn"');
   const end = view.indexOf('id="endDirectChatBtn"');
   assert.ok(end > 0 && end < next && next < input && input < send);
   assert.match(view, /id="conversationMenu"[\s\S]*?id="endDirectChatBtn"/);
-  assert.match(read('public/css/style.css'), /grid-template-columns: auto minmax\(0, 1fr\)/);
+  assert.match(css, /grid-template-columns: auto minmax\(0, 1fr\)/);
+  assert.match(css, /\.next-chat-group \.skip-btn\s*\{[\s\S]*?min-width: var\(--spacing-28\);/);
+  assert.doesNotMatch(css, /\.chat-app-page \.end-chat-btn span,\s*\.chat-app-page \.skip-btn span,/);
+});
+
+test('direct request updates refresh the server-authoritative Messages badge', () => {
+  const client = read('public/js/chat-client.js');
+  assert.match(
+    client,
+    /socket\.on\('direct-chat-request-updated', \(\) => \{\s*loadChatRequestsPanel\(\);\s*refreshTopbarBadges\(\);/
+  );
 });
 
 test('ordinary duplicate messages have a tolerant window while sustained repetition still escalates', () => {

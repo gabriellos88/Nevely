@@ -1093,14 +1093,12 @@ a:hover { text-decoration: underline; }
     grid-template-columns: var(--spacing-11) minmax(0, 1fr) var(--spacing-11) var(--spacing-11);
   }
 
-  .chat-app-page .end-chat-btn,
-  .chat-app-page .skip-btn {
+  .chat-app-page .end-chat-btn {
     width: var(--spacing-11);
     padding-inline: var(--spacing-0);
   }
 
   .chat-app-page .end-chat-btn span,
-  .chat-app-page .skip-btn span,
   .chat-app-page .report-btn span {
     position: absolute;
     width: var(--spacing-px);
