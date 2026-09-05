@@ -75,3 +75,16 @@ test('guest identity persists, recovers after cleared storage and supports respo
     await expect(trigger).toBeFocused();
   }
 });
+
+test('guest passport keeps a country selected while the server profile is still loading', async ({ page }) => {
+  await page.route('**/api/guest-profile', async (route) => {
+    if (route.request().method() === 'GET') {
+      await new Promise((resolve) => setTimeout(resolve, 750));
+    }
+    await route.continue();
+  });
+
+  await openGuestChat(page);
+  await completeGuestPassport(page);
+  await expect(page.locator('#quickStartError')).toBeHidden();
+});

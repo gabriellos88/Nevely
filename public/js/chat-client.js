@@ -1043,7 +1043,7 @@ async function initializeGuestExperience() {
       renderGuestIdentity();
       renderGuestAvatarPresets();
       closeGuestPassport();
-    } else {
+    } else if (!guestCountrySearch?.value.trim() && !countryInput?.value) {
       renderGuestCountrySelection(null);
     }
   } catch (error) {
