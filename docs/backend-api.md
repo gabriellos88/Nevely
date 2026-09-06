@@ -82,12 +82,15 @@ Implemented in N1:
 - `PUT /api/conversations/:publicId/saved`, `DELETE /api/conversations/:publicId/saved`:
   save or unsave a chat using only its opaque public ID.
 
-Unsaved conversations are deleted 7 days after last activity, or oldest first
+Ended unsaved conversations are deleted 7 days after last activity, or oldest first
 when an account or guest exceeds the configured limit (50 by default) of
 unsaved conversations with messages. Saved conversations are deleted 12 months
 after last activity. Saved-chat limits are 2 for guests, 5 for standard
 registered accounts and 10 for premium accounts. Reports retain a separate immutable 50-message
-evidence window for 24 months.
+evidence window for 24 months. An active direct conversation remains listed and
+readable even if its rolling `expires_at` timestamp is in the past; retention
+becomes eligible only after an explicit end, friendship removal or block changes
+its status from `active`.
 
 ### Friends and inbox
 

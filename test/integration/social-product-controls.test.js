@@ -175,6 +175,76 @@ test('standard saved chats and the direct inbox are capped at five with server c
   assert.equal(retainedMessage.sender_display_name, 'Unavailable participant');
 });
 
+test('an active direct conversation stays visible and readable past its retention timestamp', {
+  skip: hasDatabase ? false : 'DATABASE_URL is unavailable outside the disposable CI database'
+}, async (t) => {
+  const db = require('../../db');
+  await resetDatabase(db);
+  const runtime = createRuntime({
+    db,
+    closeDatabaseOnShutdown: false,
+    env: { ...process.env, NODE_ENV: 'test', SESSION_SECRET: 'active-direct-retention-test-secret' },
+    log: quietLog
+  });
+  const address = await runtime.start({ port: 0, host: '127.0.0.1' });
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  t.after(() => runtime.shutdown());
+  const owner = await registerVerified(baseUrl, db, 'active_retention_owner');
+  const partner = await registerVerified(baseUrl, db, 'active_retention_partner');
+  const ids = await db.query(
+    'SELECT id, public_id FROM users WHERE public_id = ANY($1::text[])',
+    [[owner.publicId, partner.publicId]]
+  );
+  const ownerId = Number(ids.rows.find((row) => row.public_id === owner.publicId).id);
+  const partnerId = Number(ids.rows.find((row) => row.public_id === partner.publicId).id);
+  const conversation = await db.query(
+    `INSERT INTO conversations (type, status, last_activity_at, expires_at)
+     VALUES ('direct', 'active', NOW() - INTERVAL '8 days', NOW() - INTERVAL '1 day')
+     RETURNING id, public_id`
+  );
+  const conversationId = Number(conversation.rows[0].id);
+  const conversationPublicId = conversation.rows[0].public_id;
+  await db.query(
+    `INSERT INTO conversation_participants (conversation_id, user_id, socket_id, display_name)
+     VALUES ($1, $2, 'active-retention-owner', 'Owner'),
+            ($1, $3, 'active-retention-partner', 'Partner')`,
+    [conversationId, ownerId, partnerId]
+  );
+  await db.query(
+    `INSERT INTO friendships (user_id, friend_id)
+     VALUES ($1, $2), ($2, $1)`,
+    [ownerId, partnerId]
+  );
+  await db.query(
+    `INSERT INTO direct_conversation_pairs (user_low_id, user_high_id, conversation_id)
+     VALUES (LEAST($1::bigint, $2::bigint), GREATEST($1::bigint, $2::bigint), $3)`,
+    [ownerId, partnerId, conversationId]
+  );
+  await db.query(
+    `INSERT INTO messages (conversation_id, sender_user_id, sender_socket_id, sender_display_name, body)
+     VALUES ($1, $2, 'active-retention-partner', 'Partner', 'Synthetic active direct message')`,
+    [conversationId, partnerId]
+  );
+
+  const friends = await request(baseUrl).get('/api/friends').set('Cookie', owner.cookie).expect(200);
+  assert.equal(friends.body.friends[0].capabilities.canOpenDirectChat, true);
+  assert.equal(friends.body.friends[0].capabilities.activeDirectConversationId, conversationPublicId);
+
+  const inbox = await request(baseUrl).get('/api/conversations').set('Cookie', owner.cookie).expect(200);
+  assert.equal(inbox.body.directInbox.active.length, 1);
+  assert.equal(inbox.body.directInbox.active[0].public_id, conversationPublicId);
+  assert.equal(inbox.body.directInbox.active[0].capabilities.canResumeDirect, true);
+  assert.equal(inbox.body.conversations.some((item) => item.public_id === conversationPublicId), true);
+
+  const messages = await request(baseUrl)
+    .get(`/api/conversations/${conversationPublicId}/messages`)
+    .set('Cookie', owner.cookie)
+    .expect(200);
+  assert.equal(messages.body.conversation.status, 'active');
+  assert.equal(messages.body.messages.length, 1);
+  assert.equal(messages.body.messages[0].body, 'Synthetic active direct message');
+});
+
 test('direct message history is bounded to 200 while saved and moderation-protected content is retained', {
   skip: hasDatabase ? false : 'DATABASE_URL is unavailable outside the disposable CI database'
 }, async (t) => {
