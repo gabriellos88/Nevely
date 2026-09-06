@@ -225,6 +225,11 @@ test('an active direct conversation stays visible and readable past its retentio
      VALUES ($1, $2, 'active-retention-partner', 'Partner', 'Synthetic active direct message')`,
     [conversationId, partnerId]
   );
+  await db.query(
+    `INSERT INTO conversation_history_visibility (conversation_id, user_id)
+     VALUES ($1, $2)`,
+    [conversationId, ownerId]
+  );
 
   const friends = await request(baseUrl).get('/api/friends').set('Cookie', owner.cookie).expect(200);
   assert.equal(friends.body.friends[0].capabilities.canOpenDirectChat, true);
@@ -235,6 +240,15 @@ test('an active direct conversation stays visible and readable past its retentio
   assert.equal(inbox.body.directInbox.active[0].public_id, conversationPublicId);
   assert.equal(inbox.body.directInbox.active[0].capabilities.canResumeDirect, true);
   assert.equal(inbox.body.conversations.some((item) => item.public_id === conversationPublicId), true);
+
+  const saved = await request(baseUrl)
+    .put(`/api/conversations/${conversationPublicId}/saved`)
+    .set('Cookie', owner.cookie)
+    .send({})
+    .expect(201);
+  assert.equal(saved.body.saved, true);
+  const savedList = await request(baseUrl).get('/api/saved-chats').set('Cookie', owner.cookie).expect(200);
+  assert.equal(savedList.body.chats.some((item) => item.conversation_id === conversationPublicId), true);
 
   const messages = await request(baseUrl)
     .get(`/api/conversations/${conversationPublicId}/messages`)

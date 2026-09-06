@@ -90,7 +90,9 @@ registered accounts and 10 for premium accounts. Reports retain a separate immut
 evidence window for 24 months. An active direct conversation remains listed and
 readable even if its rolling `expires_at` timestamp is in the past; retention
 becomes eligible only after an explicit end, friendship removal or block changes
-its status from `active`.
+its status from `active`. A per-participant history-visibility marker is likewise
+ignored while a direct conversation is active, including for historical rows
+created before active-history removal was prohibited.
 
 ### Friends and inbox
 
