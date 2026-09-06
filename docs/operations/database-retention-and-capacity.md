@@ -8,7 +8,7 @@ identity and security records.
 
 | Data | Retention rule | Deletion behavior |
 |---|---|---|
-| Unsaved conversations | 7 days from `last_activity_at` | Hard-delete in bounded batches after the conversation ends. Messages, receipts and participants cascade with the conversation. |
+| Unsaved conversations | 7 days from `last_activity_at` | Hard-delete in bounded batches after the conversation ends. An active direct conversation remains visible and readable even if its rolling `expires_at` timestamp is in the past or a historical participant-visibility marker exists; the worker never selects active conversations. Messages, receipts and participants cascade with the conversation. |
 | Unsaved conversations with messages | At most 50 per registered user, newest activity first | Hard-delete the oldest unsaved conversations above the limit, even if they are younger than 7 days. The default is configurable with `RETENTION_MAX_UNSAVED_PER_USER`. |
 | Saved conversations | 12 months from `last_activity_at` | Hard-delete the conversation and every `saved_chats` reference. Opening or reading a chat does not silently extend retention. |
 | User-deleted conversations | 24-hour operational grace | Hard-delete after the grace period. |
@@ -180,7 +180,8 @@ maximum of 100.
 | Admin users, reports and bans | `cursor` for `(created_at, id)` | `page.nextCursor` |
 
 The cursor is an opaque API value. Invalid values return HTTP 400. Saved chats
-remain inherently bounded to 2 for free accounts and 10 for premium accounts.
+remain inherently bounded to 2 for guests, 5 for standard registered accounts
+and 10 for premium accounts.
 N3.1 adds the persistent guest collection with a bounded admin cursor and its
 own retention metadata; product authorization still depends exclusively on the
 guest principal bound to the server session.

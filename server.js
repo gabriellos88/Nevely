@@ -22,7 +22,6 @@ const { trustApplicationProxy, trustedClientAddress } = require('./lib/client-ad
 const safeLog = require('./lib/safe-log');
 const uiCopy = require('./public/i18n/en.json');
 
-const GUEST_CHAT_DURATION_SECONDS = 120;
 const DEFAULT_SHUTDOWN_GRACE_MS = 25_000;
 const DATABASE_HEALTH_TIMEOUT_MS = 2_000;
 
@@ -111,6 +110,9 @@ function createRuntime(options = {}) {
   }
   if (isProduction && (!environment.SESSION_SECRET || environment.SESSION_SECRET.length < 32)) {
     throw new Error('SESSION_SECRET with at least 32 characters must be configured in production.');
+  }
+  if (environment.MODERATION_MESSAGE_HMAC_KEY && environment.MODERATION_MESSAGE_HMAC_KEY.length < 16) {
+    throw new Error('MODERATION_MESSAGE_HMAC_KEY must contain at least 16 characters when configured.');
   }
   if (isProduction && !environment.ADMIN_TOTP_ENCRYPTION_KEY) {
     throw new Error('ADMIN_TOTP_ENCRYPTION_KEY must be configured in production.');
@@ -227,7 +229,6 @@ function createRuntime(options = {}) {
     }
     const currentUser = publicSessionUser(req.session.user || null);
     const isGuest = !currentUser;
-    if (isGuest && req.query.guest !== '1') return res.redirect('/login');
     if (currentUser && !currentUser.emailVerified) return res.redirect('/verify-email/pending');
     let guestClaimEligible = false;
     if (isGuest && db.isConfigured && req.session.guestPrincipalId) {
@@ -251,7 +252,6 @@ function createRuntime(options = {}) {
       isGuest,
       currentUser,
       guestClaimEligible,
-      guestDurationSeconds: GUEST_CHAT_DURATION_SECONDS,
       googleClientId: currentUser ? environment.GOOGLE_CLIENT_ID || '' : '',
       googleNonce: currentUser ? req.session.googleNonce || '' : ''
     });
@@ -259,7 +259,6 @@ function createRuntime(options = {}) {
 
   const presence = createPresence(io);
   const chat = registerChat(io, db, presence, {
-    guestDurationSeconds: GUEST_CHAT_DURATION_SECONDS,
     enforcePersistentGuestOwnership: options.enforcePersistentGuestOwnership,
     isNetworkBlocked: (address) => moderation?.isNetworkBlocked(address) || Promise.resolve(false),
     isGuestBlocked: (guestId) => moderation?.isGuestBlocked(guestId) || Promise.resolve(false),
@@ -268,11 +267,14 @@ function createRuntime(options = {}) {
     clientAddressForSocket: (socket) => trustedClientAddress(socket.request),
     rateLimiter: options.rateLimiter,
     rateLimitPrincipalResolver: options.rateLimitPrincipalResolver,
+    messageAbuseProtector: options.messageAbuseProtector,
+    strictPhaseDelayMs: options.strictPhaseDelayMs,
+    messageAbuseHmacSecret: environment.MODERATION_MESSAGE_HMAC_KEY || environment.SESSION_SECRET,
     log
   });
   const moderationControl = createModerationControlChannel({ db, chat, log });
   moderation = createModerationService({ db, presence, chat, controlChannel: moderationControl, environment });
-  registerApiRoutes(app, db, presence, { environment, moderation });
+  registerApiRoutes(app, db, presence, { environment, moderation, chat });
   const outboxWorker = createOutboxWorker({
     db,
     environment,

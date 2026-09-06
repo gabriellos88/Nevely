@@ -176,7 +176,8 @@ test('migrations, authentication, profile validation and authorization contracts
 
   const destructiveMemberRoutes = [
     { method: 'delete', path: '/api/account', body: { confirmation: 'DELETE' } },
-    { method: 'delete', path: '/api/conversations/1', body: { confirmation: true } },
+    { method: 'delete', path: '/api/conversations/cnv_000000000000000000000000/history', body: { confirmation: 'REMOVE FROM MY HISTORY' } },
+    { method: 'post', path: '/api/conversations/cnv_000000000000000000000000/delete-unsaved', body: { confirmation: 'DELETE UNSAVED MESSAGES' } },
     { method: 'delete', path: '/api/conversations/1/saved' },
     { method: 'delete', path: '/api/friends/1' },
     { method: 'delete', path: '/api/blocks/1' }
@@ -203,9 +204,11 @@ test('migrations, authentication, profile validation and authorization contracts
   await primary.delete('/api/guest-profile').expect(409);
 
   const conversation = await db.query(
-    `INSERT INTO conversations (type) VALUES ('random') RETURNING id`
+    `INSERT INTO conversations (type, status, ended_at)
+     VALUES ('random', 'ended', NOW()) RETURNING id, public_id`
   );
   const conversationId = Number(conversation.rows[0].id);
+  const conversationPublicId = conversation.rows[0].public_id;
   await db.query(
     `INSERT INTO conversation_participants (conversation_id, user_id, socket_id, display_name)
      VALUES ($1, $2, $3, $4), ($1, $5, $6, $7)`,
@@ -227,15 +230,15 @@ test('migrations, authentication, profile validation and authorization contracts
   );
 
   await outsider
-    .delete(`/api/conversations/${conversationId}`)
-    .send({ confirmation: 'DELETE FOR EVERYONE' })
+    .delete(`/api/conversations/${conversationPublicId}/history`)
+    .send({ confirmation: 'REMOVE FROM MY HISTORY' })
     .expect(404);
   assert.equal(
     (await db.query('SELECT status FROM conversations WHERE id = $1', [conversationId])).rows[0].status,
-    'active'
+    'ended'
   );
 
-  await outsider.delete(`/api/conversations/${conversationId}/saved`).expect(204);
+  await outsider.delete(`/api/conversations/${conversationPublicId}/saved`).expect(204);
   assert.equal(
     Number((await db.query(
       'SELECT COUNT(*) AS count FROM saved_chats WHERE user_id = $1 AND conversation_id = $2',
@@ -263,22 +266,27 @@ test('migrations, authentication, profile validation and authorization contracts
   );
 
   await primary
-    .delete(`/api/conversations/${conversationId}`)
+    .delete(`/api/conversations/${conversationPublicId}/history`)
     .send({ confirmation: 'wrong value' })
     .expect(400);
-  await primary.delete(`/api/conversations/${conversationId}/saved`).expect(204);
+  await primary.delete(`/api/conversations/${conversationPublicId}/saved`).expect(204);
   await primary.delete(`/api/friends/${memberPublicId}`).expect(204);
   await primary.delete(`/api/blocks/${memberPublicId}`).expect(204);
   await primary
-    .delete(`/api/conversations/${conversationId}`)
-    .send({ confirmation: 'DELETE FOR EVERYONE' })
+    .delete(`/api/conversations/${conversationPublicId}/history`)
+    .send({ confirmation: 'REMOVE FROM MY HISTORY' })
     .expect(204);
-  assert.equal(
+  assert.deepEqual(
     (await db.query(
-      'SELECT status, deleted_for_everyone_at IS NOT NULL AS deleted FROM conversations WHERE id = $1',
-      [conversationId]
-    )).rows[0].deleted,
-    true
+      `SELECT c.status, c.deleted_for_everyone_at IS NOT NULL AS deleted,
+              EXISTS (
+                SELECT 1 FROM conversation_history_visibility visibility
+                WHERE visibility.conversation_id = c.id AND visibility.user_id = $2
+              ) AS hidden
+       FROM conversations c WHERE c.id = $1`,
+      [conversationId, primaryId]
+    )).rows[0],
+    { status: 'ended', deleted: false, hidden: true }
   );
   assert.equal(
     Number((await db.query(

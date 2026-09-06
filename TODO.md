@@ -195,27 +195,52 @@ deferred N1.12 transactional-email polish is now tracked unchanged as N9.6.
 - [ ] **N4.6 — Add an append-only admin audit log.** Record actor, target, action, reason, before/after state, request correlation ID and timestamp without copying sensitive message content unnecessarily.
 - [ ] **N4.7 — Add safer role management.** Require re-authentication, 2FA and audit logging for grants/revocations; invalidate affected sessions.
 
-### N5. Matching and chat correctness
+### N5. Chat experience and abuse resistance
 
-- [ ] **N5.1 — Replace the current hard waiting timeout with two-phase topic matching.**
-  - No selected topics: enter the general queue immediately without a topic countdown.
-  - Selected topics: first require at least one normalized common topic.
-  - At timeout, keep the user queued and relax only the common-topic requirement.
-  - Keep premium filters, blocks, bans and safety rules active in both phases.
-  - Preserve the unlimited option as an explicit strict-wait choice.
-- [ ] **N5.2 — Expose one authoritative waiting state.**
-  - Remove duplicate “Looking for up to …” messages.
-  - Distinguish strict-topic and relaxed-general search in one visible status with one accessible live announcement.
-  - Add cancellation and reconnection behavior.
-- [ ] **N5.3 — Fix the chat viewport layout.**
-  - Keep the partner/header panel and composer fixed within the chat workspace.
-  - Make only the message list scrollable with `min-height: 0` and contained scroll anchoring.
-  - Verify desktop, mobile viewport changes, on-screen keyboards and safe-area insets.
-- [ ] **N5.4 — Strengthen cooldown and spam controls.**
-  - Keep the existing message and skip limits but key them to account/guest identity.
-  - Add burst and sustained limits with clear retry timing.
-  - Cover reconnect and multi-tab bypasses in tests.
-- [ ] **N5.5 — Decide whether the separate 120-second guest conversation duration remains fixed or becomes configurable.** Do not conflate it with topic waiting time.
+- [x] **N5.1 — Audit the anti-spam baseline before changing enforcement.**
+  - Document principal and event limits, cross-replica persistence, reconnect behavior, feedback and privacy boundaries.
+  - Keep message content, raw IPs and device fingerprints out of logs and audit metadata.
+- [x] **N5.2 — Add progressive, distributed abuse controls.**
+  - Normalize duplicate comparison server-side and use pseudonymous shared signal buckets.
+  - Separate tolerant skip UX from queue churn/flood and stricter message enforcement.
+  - Cover cross-replica, reconnect, concurrent rematch, flood and bypass behavior with PostgreSQL and Socket.IO tests.
+- [x] **N5.3 — Refine the desktop chat workspace.**
+  - Keep partner/status and composer fixed inside the conversation workspace; only messages scroll.
+  - Keep Send attached to the message field and separate Next visually and spatially.
+  - Use the topic slider for the strict phase, allow an explicit Unlimited preference, and otherwise relax server-side without leaving the queue.
+  - Provide an explicit server-authoritative Cancel search action and prevent duplicate socket/principal queue entries.
+  - Keep Report in the conversation menu, Next as the only rematch action and wait for authoritative Socket.IO results.
+  - Cover loading, match, reconnect, error, report and end states with keyboard-visible focus and 44px targets.
+  - Verify Playwright at `1366×768` and `768×1024` with captured screenshots.
+- [x] **N5.3.1 — Separate search and conversation lifecycle surfaces.**
+  - Render search directly in the Astra chat surface from server-authoritative topic/general states.
+  - Keep only Next beside the joined message field and preserve the ended partner identity and Save action.
+  - Hide empty Chat requests, gate Add friend from the server and keep the message list above the in-flow composer.
+  - Verify Playwright at `1366×768`, `1366×640` and `768×1024`.
+- [x] **N5.3.2 — Friendship, notifications and direct friend chat.**
+  - [x] Friendship requests: transactional create, accept, decline and cancel with public IDs and post-commit realtime events.
+  - [x] Friend list: server capabilities, accessible menus and idempotent removal.
+  - [x] Notifications: persistent appearance, read and product dismissal with minimized payloads.
+  - [x] Chat requests: persistent expiry, idempotent send/respond/cancel and distributed rate limits.
+  - [x] Direct friend chat: server-owned conversation type, one conversation per acceptance and End without random rematch or skip usage.
+  - [x] Require confirmation for friend removal/block, route friendship notifications to Friend requests and mirror its pending badge in the selector.
+  - [x] Keep at most five direct conversations in Inbox, split active/recent, and expose server-derived Save/Unsave/Delete capabilities across Inbox, Recent and Saved.
+  - [x] Raise the standard account saved-chat allowance to five while retaining guest and Premium policy server-side.
+  - [x] Keep direct conversations active across disconnect/reconnect; end them only explicitly, by friendship removal or by block, with one PostgreSQL reservation per pair.
+  - [x] Keep an active direct conversation visible and readable when its rolling retention timestamp has elapsed or a historical personal-visibility marker exists; apply ordinary chat retention/history hiding only after the server changes it to an ended state.
+  - [x] Allow an active direct conversation to be parked for random matching and resumed from Inbox without consuming skip; bound ordinary visible message history to 200 while preserving saved and moderation-retained data.
+  - [x] Separate confirmed End conversation, per-participant Remove from my history and distributed-cooldown Delete unsaved messages; preserve saved, report, evidence and moderation retention.
+  - [x] Keep Save/Unsave individual and retain saved conversations in anonymized form when the partner identity is no longer product-visible.
+  - [x] Persist chat-request notifications and include their server-counted pending total in the Messages badge.
+  - [x] Route direct-chat notifications to Conversations, allow accepted-friend notifications to be dismissed and render only minimized public actor avatars with a safe fallback.
+  - [x] Replace product-visible conversation/message serial keys, cursors and read receipts with opaque public IDs while retaining server-side transactional keys.
+  - [x] Keep history profile cards presence-free, preserve avatar aspect ratio and move destructive End to the left of the composer.
+  - [x] Make normalized duplicate-message enforcement tolerant of four repeats in 30 seconds while retaining the separate 12/10-second burst limit.
+- [x] **N5.4 — Refine the mobile chat workspace.**
+  - [x] Verify `390×844`, `844×390`, a reduced `390×520` keyboard viewport and safe-area-aware layout.
+  - [x] Keep the composer contained and usable; keep drawers and modals in the viewport with keyboard-visible focus and 44px close targets.
+  - [x] Cover message overflow and the responsive Friends/Chat requests drawers with Playwright screenshots.
+- [x] **N5.5 — Remove the guest conversation duration limit.** Retain anti-abuse, retention, session, report and disconnect controls.
 
 ---
 

@@ -61,7 +61,19 @@ function guest(name, interests = []) {
   };
 }
 
-test('two guest clients match, exchange a message, respect cooldown and observe disconnect', async (t) => {
+function emitWithAck(socket, eventName, payload) {
+  return new Promise((resolve, reject) => {
+    const timeout = setTimeout(() => reject(new Error(`Timed out waiting for ${eventName} acknowledgement`)), 3_000);
+    const acknowledge = (response) => {
+      clearTimeout(timeout);
+      resolve(response);
+    };
+    if (payload === undefined) socket.emit(eventName, acknowledge);
+    else socket.emit(eventName, payload, acknowledge);
+  });
+}
+
+test('two guest clients match, exchange a message, and end the pair once on skip', async (t) => {
   const runtime = createRuntime({
     db: disabledDb(),
     env: {
@@ -83,8 +95,10 @@ test('two guest clients match, exchange a message, respect cooldown and observe 
   });
 
   const waiting = eventFrom(first, 'waiting');
+  const searchState = eventFrom(first, 'search-state');
   first.emit('find-partner', guest('First Guest', ['astronomy']));
-  assert.deepEqual(await waiting, { waitingTimeSeconds: null });
+  assert.deepEqual(await waiting, { status: 'searching' });
+  assert.deepEqual(await searchState, { phase: 'topic-preference' });
 
   const firstMatched = eventFrom(first, 'matched');
   const secondMatched = eventFrom(second, 'matched');
@@ -93,20 +107,154 @@ test('two guest clients match, exchange a message, respect cooldown and observe 
   assert.deepEqual(firstMatch.sharedInterests, ['astronomy']);
   assert.deepEqual(secondMatch.sharedInterests, ['astronomy']);
   assert.equal(firstMatch.isGuest, true);
+  assert.equal(firstMatch.canAddFriend, false);
+  assert.equal(firstMatch.conversationType, 'random');
+  assert.deepEqual(firstMatch.capabilities, {
+    canNext: true,
+    canEnd: false,
+    canReport: true,
+    canAddFriend: false,
+    canBlock: false
+  });
+  assert.equal(Object.hasOwn(firstMatch, 'durationSeconds'), false);
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(runtime.chat.getActiveConversationCount(), 1);
 
   const received = eventFrom(second, 'receive-message');
   first.emit('send-message', 'synthetic socket test message');
   assert.equal((await received).text, 'synthetic socket test message');
 
-  const cooldown = eventFrom(first, 'skip-cooldown');
-  first.emit('leave-chat');
-  const cooldownPayload = await cooldown;
-  assert.ok(cooldownPayload.remainingMs > 0);
-  assert.ok(cooldownPayload.remainingMs <= 10_000);
+  const reportSubmitted = eventFrom(first, 'report-submitted');
+  first.emit('report', { reason: 'spam', details: 'Synthetic test context' });
+  assert.deepEqual(await reportSubmitted, { stored: false });
 
-  const partnerLeft = eventFrom(first, 'partner-left');
+  const partnerLeftAfterSkip = eventFrom(second, 'partner-left');
+  const leaveResult = await emitWithAck(first, 'leave-chat');
+  assert.deepEqual(leaveResult, { ok: true, ended: true });
+  assert.equal((await partnerLeftAfterSkip).conversationId, null);
+
   second.disconnect();
-  assert.equal((await partnerLeft).conversationId, null);
+});
+
+test('general search remains queued beyond the slider and cancel removes it server-side', async (t) => {
+  const runtime = createRuntime({
+    db: disabledDb(),
+    strictPhaseDelayMs: () => 40,
+    env: { NODE_ENV: 'test', SESSION_SECRET: 'socket-test-session-secret', SHUTDOWN_GRACE_MS: '1000' },
+    log: quietLog
+  });
+  const address = await runtime.start({ port: 0, host: '127.0.0.1' });
+  const socket = await connectSocket(`http://127.0.0.1:${address.port}`);
+  t.after(async () => {
+    socket.disconnect();
+    await runtime.shutdown();
+  });
+
+  let timedOut = false;
+  socket.once('waiting-timeout', () => { timedOut = true; });
+  const waiting = eventFrom(socket, 'waiting');
+  const searchState = eventFrom(socket, 'search-state');
+  socket.emit('find-partner', { ...guest('General Guest'), waitingTimeSeconds: 5 });
+  assert.deepEqual(await waiting, { status: 'searching' });
+  assert.deepEqual(await searchState, { phase: 'general' });
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.equal(timedOut, false);
+
+  const cancelled = eventFrom(socket, 'search-cancelled');
+  assert.deepEqual(await emitWithAck(socket, 'cancel-search'), { ok: true, cancelled: true });
+  await cancelled;
+  assert.deepEqual(await emitWithAck(socket, 'cancel-search'), { ok: true, cancelled: false });
+});
+
+test('topic matching is strict first and relaxes in place without leaving the queue', async (t) => {
+  const runtime = createRuntime({
+    db: disabledDb(),
+    strictPhaseDelayMs: () => 60,
+    env: { NODE_ENV: 'test', SESSION_SECRET: 'socket-test-session-secret', SHUTDOWN_GRACE_MS: '1000' },
+    log: quietLog
+  });
+  const address = await runtime.start({ port: 0, host: '127.0.0.1' });
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  const strictFirst = await connectSocket(baseUrl);
+  const strictSecond = await connectSocket(baseUrl);
+  const relaxedFirst = await connectSocket(baseUrl);
+  const relaxedSecond = await connectSocket(baseUrl);
+  const sockets = [strictFirst, strictSecond, relaxedFirst, relaxedSecond];
+  t.after(async () => {
+    sockets.forEach((socket) => socket.disconnect());
+    await runtime.shutdown();
+  });
+
+  const strictWaiting = eventFrom(strictFirst, 'waiting');
+  const strictState = eventFrom(strictFirst, 'search-state');
+  strictFirst.emit('find-partner', { ...guest('Strict First', ['astronomy']), waitingTimeSeconds: 5 });
+  await strictWaiting;
+  assert.deepEqual(await strictState, { phase: 'topic-preference' });
+  const strictMatches = Promise.all([eventFrom(strictFirst, 'matched'), eventFrom(strictSecond, 'matched')]);
+  strictSecond.emit('find-partner', { ...guest('Strict Second', ['astronomy']), waitingTimeSeconds: 5 });
+  const [strictMatch] = await strictMatches;
+  assert.deepEqual(strictMatch.sharedInterests, ['astronomy']);
+
+  const relaxedWaiting = eventFrom(relaxedFirst, 'waiting');
+  const relaxedFirstStrict = eventFrom(relaxedFirst, 'search-state');
+  relaxedFirst.emit('find-partner', { ...guest('Relaxed First', ['astronomy']), waitingTimeSeconds: 5 });
+  await relaxedWaiting;
+  assert.deepEqual(await relaxedFirstStrict, { phase: 'topic-preference' });
+  const relaxedFirstGeneral = eventFrom(relaxedFirst, 'search-state');
+  const secondWaiting = eventFrom(relaxedSecond, 'waiting');
+  const relaxedSecondStrict = eventFrom(relaxedSecond, 'search-state');
+  const relaxedMatches = Promise.all([
+    eventFrom(relaxedFirst, 'matched'),
+    eventFrom(relaxedSecond, 'matched')
+  ]);
+  relaxedSecond.emit('find-partner', { ...guest('Relaxed Second', ['literature']), waitingTimeSeconds: 5 });
+  await secondWaiting;
+  assert.deepEqual(await relaxedSecondStrict, { phase: 'topic-preference' });
+  const relaxedSecondGeneral = eventFrom(relaxedSecond, 'search-state');
+  assert.deepEqual(await relaxedFirstGeneral, { phase: 'general' });
+  assert.deepEqual(await relaxedSecondGeneral, { phase: 'general' });
+  const [relaxedMatch] = await relaxedMatches;
+  assert.deepEqual(relaxedMatch.sharedInterests, []);
+});
+
+test('unlimited topic preference remains strict without imposing a thirty-second maximum', async (t) => {
+  const runtime = createRuntime({
+    db: disabledDb(),
+    strictPhaseDelayMs: () => 40,
+    env: { NODE_ENV: 'test', SESSION_SECRET: 'socket-test-session-secret', SHUTDOWN_GRACE_MS: '1000' },
+    log: quietLog
+  });
+  const address = await runtime.start({ port: 0, host: '127.0.0.1' });
+  const baseUrl = `http://127.0.0.1:${address.port}`;
+  const astronomy = await connectSocket(baseUrl);
+  const literature = await connectSocket(baseUrl);
+  const compatible = await connectSocket(baseUrl);
+  const sockets = [astronomy, literature, compatible];
+  t.after(async () => {
+    sockets.forEach((socket) => socket.disconnect());
+    await runtime.shutdown();
+  });
+
+  const astronomyStates = [];
+  const literatureStates = [];
+  astronomy.on('search-state', (state) => astronomyStates.push(state.phase));
+  literature.on('search-state', (state) => literatureStates.push(state.phase));
+  const firstWaiting = eventFrom(astronomy, 'waiting');
+  astronomy.emit('find-partner', guest('Unlimited Astronomy', ['astronomy']));
+  await firstWaiting;
+  const secondWaiting = eventFrom(literature, 'waiting');
+  literature.emit('find-partner', guest('Unlimited Literature', ['literature']));
+  await secondWaiting;
+
+  await new Promise((resolve) => setTimeout(resolve, 100));
+  assert.deepEqual(astronomyStates, ['topic-preference']);
+  assert.deepEqual(literatureStates, ['topic-preference']);
+
+  const matched = Promise.all([eventFrom(astronomy, 'matched'), eventFrom(compatible, 'matched')]);
+  compatible.emit('find-partner', guest('Compatible Astronomy', ['astronomy']));
+  const [astronomyMatch] = await matched;
+  assert.deepEqual(astronomyMatch.sharedInterests, ['astronomy']);
+  assert.deepEqual(await emitWithAck(literature, 'cancel-search'), { ok: true, cancelled: true });
 });
 
 test('draining sends only a generic notice and rejects new matching work', async (t) => {
@@ -159,6 +307,16 @@ test('shutdown waits for active conversation persistence before closing resource
           if (sql.includes('INSERT INTO conversations')) {
             return { rowCount: 1, rows: [{ id: 1 }] };
           }
+          if (sql.includes('SELECT public_id FROM conversations')) {
+            return { rowCount: 1, rows: [{ public_id: 'cnv_0123456789abcdef01234567' }] };
+          }
+          if (sql.includes('UPDATE conversations SET status')) {
+            markEndUpdateStarted();
+            await endUpdateGate;
+            return { rowCount: 1, rows: [] };
+          }
+          if (sql.includes('UPDATE conversation_participants')) return { rowCount: 2, rows: [] };
+          if (sql.includes('DELETE FROM direct_conversation_pairs')) return { rowCount: 0, rows: [] };
           return { rowCount: 0, rows: [] };
         },
         release() {}
@@ -166,13 +324,10 @@ test('shutdown waits for active conversation persistence before closing resource
     },
     async query(sql) {
       if (sql.includes('FROM account_bans') || sql.includes('FROM network_bans')) return { rowCount: 0, rows: [] };
-      if (sql.includes('UPDATE conversations SET status')) {
-        markEndUpdateStarted();
-        await endUpdateGate;
-        return { rowCount: 1, rows: [] };
-      }
-      if (sql.includes('UPDATE conversation_participants')) return { rowCount: 2, rows: [] };
       if (sql.includes('DELETE FROM conversations')) return { rowCount: 0, rows: [] };
+      if (sql.includes('SELECT public_id FROM conversations')) {
+        return { rowCount: 1, rows: [{ public_id: 'cnv_0123456789abcdef01234567' }] };
+      }
       if (sql.includes('SELECT 1 AS ready')) return { rowCount: 1, rows: [{ ready: 1 }] };
       throw new Error('Unexpected database query in shutdown test');
     },
